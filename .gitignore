@@ -1,0 +1,19 @@
+# Compiled python modules
+*.pyc
+
+# Backup files
+*~
+
+# Setuptools distribution folder
+/__pycache__/
+/dist/
+/build/
+/scratch/
+
+# Python egg metadata, regenerated from source files by setuptools
+/*.egg-info
+
+# Other stuff
+.mypy_cache
+.vscode
+xnicer.code-workspace
