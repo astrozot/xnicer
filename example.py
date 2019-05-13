@@ -1,3 +1,8 @@
+# Typical test usage for the XNICER pipeline.
+# Created by Marco Lombardi on 13 May 2019.
+# N.B. This example is based on the VISION data and is specific to this case;
+# just change the code accordongly.
+
 # The following lines make sure that NumPy does not perform any
 # multithreading. This is very important for the extreme deconvolution
 # library, which uses Open MP and would be slowed down significantly without
@@ -23,7 +28,9 @@ from astropy.io import ascii
 from astropy.coordinates import SkyCoord
 from xnicer import *
 
-# Load the control (*_c) and the science (*_s) data
+# Load the control (*_c) and the science (*_s) data. The following lines are
+# based on the Vision dataset in Orion, and have hard-coded here my local
+# setup. Change them accordingly to your data.
 path = '/Users/mlombard/TeX/art64/Vision/'
 cat_c = ascii.read(path + 'control.dat', readme=path + 'ReadMe')
 cat_s = ascii.read(path + 'science.dat', readme=path + 'ReadMe')
