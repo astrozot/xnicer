@@ -16,4 +16,5 @@
 # Other stuff
 .mypy_cache
 .vscode
+.eggs
 xnicer.code-workspace

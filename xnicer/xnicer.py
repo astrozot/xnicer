@@ -29,11 +29,15 @@ class XNicer(BaseEstimator):
     xdcv : XDCV
         An XDCV instance used to perform all necessary extreme deconvolutions.
 
-    extinctions : array-like, shape (_,)
+    extinctions : array-like, shape (n_extinctions,)
         A 1D vector of extinctions used to perform a selection correction.
 
     extinction_vec : array-like, shape (n_bands,)
         The extinction vector, that is A_band / A_ref, for each band.
+
+    log_weights_ : tuple of array-like, shape (n_extinctions, xdcv[class].n_components))
+        The log of the weights of the extreme decomposition, for each class of
+        objects, at each extintion value.
     """
 
     def __init__(self, xdcv, extinctions=None, extinction_vec=None):
@@ -63,6 +67,7 @@ class XNicer(BaseEstimator):
         if band is not None:
             # Compute the cumulative distribution and use it in the magnitude
             # mapping.
+            # TODO: check how to do this in case of several classes!
             eps = 1e-7
             w = np.where(cat.mag_errs[:, band] < cat.max_err)[0]
             mags = np.sort(cat.mags[w, band])
@@ -86,11 +91,11 @@ class XNicer(BaseEstimator):
                                       map_mags=self.map)
                                       # map_mags=lambda m: self.map(m + extinction * self.extinction_vec[band]))
             if n == 0:
-                self.xdcv.fit(cols_A.cols, cols_A.col_covs, cols_A.projections, 
-                              log_weight=cols_A.log_probs)
+                    self.xdcv.fit(cols_A.cols, cols_A.col_covs, cols_A.projections, 
+                                  log_weight=cols_A.log_probs)
             else:
-                self.xdcv.fit(cols_A.cols, cols_A.col_covs, cols_A.projections,
-                              fixmean=True, fixcovar=True, log_weight=cols_A.log_probs)
+                    self.xdcv.fit(cols_A.cols, cols_A.col_covs, cols_A.projections,
+                                  fixmean=True, fixcovar=True, log_weight=cols_A.log_probs)
             if self.log_weights_ is None:
                 # We could set this earlier in the __init__, but it does not
                 # work in case the numbero of components for self.xdcv is an

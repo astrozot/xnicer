@@ -27,6 +27,9 @@ del os.environ["OMP_NUM_THREADS"]
 from astropy.io import ascii
 from astropy.coordinates import SkyCoord
 from xnicer import *
+from xnicer.catalogs import *
+from xnicer.xdcv import *
+from xnicer.xnicer import *
 
 # Load the control (*_c) and the science (*_s) data. The following lines are
 # based on the Vision dataset in Orion, and have hard-coded here my local

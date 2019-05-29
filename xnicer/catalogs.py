@@ -41,6 +41,17 @@ class PhotometricCatalogue(object):
         probabilities. In any case, if set to None, all objects are assumed to
         be observable with 100% probability.
 
+    class_names : tuple or list of strings or None
+        The name of the various discrete classes of objects the catalogue
+        describes. If None, all objects are taken to be part of the same
+        class.
+
+    log_class_probs : array_like, shape (n_objs, n_classes) or None
+        If the catalogue contains classified objects, an array that stores,
+        for each object, the logarithms of the probability that each object
+        belongs to a given class. The probabilities, if provided, should be
+        normalized to unity, so that logaddexp(log_class_probs, axis=1) == 0.
+
     use_projection : bool, default to True
         What to do in case of missing band measurements. If true, the
         catalogue will be built using different combinations of magnitudes and
@@ -70,7 +81,7 @@ class PhotometricCatalogue(object):
         less bands available.
 
     selection : array_like, shape (n_objs,)
-        Indexes in the original catalogue of objects that have been used.
+        Indices in the original catalogue of objects that have been used.
 
     mags : array_like, shape (n_objs, n_bands)
         Array with the extracted magnitudes.
@@ -82,6 +93,17 @@ class PhotometricCatalogue(object):
         The log probability to observe a given magnitude for a given object.
         Used to simulate the effects of extinction through `extinguish`. If
         None, the probabilities are ignored.
+
+    class_names : tuple or list of strings or None
+        The name of the various discrete classes of objects the catalogue
+        describes. If None, all objects are taken to be part of the same
+        class.
+
+    log_class_probs : array_like, shape (n_objs, n_classes) or None
+        If the catalogue contains classified objects, an array that stores,
+        for each object, the logarithms of the probability that each object
+        belongs to a given class. The probabilities, if provided, should be
+        normalized to unity, so that logaddexp(log_class_probs, axis=1) == 0.
 
     nc_pars: array_like, shape (n_bands, 3) or None
         Array that reports, for each band, the best-fit number-count
@@ -96,6 +118,7 @@ class PhotometricCatalogue(object):
     """
 
     def __init__(self, cat=None, mags=None, mag_errs=None, log_probs=None,
+                 class_names=None, log_class_probs=None,
                  max_err=1.0, min_bands=2, null_mag=15.0, null_err=100.0):
         # First of all the easy stuff
         self.max_err = max_err
@@ -103,6 +126,8 @@ class PhotometricCatalogue(object):
         self.nc_pars = None
         self.null_mag = null_mag
         self.null_err = null_err
+        if class_names is not None:
+            self.class_names = tuple(class_names)
 
         # Now deal with the empty constructor case
         if mags is None:
@@ -124,8 +149,14 @@ class PhotometricCatalogue(object):
                 if n_bands != len(log_probs):
                     raise ValueError(
                         "Magnitudes and log-probabilites must have the same number of bands")
-                self.prob_names = log_probs
+                prob_names = log_probs
                 log_probs = np.empty((n_objs, n_bands))
+            if log_class_probs is not None:
+                if len(self.class_names) != len(log_class_probs):
+                    raise ValueError(
+                        "Class names and log of class probabilities must have the same number of objects")
+                class_prob_names = log_class_probs
+                log_class_probs = np.empty((n_objs, len(self.class_names)))
             mags = np.empty((n_objs, n_bands))
             mag_errs = np.empty((n_objs, n_bands))
             for n in range(n_bands):
@@ -142,8 +173,10 @@ class PhotometricCatalogue(object):
                 mags[w, n] = null_mag
                 mag_errs[w, n] = null_err
                 if log_probs is not None:
-                    log_probs[:, n] = cat[self.prob_names[n]]
+                    log_probs[:, n] = cat[prob_names[n]]
                     log_probs[w, n] = 0.0
+                if log_class_probs is not None:
+                    log_class_probs = cat[class_prob_names[n]]
         else:
             if mags.ndim != 2 or mag_errs.ndir != 2:
                 raise ValueError(
@@ -159,9 +192,22 @@ class PhotometricCatalogue(object):
                 if log_probs.ndim != 2:
                     raise ValueError(
                         "Log-probabities must be a two-dimensional array")
-                if n_bands != len(log_probs):
+                if n_objs != log_probs.shape[0]:
                     raise ValueError(
-                        "Log-probabilites must have the same number of bands")
+                        "Log-probabilites must have the right number of objects")
+                if n_bands != log_probs.shape[1]:
+                    raise ValueError(
+                        "Log-probabilites must have the right number of bands")
+            if log_class_probs is not None:
+                if log_class_probs.ndim != 2:
+                    raise ValueError(
+                        "Log-probabities of classes must be a two-dimensional array")
+                if n_objs != log_class_probs.shape[0]:
+                    raise ValueError(
+                        "Log-probabilites of classes must have the right number of objects")
+                if len(class_names) != log_class_probs.shape[1]:
+                    raise ValueError(
+                        "Log-probabilites of classes must have the same number of classes")
             if n_objs < n_bands:
                 raise ValueError(
                     "Expecting a n_objs x n_bands array for mags and errs")
@@ -175,6 +221,7 @@ class PhotometricCatalogue(object):
         self.mags = mags
         self.mag_errs = mag_errs
         self.log_probs = log_probs
+        self.log_class_probs = log_class_probs
 
     def __len__(self):
         return self.n_objs
@@ -186,6 +233,8 @@ class PhotometricCatalogue(object):
         res.mag_errs = res.mag_errs[sliced]
         if res.log_probs is not None:
             res.log_probs = res.log_probs[sliced]
+        if res.log_class_probs is not None:
+            res.log_class_probs = res.log_class_probs[sliced]
         try:
             res.n_objs = len(res.selection)
         except TypeError:
@@ -193,7 +242,7 @@ class PhotometricCatalogue(object):
         return res
 
     def add_log_probs(self):
-        """Add (log) probabilities to the color catalogue.
+        """Add (log) probabilities to the photometric catalogue.
 
         Magnitude measurements with magnitude errors larger than max_err are
         marked with 0 probability.
@@ -203,7 +252,7 @@ class PhotometricCatalogue(object):
         self.log_probs[np.where(self.mag_errs > self.max_err)] = -np.inf
 
     def remove_log_probs(self):
-        """Removes log probabilities from the color catalogue.
+        """Removes log probabilities from the photometric catalogue.
         
         This method also applies decimation to the data: that is, it "cleans"
         magnitudes bands depending on the value of the log probabilities.
@@ -374,9 +423,10 @@ class PhotometricCatalogue(object):
             projections = None
 
         return ColorCatalogue(cols, col_covs, selection=self.selection, projections=projections,
-                              log_probs=None)
+                              log_probs=None, log_class_probs=self.log_class_probs)
 
-    def fit_number_counts(self, start_completeness=20.0, start_width=0.3, method='Nelder-Mead'):
+    def fit_number_counts(self, start_completeness=20.0, start_width=0.3, method='Nelder-Mead',
+                          indices=None):
         """Perform a fit with a simple model for the number counts.
 
         The assumed model is an exponential distribution, truncated at high
@@ -388,7 +438,22 @@ class PhotometricCatalogue(object):
         its width. Note that this procedure must be used to correctly
         simulate extinction in a control field.
 
-        The results of the best-fit are saved in self.nc_pars and also returned.
+        The results of the best-fit are saved in self.nc_pars and also
+        returned.
+        
+        Arguments
+        ---------
+        start_completeness : float, default = 20.0
+            The initial guess for the 50% completeness magnitude.
+
+        start_width : float, default = 0.3
+            The initial guess for the width of the completeness truncation.
+
+        method : string, default = 'Nelder-Mead'
+            The optimization method to use (see `minimize`).
+
+        indices : list of indices, slice, or None
+            If provided, an index specification indicating the objects to use.
 
         Return value
         ------------
@@ -415,8 +480,11 @@ class PhotometricCatalogue(object):
             return -lnlike
 
         nc_pars = []
+        if indices is None:
+            indices = slice(None)
         for band in range(self.n_bands):
-            mags = self.mags[self.mag_errs[:, band] < self.max_err, band]
+            mags = self.mags[indices, band]
+            mags = mags[self.mag_errs[indices, band] < self.max_err]
             p0 = np.array([start_completeness, start_width])
             m = minimize(number_count_lnlikelihood_, p0,
                          args=(mags,), method=method)
@@ -499,10 +567,7 @@ class PhotometricCatalogue(object):
         if cat.log_probs is None and (apply_completeness or update_errors):
             w = np.where(np.sum(cat.mag_errs < cat.max_err,
                                 axis=1) >= cat.min_bands)[0]
-            cat.mags = cat.mags[w, :]
-            cat.mag_errs = cat.mag_errs[w, :]
-            cat.selection = cat.selection[w]
-            cat.n_objs = len(w)
+            cat = cat[w]
         return cat
 
 
@@ -521,7 +586,7 @@ class ColorCatalogue(object):
         An array with the color covariance matrices.
 
     selection : array_like, shape (n_objs,) or None
-        Indexes in the original catalogue of objects that have been used. If
+        Indices in the original catalogue of objects that have been used. If
         None, all objects (in their order) are taken to have been used.
 
     projections : array_like, shape (n_objs, n_cols, n_cols) or None
@@ -531,6 +596,18 @@ class ColorCatalogue(object):
         An array with the (log) probabilities to detect a given color
         combination (i.e., object). If set to None, all objects are assumed to
         be observable with 100% probability.
+
+    class_names : tuple or list of strings or None
+        The name of the various discrete classes of objects the catalogue
+        describes. If None, all objects are taken to be part of the same
+        class.
+
+    log_class_probs : array_like, shape (n_objs, n_classes) or None
+        If the catalogue contains classified objects, an array that stores,
+        for each object, the logarithms of the probability that each object
+        belongs to a given class. The probabilities, if provided, should be
+        normalized to unity, so that logaddexp(log_class_probs, axis=1) == 0.
+
 
     Attributes
     ----------
@@ -548,7 +625,7 @@ class ColorCatalogue(object):
         An array with the color covariance matrices.
 
     selection : array_like, shape (n_objs,)
-        Indexes in the original catalogue of objects that have been used.
+        Indices in the original catalogue of objects that have been used.
 
     projections : array_like, shape (n_objs, n_cols, n_cols) or None
         If set, the array of projection matrices used to compute the colors.
@@ -557,10 +634,21 @@ class ColorCatalogue(object):
         An array with the (log) probabilities to detect a given color
         combination (i.e., object). If set to None, all objects are assumed to
         be observable with 100% probability.
+
+    class_names : tuple or list of strings or None
+        The name of the various discrete classes of objects the catalogue
+        describes. If None, all objects are taken to be part of the same
+        class.
+
+    log_class_probs : array_like, shape (n_objs, n_classes) or None
+        If the catalogue contains classified objects, an array that stores,
+        for each object, the logarithms of the probability that each object
+        belongs to a given class. The probabilities, if provided, should be
+        normalized to unity, so that logaddexp(log_class_probs, axis=1) == 0.
     """
 
     def __init__(self, cols, col_covs, selection=None, projections=None,
-                 log_probs=None):
+                 log_probs=None, class_names=None, log_class_probs=None):
         if cols.ndim != 2:
             raise ValueError('Colors must be a two-dimensional array')
         n_objs, n_cols = cols.shape
@@ -597,6 +685,17 @@ class ColorCatalogue(object):
             if log_probs.shape[0] != n_objs:
                 raise ValueError(
                     "Color and log-probabilities must have the same number of objects")
+        if log_class_probs is not None:
+            if log_class_probs.ndim != 2:
+                raise ValueError(
+                    'Log probabilities for classes must be a two-dimensional array')
+            if log_class_probs.shape[0] != n_objs or \
+                log_class_probs.shape[1] != len(class_names):
+                raise ValueError(
+                    'Wrong size of log-probabilities for classes')
+        elif class_names is not None:
+            raise ValueError('If class names are provided, log probabilities '
+                'for classes must be provided too')
         # Saves the results
         self.n_objs = n_objs
         self.n_cols = n_cols
@@ -608,6 +707,8 @@ class ColorCatalogue(object):
             self.selection = np.arange(n_objs)
         self.projections = projections
         self.log_probs = log_probs
+        self.class_names = class_names
+        self.log_class_probs = log_class_probs
 
     def __len__(self):
         return self.n_objs
@@ -621,6 +722,8 @@ class ColorCatalogue(object):
             res.projections = res.projections[sliced]
         if res.log_probs is not None:
             res.log_probs = res.log_probs[sliced]
+        if res.log_class_probs is not None:
+            res.log_class_probs = res.log_class_probs[sliced]
         try:
             res.n_objs = len(res.selection)
         except TypeError:
