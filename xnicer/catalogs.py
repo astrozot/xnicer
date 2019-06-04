@@ -742,6 +742,10 @@ class ExtinctionCatalogue(object):
     n_components : int
         The number of Gaussian components for each extinction measurement.
 
+    n_colors : int, default=0
+        If >0, the number of colors used for the estimate of the intrinsic
+        colors of each star.
+    
     selection : array-like, shape (n_objs,) or None
         If not None, the original selection of objects in the original
         catalogue.
@@ -758,35 +762,58 @@ class ExtinctionCatalogue(object):
         If not None, the original selection of objects in the original
         catalogue.
 
-    log_weights_ : array-like, shape (n_objs, n_components)
+    log_weights : array-like, shape (n_objs, n_components)
         The log of the weight of each component for each object.
 
-    means_ : array-like, shape (n_objs, n_componenets)
-        The centers of the Gaussian profiles for each component of each
-        object.
+    means_A : array-like, shape (n_objs, n_components)
+        The centers of the Gaussian profiles for each extinction component 
+        of each object.
 
-    variances_ : array-like, shape (n_objs, n_componenets)
-        The variances of the Gaussian profiles for each component of each
-        object.
-    
-    log_evidence_ : array-like, shape (n_objs,)
+    means_c : array-like, shape (n_objs, n_components, n_colors)
+        The centers of the Gaussian profiles for each intrinsic color 
+        component of each object.
+        
+    variances_A : array-like, shape (n_objs, n_components)
+        The variances of the Gaussian profiles for each extinction component
+        of each object.
+
+    variances_c : array-like, shape (n_objs, n_components, n_colors, n_colors)
+        The (co)variances of the Gaussian profiles for each intrinsic color 
+        component of each object.
+
+    covariances : array-like, shape (n_objs, n_components, n_colors)
+        The covariances of the Gaussian profiles between extinction and
+        intrinsic colors for each component of each object.
+
+    log_evidence : array-like, shape (n_objs,)
         The log evidence for each extinction measurement of each object. A
         small evidence might indicate that the object is a spurious detection.
 
-    log_weight_ : array-like, shape (n_objs,)
+    log_weight : array-like, shape (n_objs,)
         The log weight of each object. It is the log of the sum of
-        exp(log_weights_). It is normally unity, unless the associated object
+        exp(log_weights). It is normally unity, unless the associated object
         in the original color catalogue has probability different than unity
         (that is, a log_probs smaller than zero).
 
-    mean_ : array-like, shape (n_objs,)
+    mean_A : array-like, shape (n_objs,)
         The center of the single Gaussian profile that best approximates the
         extinction measurement. This is the single value to use for the
         extinction measurement (if one only needs a single value...)
 
-    variance_ : array-like, shape (n_objs,)
-        The variance associated to mean_, that is, an estimate of the square
+    mean_c : array-like, shape (n_objs, n_colors)
+        The center of the single Gaussian profile that best approximates the
+        intrinsic color. This is the single value to use for the
+        intrinsic color (if one only needs a single value...)
+
+    variance_A : array-like, shape (n_objs,)
+        The variance associated to mean_A, that is, an estimate of the square
         of the error of the extinction measurement for each object.
+
+    variance_c : array-like, shape (n_objs, n_colors, n_colors)
+        The (co)variance associated to mean_c, for each object.
+
+    covariance : array-like, shape (n_objs, n_colors)
+        The covariance between mean_A and mean_c, for each object.
 
     xnicest_bias : array-like, shape (n_objs,)
         The estimated bias associated to each object in the XNicest algorithm.
@@ -796,17 +823,25 @@ class ExtinctionCatalogue(object):
         in the XNicest algorithm.
     """
 
-    def __init__(self, n_objs, n_components, selection=None):
+    def __init__(self, n_objs, n_components, n_colors=0, selection=None):
         self.n_objs = n_objs
         self.n_components = n_components
+        self.n_colors = n_colors
         self.selection = selection
-        self.log_weights_ = np.zeros((n_objs, n_components))
-        self.means_ = np.zeros((n_objs, n_components))
-        self.variances_ = np.zeros((n_objs, n_components))
-        self.log_evidence_ = np.zeros(n_objs)
-        self.log_weight_ = np.zeros(n_objs)
-        self.mean_ = np.zeros(n_objs)
-        self.variance_ = np.zeros(n_objs)
+        self.log_weights = np.zeros((n_objs, n_components))
+        self.means_A = np.zeros((n_objs, n_components))
+        self.variances_A = np.zeros((n_objs, n_components))
+        self.log_evidence = np.zeros(n_objs)
+        self.log_weight = np.zeros(n_objs)
+        self.mean_A = np.zeros(n_objs)
+        self.variance_A = np.zeros(n_objs)
+        if self.n_colors > 0:
+            self.means_c = np.zeros((n_objs, n_components, n_colors))
+            self.covariances = np.zeros((n_objs, n_components, n_colors))
+            self.variances_c = np.zeros((n_objs, n_components, n_colors, n_colors))
+            self.mean_c = np.zeros((n_objs, n_colors))
+            self.covariance = np.zeros((n_objs, n_colors))
+            self.variance_c = np.zeros((n_objs, n_colors, n_colors))
         self.xnicest_bias = None
         self.xnicest_weight = None
 
@@ -817,13 +852,20 @@ class ExtinctionCatalogue(object):
         res = copy.deepcopy(self)
         if res.selection is not None:
             res.selection = res.selection[sliced]
-        res.log_weights_ = res.log_weights_[sliced]
-        res.means_ = res.means_[sliced]
-        res.variances_ = res.variances_[sliced]
-        res.log_evidence_ = res.log_evidence_[sliced]
-        res.log_weight_ = res.log_weight_[sliced]
-        res.mean_ = res.mean_[sliced]
-        res.variance_ = res.variance_[sliced]
+        res.log_weights = res.log_weights[sliced]
+        res.means_A = res.means_A[sliced]
+        res.variances_A = res.variances_A[sliced]
+        res.log_evidence = res.log_evidence[sliced]
+        res.log_weight = res.log_weight_[sliced]
+        res.mean_A = res.mean_A[sliced]
+        res.variance_A = res.variance_A[sliced]
+        if self.n_colors > 0:
+            res.means_c = res.means_c[sliced]
+            res.covariances = res.covariances[sliced]
+            res.variances_c = res.variances_c[sliced]
+            res.mean_c = res.mean_c[sliced]
+            res.covariance = res.covariance[sliced]
+            res.variance_c = res.variance_c[sliced]
         if res.xnicest_bias is not None:
             res.xnicest_bias = res.xnicest_bias[sliced]
         if res.xnicest_weight is not None:
@@ -840,15 +882,27 @@ class ExtinctionCatalogue(object):
         The mean_ and variance_ attributes are just a single-component
         equivalent of the multi-component extinction.  They are computed using
         a technique identical to the one implemented by merge_components. """
-        ws = np.exp(self.log_weights_)
+        ws = np.exp(self.log_weights)
         norm = np.sum(ws, axis=-1)
-        self.log_weight_ = np.log(norm)
-        self.mean_ = np.sum(ws * self.means_, axis=-1) / norm
-        self.variance_ = np.sum(
-            ws * (self.variances_ +
-                  (self.mean_[..., np.newaxis] - self.means_)**2),
-            axis=-1) / norm
-
+        self.log_weight = np.log(norm)
+        self.mean_A = np.sum(ws * self.means_A, axis=-1) / norm
+        diff_A = self.means_A - self.mean_A[..., np.newaxis]
+        self.variance_A = np.sum(
+            ws*(self.variances_A + diff_A**2), axis=-1) / norm
+        if self.n_colors > 0:
+            self.mean_c = np.sum(ws[..., np.newaxis] *
+                                self.means_c, axis=-2) / norm[..., np.newaxis]
+            diff_c = self.means_c - self.mean_c[..., np.newaxis, :]
+            self.variance_c = np.sum(
+                ws[..., np.newaxis, np.newaxis] *
+                (self.variances_c +
+                diff_c[..., np.newaxis, :]*diff_c[..., np.newaxis]),
+                axis=-3) / norm[..., np.newaxis, np.newaxis]
+            self.covariance = np.sum(
+                ws[..., np.newaxis] *
+                (self.covariances + diff_A[..., np.newaxis] * diff_c),
+                axis=-2) / norm[..., np.newaxis]
+    
     def merge_components(self, merged_components=None):
         """Merge a number of components together.
 
@@ -858,6 +912,7 @@ class ExtinctionCatalogue(object):
             The array containing the components that need to be merged together.
             If not specified, all components are merged.
         """
+        # TODO: Add the other parts
         if self.n_components == 1:
             return self
         if merged_components is None:
@@ -866,17 +921,17 @@ class ExtinctionCatalogue(object):
         if merged_components[0] >= np.min(merged_components[1:]):
             merged_components = np.sort(merged_components)
         # Extract the relevant values
-        ws = np.exp(self.log_weights_[..., merged_components])
-        bs = self.means_[..., merged_components]
-        Vs = self.variances_[..., merged_components]
+        ws = np.exp(self.log_weights[..., merged_components])
+        bs = self.means_A[..., merged_components]
+        Vs = self.variances_A[..., merged_components]
         # Compute the parameters of the merged gaussians
         w = np.sum(ws, axis=-1)
         b = np.sum(ws * bs, axis=-1) / w
         V = np.sum(ws * (Vs + (b[..., np.newaxis] - bs)**2), axis=-1) / w
         # Create the new parameter arrays
-        ws = np.delete(self.log_weights_, merged_components[1:], axis=-1)
-        bs = np.delete(self.means_, merged_components[1:], axis=-1)
-        Vs = np.delete(self.variances_, merged_components[1:], axis=-1)
+        ws = np.delete(self.log_weights, merged_components[1:], axis=-1)
+        bs = np.delete(self.means_A, merged_components[1:], axis=-1)
+        Vs = np.delete(self.variances_A, merged_components[1:], axis=-1)
         n_components = self.n_components - len(merged_components) + 1
         ws[..., merged_components[0]] = np.log(w)
         bs[..., merged_components[0]] = b
@@ -908,8 +963,8 @@ class ExtinctionCatalogue(object):
         logprob : array_like, shape (n_samples, n_components)
             Log probabilities of each data point, for each component.
         """
-        T = Xerr[:, np.newaxis] + self.variances_
-        delta = X[:, np.newaxis] - self.means_
+        T = Xerr[:, np.newaxis] + self.variances_A
+        delta = X[:, np.newaxis] - self.means_A
         return -delta*delta/(2.0*T) - np.log(2.0*np.pi*T) / 2
 
     def score_samples(self, X, Xerr):
@@ -934,4 +989,4 @@ class ExtinctionCatalogue(object):
             Log probabilities of each data point in A.
         """
         log = self.score_samples_components(X, Xerr)
-        return logsumexp(self.log_weights_ + log, axis=-1)
+        return logsumexp(self.log_weights + log, axis=-1)
