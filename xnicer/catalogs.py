@@ -5,10 +5,12 @@
 
 # Author: Marco Lombardi <marco.lombardi@gmail.com>
 
+import collections
 import numpy as np
 import copy
 from scipy.optimize import minimize
 from scipy.special import log_ndtr, logsumexp
+from astropy.io import votable
 from .utilities import log1mexp
 
 
@@ -129,6 +131,39 @@ class PhotometricCatalogue(object):
         if class_names is not None:
             self.class_names = tuple(class_names)
 
+        # Check if the input is a VOTable: in case performs the required conversions
+        if cat is not None:
+            if isinstance(cat, votable.tree.Table):
+                if mags is None:
+                    bands = collections.OrderedDict()
+                    for field in cat.fields:
+                        ucd = votable.ucd.parse_ucd(field.ucd)
+                        if ucd[0][1] == 'phot.mag':
+                            # it's a magnitude, get its name
+                            mag = ucd[1][1]
+                            if mag in bands:
+                                if bands[mag][0] is None:
+                                    bands[mag][0] = field.ID
+                            else:
+                                bands[mag] = [field.ID, None]
+                        if ucd[0][1] == 'stat.error' and ucd[1][1] == 'phot.mag':
+                            # it's a magnitude error, get its name
+                            mag = ucd[2][1]
+                            if mag in bands:
+                                if bands[mag][1] is None:
+                                    bands[mag][1] = field.ID
+                            else:
+                                bands[mag] = [None, field.ID]
+                    # Now write the mags and mag_errs arrays        
+                    mags = []
+                    mag_errs = []
+                    for mag, mag_err in bands.values():
+                        if mag is not None and mag_err is not None:
+                            mags.append(mag)
+                            mag_errs.append(mag_err)
+                # Regardless of what we have done above, extract the arrray of the table
+                cat = cat.array
+
         # Now deal with the empty constructor case
         if mags is None:
             self.n_objs = self.n_bands = 0
@@ -137,7 +172,7 @@ class PhotometricCatalogue(object):
             return
 
         # OK, we got some input, let us use it
-        if cat:
+        if cat is not None:
             n_objs = len(cat)
             n_bands = len(mags)
             if n_bands != len(mag_errs):

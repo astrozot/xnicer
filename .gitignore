@@ -1,5 +1,6 @@
-# Compiled python modules
+# Compiled python modules and libraries
 *.pyc
+*.so
 
 # Backup files
 *~

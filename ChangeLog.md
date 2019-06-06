@@ -10,4 +10,9 @@ Initial release.
 
 *Partial release*
 
-- Computation of the intrinsic colors and associated covariance   matrix.
+- Computation of the intrinsic colors and associated covariance 
+  matrix.
+- Addition of attributes to use different classes of objects in
+  photometric and color catalogues.
+- A PhotometricCatalogue can now be built automatically from a VOTable
+
