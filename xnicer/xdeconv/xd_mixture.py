@@ -330,8 +330,7 @@ class XD_Mixture(GaussianMixture):
                 self.covariances_ = tmp_gmm.covariances_
             self.n_features_ = n_x_features
 
-    def fit(self, Y, Yerr, projection=None, log_weight=None,
-            fixamp=None, fixmean=None, fixcovar=None):
+    def fit(self, Y, Yerr, projection=None, log_weight=None, fixpars=None):
         """Fit the XD model to data
 
         Parameters
@@ -349,14 +348,10 @@ class XD_Mixture(GaussianMixture):
         log_weight : array_like, shape (n_samples,)
             Optional log weights for the various points.
 
-        fixamp : None, bool, or list of bools
-            Do not change the amplitude for the selected features.
-
-        fixmean : None, bool, or list of bools
-            Do not change the mean for the selected features.
-
-        fixcovar : None, bool, or list of bools
-            Do not change the covariance for the selected features.
+        fixpars : None, int, or int array_like, shape (self.n_components,)
+            A combination of FIX_AMP, FIX_MEAN, FIX_COVAR that indicate the
+            parameters to keep fixed for each component.  If a scalar, the
+            same value is used for all components.
 
         The best fit parameters are directly saved in the object.
         """
@@ -372,7 +367,7 @@ class XD_Mixture(GaussianMixture):
         self._check_initial_parameters(Y)
 
         # if we enable warm_start, we will have a unique initialisation
-        do_init = not ((self.warm_start or fixamp or fixmean or fixcovar)
+        do_init = not ((self.warm_start or fixpars is not None)
                        and hasattr(self, 'converged_'))
         n_init = self.n_init if do_init else 1
 
@@ -400,7 +395,7 @@ class XD_Mixture(GaussianMixture):
                                         tol=self.tol, maxiter=self.max_iter,
                                         regular=self.reg_covar, # FIXME splitnmerge=self.splitnmerge,
                                         weight=log_weight, projection=projection,
-                                        fixpars=fixamp*FIXAMP + fixmean*FIXMEAN + fixcovar*FIXCOVAR)
+                                        fixpars=fixpars)
             if self.lower_bound_ > max_lower_bound:
                 max_lower_bound = self.lower_bound_
                 best_params = self._get_parameters()

@@ -51,7 +51,7 @@ def check_numpy_array(name, arr, shapes):
 def xdeconv(ydata, ycovar, xamp, xmean, xcovar,
             projection=None, weight=None, classes=None,
             fixpars=None, tol=1.e-6, maxiter=int(1e9),
-            regular=0.0, silent=False):
+            regular=0.0):
     """Perform a full extreme deconvolution.
 
     Parameters
@@ -89,8 +89,10 @@ def xdeconv(ydata, ycovar, xamp, xmean, xcovar,
     classes: array-like, shape (n, k) 
         Log-probabilities that each observation belong to a given cluster.
         
-    fixpars: array-like, shape (k)
-        Array of bitmasks with the FIX_AMP, FIX_MEAN, and FIX_AMP combinations.
+    fixpars: integer or int array-like, shape (k)
+        Array of bitmasks with the FIX_AMP, FIX_MEAN, and FIX_AMP 
+        combinations. If a single value is passed, it is used for all
+        components.
         
     tol: double, default=1e-6
         Tolerance for the convergence: if two consecutive loglikelihoods 
@@ -142,6 +144,8 @@ def xdeconv(ydata, ycovar, xamp, xmean, xcovar,
         clss = None
 
     if fixpars is not None:
+        if isinstance(fixpars, int):
+            fixpars = np.repeat(fixpars, kdim)
         check_numpy_array("fixpars", fixpars, (kdim,))
         fix = np.asfortranarray(fixpars.T, dtype=np.uint8)
     else:

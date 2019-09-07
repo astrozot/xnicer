@@ -49,9 +49,9 @@ def _find_reddening_vector(name):
     name = name.upper()
     if name in rieke_lebovsky_names:
         return rieke_lebovsky_names[name]
-    elif name[-4:] == '_MAG' and name[:-4] in rieke_lebovsky_names[name[:-4]]:
+    elif name[-4:] == '_MAG' and name[:-4] in rieke_lebovsky_names:
         return rieke_lebovsky_names[name[:-4]]
-    elif name[-3:] == 'MAG' and name[:-3] in rieke_lebovsky_names[name[:-3]]:
+    elif name[-3:] == 'MAG' and name[:-3] in rieke_lebovsky_names:
         return rieke_lebovsky_names[name[:-3]]
     else:
         return False
@@ -283,16 +283,19 @@ class PhotometricCatalogue(object):
                                         reddening_law = True
                 # Regardless of what we have done above, extract the arrray of the table
                 cat = cat.array
-                # Check if we need to extract the reddening law
-                if reddening_law is None:
-                    for mag in mags:
-                        reddening = _find_reddening_vector(mag)
-                        if reddening:
-                            self.reddening_law.append(reddening)
-                        else:
-                            warnings.warn(f"Cannot automatically find the reddening law for {mag}")
-                            self.reddening_law = None
-                            break
+            # Check if we need to extract the reddening law
+            if reddening_law is None:
+                for mag in mags:
+                    reddening = _find_reddening_vector(mag)
+                    if reddening:
+                        self.reddening_law.append(reddening)
+                    else:
+                        warnings.warn(f"Cannot automatically find the reddening law for {mag}")
+                        self.reddening_law = None
+                        break
+            if self.reddening_law:
+                self.reddening_law = np.array(self.reddening_law)
+
 
         # Now deal with the empty constructor case
         if mags is None:
@@ -379,8 +382,10 @@ class PhotometricCatalogue(object):
             if reddening_law is None:
                 warnings.warn("Reddening law not specified")
                 self.reddening_law = None
-            elif len(self.reddening_law) != n_bands:
-                raise ValueError("The length of the reddening_law vectors does not match the number of bands")
+            else:
+                if len(self.reddening_law) != n_bands:
+                    raise ValueError("The length of the reddening_law vector does not match the number of bands")
+                self.reddening_law = np.array(self.reddening_law)
         w = np.where(np.sum(mag_errs < max_err, axis=1) >= min_bands)[0]
         mags = mags[w, :]
         mag_errs = mag_errs[w, :]

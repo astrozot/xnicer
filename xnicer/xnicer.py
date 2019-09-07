@@ -13,7 +13,7 @@ import warnings
 import copy
 from scipy.special import ndtri, logsumexp
 from sklearn.base import BaseEstimator
-from .xdeconv import XD_Mixture
+from .xdeconv import XD_Mixture, FIX_MEAN, FIX_COVAR
 from .utilities import log1mexp, cho_solve, cho_matrix_solve
 from .catalogs import ExtinctionCatalogue
 
@@ -73,7 +73,7 @@ class XNicer(BaseEstimator):
                                   log_weight=cols_A.log_probs)
             else:
                     self.xdmix.fit(cols_A.cols, cols_A.col_covs, cols_A.projections,
-                                  fixmean=True, fixcovar=True, log_weight=cols_A.log_probs)
+                                  fixpars=FIX_MEAN | FIX_COVAR, log_weight=cols_A.log_probs)
             if self.log_weights_ is None:
                 # We could set this earlier in the __init__, but it does not
                 # work in case the numbero of components for self.xdmix is an

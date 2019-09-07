@@ -53,7 +53,7 @@ def py_em_step(w, S, alpha, m, V, Rt=None, logweights=None, classes=None,
     alpha: array-like, shape (k)
         Array with the statistical weight of each Gaussian. Updated at the
         exit with the new weights.
-        
+    
     m: array-like, shape (d, k)
         Centers of multivariate Gaussians, updated at the exit with the new
         centers.
