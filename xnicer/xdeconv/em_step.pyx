@@ -393,7 +393,7 @@ cpdef double em_step(double[::1,:] w, double[::1,:,:] S,
         noweights = 1
         logweights = np.zeros(n)
         weightsum = n
-    els
+    else:
         # TODO: perhaps move the computation of weightsum to the main function
         weightsum = 0.0
         for i in prange(n, nogil=True):
