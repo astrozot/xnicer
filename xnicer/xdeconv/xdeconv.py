@@ -1,5 +1,6 @@
 import numpy as np
 from .em_step import FIX_NONE, FIX_AMP, FIX_MEAN, FIX_COVAR, FIX_ALL, em_step
+import warnings
 
 
 def check_numpy_array(name, arr, shapes):
@@ -100,9 +101,6 @@ def xdeconv(ydata, ycovar, xamp, xmean, xcovar,
     
     regular: double, default=0
         Regularization parameter (use 0 to prevent the regularization).
-        
-    silent: bool, False
-        If True, does not show warning messages
     """
 
     nobjs, ydim = check_numpy_array("ydata", ydata, (-1, -1))
@@ -156,17 +154,13 @@ def xdeconv(ydata, ycovar, xamp, xmean, xcovar,
                           classes=clss, fixpars=fix, regularization=regular)
         diff = loglike - oldloglike
         if diff < 0:
-            if not silent:
-                print(f"Warning: log likelihood decreased by {diff}")
-            pass
+            warnings.warn(f"Log-likelihood decreased by {diff}")
         if abs(diff) < tol:
             break
         oldloglike = loglike
     if maxiter > 1:
         if iter == maxiter-1:
-            if not silent:
-                print(
-                    f"Warning: xdeconv did not converge after {maxiter} iterations")
+            warnings.warn(f"Warning: xdeconv did not converge after {maxiter} iterations")
         # Saves back all the data: sure this is necessary?
         xamp[:] = alpha
         xmean[:, :] = m.T

@@ -19,4 +19,5 @@ Initial release.
 - Change of the XDCV class name into XD_Mixture
 - Several tests added in the file test_em_step
 - Better file organization
-
+- Moving the reddening_law vector to the PhotometricCatalogue class
+- Using warnings for warnings :-)

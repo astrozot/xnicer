@@ -6,6 +6,7 @@
 # Author: Marco Lombardi <marco.lombardi@gmail.com>
 
 import collections
+import warnings
 import numpy as np
 import copy
 from scipy.optimize import minimize
@@ -37,9 +38,24 @@ rieke_lebovsky_names = {
     'J': 0.282,
     'H': 0.175,
     'K': 0.112,
+    'KS': 0.112,
     'L': 0.058,
     'M': 0.023
 }
+
+
+def _find_reddening_vector(name):
+    """Tries to find the reddening for a given band name."""
+    name = name.upper()
+    if name in rieke_lebovsky_names:
+        return rieke_lebovsky_names[name]
+    elif name[-4:] == '_MAG' and name[:-4] in rieke_lebovsky_names[name[:-4]]:
+        return rieke_lebovsky_names[name[:-4]]
+    elif name[-3:] == 'MAG' and name[:-3] in rieke_lebovsky_names[name[:-3]]:
+        return rieke_lebovsky_names[name[:-3]]
+    else:
+        return False
+    
 
 def AstrometricCatalogue(table, frame=None, **kwargs):
     """Extract coordinates from a VOTable into a SkyCoord object
@@ -255,13 +271,28 @@ class PhotometricCatalogue(object):
                             mags.append(mag)
                             mag_errs.append(mag_err)
                             if reddening_law is None:
-                                self.reddening_law.append(rieke_lebovsky_ucd[ucd])
+                                if ucd in rieke_lebovsky_ucd:
+                                    self.reddening_law.append(rieke_lebovsky_ucd[ucd])
+                                else:
+                                    reddening = _find_reddening_vector(mag)
+                                    if reddening:
+                                        self.reddening_law.append(reddening)
+                                    else:
+                                        warnings.warn(f"Cannot automatically find the reddening law for {mag}")
+                                        self.reddening_law = None
+                                        reddening_law = True
                 # Regardless of what we have done above, extract the arrray of the table
                 cat = cat.array
                 # Check if we need to extract the reddening law
                 if reddening_law is None:
-                    for name in mags:
-                        self.reddening_law.append(rieke_lebovsky_names[name.upper()])
+                    for mag in mags:
+                        reddening = _find_reddening_vector(mag)
+                        if reddening:
+                            self.reddening_law.append(reddening)
+                        else:
+                            warnings.warn(f"Cannot automatically find the reddening law for {mag}")
+                            self.reddening_law = None
+                            break
 
         # Now deal with the empty constructor case
         if mags is None:
@@ -345,6 +376,11 @@ class PhotometricCatalogue(object):
             if n_objs < n_bands:
                 raise ValueError(
                     "Expecting a n_objs x n_bands array for mags and errs")
+            if reddening_law is None:
+                warnings.warn("Reddening law not specified")
+                self.reddening_law = None
+            elif len(self.reddening_law) != n_bands:
+                raise ValueError("The length of the reddening_law vectors does not match the number of bands")
         w = np.where(np.sum(mag_errs < max_err, axis=1) >= min_bands)[0]
         mags = mags[w, :]
         mag_errs = mag_errs[w, :]
@@ -426,7 +462,7 @@ class PhotometricCatalogue(object):
         extinctions : array-like, shape (n_objs,), or None, default to None
             If not None and if band is not None, it is an array of values that
             will be *subtracted* to the magnitudes of the band before applying
-            map_mags. Used to corrected for estinguished magnitudes in the
+            map_mags. Used to correcte for estinguished magnitudes in the
             xnicer code.
 
         tolerance : float, default to 1e-5
@@ -651,14 +687,15 @@ class PhotometricCatalogue(object):
         _, m_c, s_c = self.nc_pars[band]
         return log_ndtr((m_c - magnitudes) / s_c)
 
-    def extinguish(self, extinctions, apply_completeness=True, update_errors=False):
+    def extinguish(self, extinction, apply_completeness=True, update_errors=False):
         """Simulate the effect of extinction and return an updated catalogue.
 
         Arguments
         ---------
-        extinctions : array-like, shape (n_bands,)
+        extinction : float or array-like, shape (n_bands,)
             The extinction to apply for each band, in magnitudes. Must be always
-            non-negative.
+            non-negative. If it is a float, multiply it by self.reddening_law to
+            obtain the extinction in each band.
 
         apply_completeness : bool, default to True
             If True, the completeness function is taken into account, and
@@ -678,18 +715,20 @@ class PhotometricCatalogue(object):
             The updated PhotometricCatalogue (self is left untouched).
         """
         cat = copy.deepcopy(self)
+        if isinstance(extinction, float):
+            extinction = extinction * self.reddening_law
         if apply_completeness and cat.nc_pars is None:
             # Fit the number counts if this has not been done earlier on
             cat.fit_number_counts()
         for band in range(cat.n_bands):
             mask = np.where(cat.mag_errs[:, band] < cat.max_err)[0]
-            cat.mags[mask, band] += extinctions[band]
+            cat.mags[mask, band] += extinction[band]
             if update_errors:
                 # It would be a good idea to update the errors too! Find a reliable way to do it
                 raise NotImplementedError
-            if apply_completeness and extinctions[band] > 0:
+            if apply_completeness and extinction[band] > 0:
                 log_completeness_ratio = (cat.log_completeness(band, cat.mags[mask, band]) -
-                                          cat.log_completeness(band, cat.mags[mask, band] - extinctions[band]))
+                                          cat.log_completeness(band, cat.mags[mask, band] - extinction[band]))
                 if cat.log_probs is not None:
                     cat.log_probs[mask, band] += log_completeness_ratio
                 else:
