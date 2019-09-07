@@ -33,20 +33,16 @@ class XNicer(BaseEstimator):
     extinctions : array-like, shape (n_extinctions,)
         A 1D vector of extinctions used to perform a selection correction.
 
-    extinction_vec : array-like, shape (n_bands,)
-        The extinction vector, that is A_band / A_ref, for each band.
-
     log_weights_ : tuple of array-like, shape (n_extinctions, xdmix[class].n_components))
         The log of the weights of the extreme decomposition, for each class of
         objects, at each extintion value.
     """
 
-    def __init__(self, xdmix, extinctions=None, extinction_vec=None):
+    def __init__(self, xdmix, extinctions=None):
         self.xdmix = xdmix
         if extinctions is None:
             extinctions = [0.0]
         self.extinctions = np.array(extinctions)
-        self.extinction_vec = np.array(extinction_vec)
         self.log_weights_ = None
         self.calibration = None
 
@@ -62,17 +58,15 @@ class XNicer(BaseEstimator):
             If true, the first value of self.extinctions is skipped, which
             makes the whole procedure much faster.
         """
-        assert cat.n_bands == len(self.extinction_vec), \
-            "The number of bands does not match the length of extinction vector"
         for n, extinction in enumerate(self.extinctions):
             # If update is set, skip the first iteration: this makes the fitting
             # procedure much faster
             if update and n == 0:
                 continue
             # Add the extinction, as requested
-            cat_A = cat.extinguish(extinction * self.extinction_vec,
-                                   apply_completeness=True, update_errors=False)
-            cat_A.mags -= extinction * self.extinction_vec
+            cat_A = cat.extinguish(extinction, apply_completeness=True,
+                                   update_errors=False)
+            cat_A.mags -= extinction * cat.reddening_law
             cols_A = cat_A.get_colors(use_projection=True)
             if n == 0:
                     self.xdmix.fit(cols_A.cols, cols_A.col_covs, cols_A.projections, 
@@ -123,7 +117,7 @@ class XNicer(BaseEstimator):
         if cat.log_probs is None:
             warnings.warn('For best results add log probabilities to cat')
         for extinction in extinctions:
-            cat_t = cat.extinguish(self.extinction_vec * extinction)
+            cat_t = cat.extinguish(extinction)
             ext_t = self.predict(cat_t, **kw)
             objweight = np.exp(ext_t.log_weight) / ext_t.variance_A
             ivar = np.sum(objweight)
@@ -165,8 +159,8 @@ class XNicer(BaseEstimator):
                                   selection=cols.selection,
                                   n_colors=(cat.n_bands-1) if full else 0)
 
-        # Conmpute the extinction vector
-        color_ext_vec = self.extinction_vec[:-1] - self.extinction_vec[1:]
+        # Compute the extinction vector
+        color_ext_vec = cat.reddening_law[:-1] - cat.reddening_law[1:]
 
         # Compute all parameters (except the weights) for the 1st deconvolution
         V = self.xdmix.covariances_[np.newaxis, ...]
