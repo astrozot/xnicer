@@ -6,7 +6,7 @@
         "depends": [],
         "name": "xnicer.kde",
         "sources": [
-            "xnicer/kde.pyx"
+            "xnicer/kde/kde.pyx"
         ]
     },
     "module_name": "xnicer.kde"
@@ -834,7 +834,7 @@ static const char *__pyx_filename;
 
 
 static const char *__pyx_f[] = {
-  "xnicer/kde.pyx",
+  "xnicer/kde/kde.pyx",
   "stringsource",
 };
 /* MemviewSliceStruct.proto */
@@ -959,7 +959,7 @@ struct __pyx_memoryviewslice_obj;
 struct __pyx_opt_args_6xnicer_3kde_3KDE_kde_float;
 struct __pyx_opt_args_6xnicer_3kde_3KDE_kde_double;
 
-/* "xnicer/kde.pyx":269
+/* "xnicer/kde/kde.pyx":269
  * 
  * 
  *     cpdef kde_float(self, float[:,:] coords, float[:,:] weights=None, short int[:] power=None,             # <<<<<<<<<<<<<<
@@ -976,7 +976,7 @@ struct __pyx_opt_args_6xnicer_3kde_3KDE_kde_float {
   PyObject *callback;
 };
 
-/* "xnicer/kde.pyx":330
+/* "xnicer/kde/kde.pyx":330
  * 
  * 
  *     cpdef kde_double(self, double[:,:] coords, double[:,:] weights=None, short int[:] power=None,             # <<<<<<<<<<<<<<
@@ -993,7 +993,7 @@ struct __pyx_opt_args_6xnicer_3kde_3KDE_kde_double {
   PyObject *callback;
 };
 
-/* "xnicer/kde.pyx":14
+/* "xnicer/kde/kde.pyx":14
  * from scipy.ndimage import uniform_filter
  * 
  * cdef class KDE:             # <<<<<<<<<<<<<<
@@ -1020,7 +1020,7 @@ struct __pyx_obj_6xnicer_3kde_KDE {
 };
 
 
-/* "xnicer/kde.pyx":111
+/* "xnicer/kde/kde.pyx":111
  *         self.max_power = max_power
  * 
  *     def __init__(self, naxis, bandwidth=1.0, kernel='gaussian', metric=2.0,             # <<<<<<<<<<<<<<
@@ -1033,7 +1033,7 @@ struct __pyx_obj_6xnicer_3kde___pyx_scope_struct____init__ {
 };
 
 
-/* "xnicer/kde.pyx":176
+/* "xnicer/kde/kde.pyx":176
  *         self.kernel_size = self.kernel_radius * 2 + 1
  *         # Compute the framed_naxis for the framing
  *         self.framed_naxis = tuple(axis + self.kernel_size*2 for axis in self.naxis)             # <<<<<<<<<<<<<<
@@ -1049,7 +1049,7 @@ struct __pyx_obj_6xnicer_3kde___pyx_scope_struct_1_genexpr {
 };
 
 
-/* "xnicer/kde.pyx":229
+/* "xnicer/kde/kde.pyx":229
  *                 f"max_power={self.max_power}, oversampling={self.oversampling})")
  * 
  *     def set_naxis(self, naxis):             # <<<<<<<<<<<<<<
@@ -1062,7 +1062,7 @@ struct __pyx_obj_6xnicer_3kde___pyx_scope_struct_2_set_naxis {
 };
 
 
-/* "xnicer/kde.pyx":234
+/* "xnicer/kde/kde.pyx":234
  *         # Update the naxis for the framing
  *         self.naxis = tuple(naxis)
  *         self.framed_naxis = tuple(axis + self.kernel_size*2 for axis in self.naxis)             # <<<<<<<<<<<<<<
@@ -1156,7 +1156,7 @@ struct __pyx_memoryviewslice_obj {
 
 
 
-/* "xnicer/kde.pyx":14
+/* "xnicer/kde/kde.pyx":14
  * from scipy.ndimage import uniform_filter
  * 
  * cdef class KDE:             # <<<<<<<<<<<<<<
@@ -2648,7 +2648,7 @@ static PyObject *__pyx_tuple__45;
 static PyObject *__pyx_codeobj__46;
 /* Late includes */
 
-/* "xnicer/kde.pyx":91
+/* "xnicer/kde/kde.pyx":91
  *         long[:] kernel_index
  * 
  *     def __cinit__(self, tuple naxis, double bandwidth=1.0,             # <<<<<<<<<<<<<<
@@ -2774,7 +2774,7 @@ static int __pyx_pw_6xnicer_3kde_3KDE_1__cinit__(PyObject *__pyx_v_self, PyObjec
       __pyx_v_binned_kernel = __Pyx_PyObject_IsTrue(values[4]); if (unlikely((__pyx_v_binned_kernel == (int)-1) && PyErr_Occurred())) __PYX_ERR(0, 93, __pyx_L3_error)
     } else {
 
-      /* "xnicer/kde.pyx":93
+      /* "xnicer/kde/kde.pyx":93
  *     def __cinit__(self, tuple naxis, double bandwidth=1.0,
  *                   str kernel='gaussian', double metric=2.0,
  *                   bint binned_kernel=True, int oversampling=11,             # <<<<<<<<<<<<<<
@@ -2806,7 +2806,7 @@ static int __pyx_pw_6xnicer_3kde_3KDE_1__cinit__(PyObject *__pyx_v_self, PyObjec
   if (unlikely(!__Pyx_ArgTypeTest(((PyObject *)__pyx_v_kernel), (&PyUnicode_Type), 1, "kernel", 1))) __PYX_ERR(0, 92, __pyx_L1_error)
   __pyx_r = __pyx_pf_6xnicer_3kde_3KDE___cinit__(((struct __pyx_obj_6xnicer_3kde_KDE *)__pyx_v_self), __pyx_v_naxis, __pyx_v_bandwidth, __pyx_v_kernel, __pyx_v_metric, __pyx_v_binned_kernel, __pyx_v_oversampling, __pyx_v_max_power);
 
-  /* "xnicer/kde.pyx":91
+  /* "xnicer/kde/kde.pyx":91
  *         long[:] kernel_index
  * 
  *     def __cinit__(self, tuple naxis, double bandwidth=1.0,             # <<<<<<<<<<<<<<
@@ -2831,7 +2831,7 @@ static int __pyx_pf_6xnicer_3kde_3KDE___cinit__(struct __pyx_obj_6xnicer_3kde_KD
   int __pyx_t_3;
   __Pyx_RefNannySetupContext("__cinit__", 0);
 
-  /* "xnicer/kde.pyx":98
+  /* "xnicer/kde/kde.pyx":98
  *         Cython onstructor for the KDE class.
  *         """
  *         self.kernel = kernel             # <<<<<<<<<<<<<<
@@ -2844,7 +2844,7 @@ static int __pyx_pf_6xnicer_3kde_3KDE___cinit__(struct __pyx_obj_6xnicer_3kde_KD
   __Pyx_DECREF(__pyx_v_self->kernel);
   __pyx_v_self->kernel = __pyx_v_kernel;
 
-  /* "xnicer/kde.pyx":99
+  /* "xnicer/kde/kde.pyx":99
  *         """
  *         self.kernel = kernel
  *         self.metric = metric             # <<<<<<<<<<<<<<
@@ -2853,7 +2853,7 @@ static int __pyx_pf_6xnicer_3kde_3KDE___cinit__(struct __pyx_obj_6xnicer_3kde_KD
  */
   __pyx_v_self->metric = __pyx_v_metric;
 
-  /* "xnicer/kde.pyx":100
+  /* "xnicer/kde/kde.pyx":100
  *         self.kernel = kernel
  *         self.metric = metric
  *         self.binned_kernel = binned_kernel             # <<<<<<<<<<<<<<
@@ -2862,7 +2862,7 @@ static int __pyx_pf_6xnicer_3kde_3KDE___cinit__(struct __pyx_obj_6xnicer_3kde_KD
  */
   __pyx_v_self->binned_kernel = __pyx_v_binned_kernel;
 
-  /* "xnicer/kde.pyx":101
+  /* "xnicer/kde/kde.pyx":101
  *         self.metric = metric
  *         self.binned_kernel = binned_kernel
  *         self.naxis = tuple(naxis)             # <<<<<<<<<<<<<<
@@ -2877,7 +2877,7 @@ static int __pyx_pf_6xnicer_3kde_3KDE___cinit__(struct __pyx_obj_6xnicer_3kde_KD
   __pyx_v_self->naxis = ((PyObject*)__pyx_t_1);
   __pyx_t_1 = 0;
 
-  /* "xnicer/kde.pyx":102
+  /* "xnicer/kde/kde.pyx":102
  *         self.binned_kernel = binned_kernel
  *         self.naxis = tuple(naxis)
  *         self.ndim = len(naxis)             # <<<<<<<<<<<<<<
@@ -2891,7 +2891,7 @@ static int __pyx_pf_6xnicer_3kde_3KDE___cinit__(struct __pyx_obj_6xnicer_3kde_KD
   __pyx_t_2 = PyTuple_GET_SIZE(__pyx_v_naxis); if (unlikely(__pyx_t_2 == ((Py_ssize_t)-1))) __PYX_ERR(0, 102, __pyx_L1_error)
   __pyx_v_self->ndim = __pyx_t_2;
 
-  /* "xnicer/kde.pyx":103
+  /* "xnicer/kde/kde.pyx":103
  *         self.naxis = tuple(naxis)
  *         self.ndim = len(naxis)
  *         if bandwidth <= 0:             # <<<<<<<<<<<<<<
@@ -2901,7 +2901,7 @@ static int __pyx_pf_6xnicer_3kde_3KDE___cinit__(struct __pyx_obj_6xnicer_3kde_KD
   __pyx_t_3 = ((__pyx_v_bandwidth <= 0.0) != 0);
   if (unlikely(__pyx_t_3)) {
 
-    /* "xnicer/kde.pyx":104
+    /* "xnicer/kde/kde.pyx":104
  *         self.ndim = len(naxis)
  *         if bandwidth <= 0:
  *             raise ValueError("The bandwidth parameter must be positive")             # <<<<<<<<<<<<<<
@@ -2914,7 +2914,7 @@ static int __pyx_pf_6xnicer_3kde_3KDE___cinit__(struct __pyx_obj_6xnicer_3kde_KD
     __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
     __PYX_ERR(0, 104, __pyx_L1_error)
 
-    /* "xnicer/kde.pyx":103
+    /* "xnicer/kde/kde.pyx":103
  *         self.naxis = tuple(naxis)
  *         self.ndim = len(naxis)
  *         if bandwidth <= 0:             # <<<<<<<<<<<<<<
@@ -2923,7 +2923,7 @@ static int __pyx_pf_6xnicer_3kde_3KDE___cinit__(struct __pyx_obj_6xnicer_3kde_KD
  */
   }
 
-  /* "xnicer/kde.pyx":105
+  /* "xnicer/kde/kde.pyx":105
  *         if bandwidth <= 0:
  *             raise ValueError("The bandwidth parameter must be positive")
  *         self.bandwidth = bandwidth             # <<<<<<<<<<<<<<
@@ -2932,7 +2932,7 @@ static int __pyx_pf_6xnicer_3kde_3KDE___cinit__(struct __pyx_obj_6xnicer_3kde_KD
  */
   __pyx_v_self->bandwidth = __pyx_v_bandwidth;
 
-  /* "xnicer/kde.pyx":106
+  /* "xnicer/kde/kde.pyx":106
  *             raise ValueError("The bandwidth parameter must be positive")
  *         self.bandwidth = bandwidth
  *         if oversampling % 2 != 1:             # <<<<<<<<<<<<<<
@@ -2942,7 +2942,7 @@ static int __pyx_pf_6xnicer_3kde_3KDE___cinit__(struct __pyx_obj_6xnicer_3kde_KD
   __pyx_t_3 = (((__pyx_v_oversampling % 2) != 1) != 0);
   if (unlikely(__pyx_t_3)) {
 
-    /* "xnicer/kde.pyx":107
+    /* "xnicer/kde/kde.pyx":107
  *         self.bandwidth = bandwidth
  *         if oversampling % 2 != 1:
  *             raise ValueError("The oversampling parameter must be an odd integer")             # <<<<<<<<<<<<<<
@@ -2955,7 +2955,7 @@ static int __pyx_pf_6xnicer_3kde_3KDE___cinit__(struct __pyx_obj_6xnicer_3kde_KD
     __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
     __PYX_ERR(0, 107, __pyx_L1_error)
 
-    /* "xnicer/kde.pyx":106
+    /* "xnicer/kde/kde.pyx":106
  *             raise ValueError("The bandwidth parameter must be positive")
  *         self.bandwidth = bandwidth
  *         if oversampling % 2 != 1:             # <<<<<<<<<<<<<<
@@ -2964,7 +2964,7 @@ static int __pyx_pf_6xnicer_3kde_3KDE___cinit__(struct __pyx_obj_6xnicer_3kde_KD
  */
   }
 
-  /* "xnicer/kde.pyx":108
+  /* "xnicer/kde/kde.pyx":108
  *         if oversampling % 2 != 1:
  *             raise ValueError("The oversampling parameter must be an odd integer")
  *         self.oversampling = oversampling             # <<<<<<<<<<<<<<
@@ -2973,7 +2973,7 @@ static int __pyx_pf_6xnicer_3kde_3KDE___cinit__(struct __pyx_obj_6xnicer_3kde_KD
  */
   __pyx_v_self->oversampling = __pyx_v_oversampling;
 
-  /* "xnicer/kde.pyx":109
+  /* "xnicer/kde/kde.pyx":109
  *             raise ValueError("The oversampling parameter must be an odd integer")
  *         self.oversampling = oversampling
  *         self.max_power = max_power             # <<<<<<<<<<<<<<
@@ -2982,7 +2982,7 @@ static int __pyx_pf_6xnicer_3kde_3KDE___cinit__(struct __pyx_obj_6xnicer_3kde_KD
  */
   __pyx_v_self->max_power = __pyx_v_max_power;
 
-  /* "xnicer/kde.pyx":91
+  /* "xnicer/kde/kde.pyx":91
  *         long[:] kernel_index
  * 
  *     def __cinit__(self, tuple naxis, double bandwidth=1.0,             # <<<<<<<<<<<<<<
@@ -3002,7 +3002,7 @@ static int __pyx_pf_6xnicer_3kde_3KDE___cinit__(struct __pyx_obj_6xnicer_3kde_KD
   return __pyx_r;
 }
 
-/* "xnicer/kde.pyx":111
+/* "xnicer/kde/kde.pyx":111
  *         self.max_power = max_power
  * 
  *     def __init__(self, naxis, bandwidth=1.0, kernel='gaussian', metric=2.0,             # <<<<<<<<<<<<<<
@@ -3034,7 +3034,7 @@ static int __pyx_pw_6xnicer_3kde_3KDE_3__init__(PyObject *__pyx_v_self, PyObject
     values[2] = ((PyObject *)__pyx_n_u_gaussian);
     values[3] = ((PyObject *)__pyx_float_2_0);
 
-    /* "xnicer/kde.pyx":112
+    /* "xnicer/kde/kde.pyx":112
  * 
  *     def __init__(self, naxis, bandwidth=1.0, kernel='gaussian', metric=2.0,
  *                  binned_kernel=True, oversampling=11, max_power=1):             # <<<<<<<<<<<<<<
@@ -3147,7 +3147,7 @@ static int __pyx_pw_6xnicer_3kde_3KDE_3__init__(PyObject *__pyx_v_self, PyObject
   __pyx_L4_argument_unpacking_done:;
   __pyx_r = __pyx_pf_6xnicer_3kde_3KDE_2__init__(((struct __pyx_obj_6xnicer_3kde_KDE *)__pyx_v_self), __pyx_v_naxis, __pyx_v_bandwidth, __pyx_v_kernel, __pyx_v_metric, __pyx_v_binned_kernel, __pyx_v_oversampling, __pyx_v_max_power);
 
-  /* "xnicer/kde.pyx":111
+  /* "xnicer/kde/kde.pyx":111
  *         self.max_power = max_power
  * 
  *     def __init__(self, naxis, bandwidth=1.0, kernel='gaussian', metric=2.0,             # <<<<<<<<<<<<<<
@@ -3160,7 +3160,7 @@ static int __pyx_pw_6xnicer_3kde_3KDE_3__init__(PyObject *__pyx_v_self, PyObject
   return __pyx_r;
 }
 
-/* "xnicer/kde.pyx":153
+/* "xnicer/kde/kde.pyx":153
  *         if self.kernel == 'gaussian':
  *             self.kernel_radius = lrint(3.0*self.bandwidth + 0.5)
  *             kernel = lambda x2: np.exp(-x2 / (2*self.bandwidth*2))             # <<<<<<<<<<<<<<
@@ -3245,7 +3245,7 @@ static PyObject *__pyx_lambda_funcdef_lambda(PyObject *__pyx_self, PyObject *__p
   return __pyx_r;
 }
 
-/* "xnicer/kde.pyx":156
+/* "xnicer/kde/kde.pyx":156
  *         elif self.kernel == 'tophat':
  *             self.kernel_radius = np.int(np.ceil(self.bandwidth + 0.5))
  *             kernel = lambda x2: (x2 <= self.bandwidth**2).astype(np.float)             # <<<<<<<<<<<<<<
@@ -3327,7 +3327,7 @@ static PyObject *__pyx_lambda_funcdef_lambda1(PyObject *__pyx_self, PyObject *__
   return __pyx_r;
 }
 
-/* "xnicer/kde.pyx":159
+/* "xnicer/kde/kde.pyx":159
  *         elif self.kernel == 'linear':
  *             self.kernel_radius = np.int(np.ceil(self.bandwidth + 0.5))
  *             kernel = lambda x2: np.maximum(1.0 - np.sqrt(x2) / self.bandwidth, 0.0)             # <<<<<<<<<<<<<<
@@ -3465,7 +3465,7 @@ static PyObject *__pyx_lambda_funcdef_lambda2(PyObject *__pyx_self, PyObject *__
   return __pyx_r;
 }
 
-/* "xnicer/kde.pyx":162
+/* "xnicer/kde/kde.pyx":162
  *         elif self.kernel == 'epanechinov':
  *             self.kernel_radius = np.int(np.ceil(self.bandwidth + 0.5))
  *             kernel = lambda x2: np.maximum(1.0 - x2 / self.bandwidth**2, 0.0)             # <<<<<<<<<<<<<<
@@ -3582,7 +3582,7 @@ static PyObject *__pyx_lambda_funcdef_lambda3(PyObject *__pyx_self, PyObject *__
   return __pyx_r;
 }
 
-/* "xnicer/kde.pyx":165
+/* "xnicer/kde/kde.pyx":165
  *         elif self.kernel == 'exponential':
  *             self.kernel_radius = lrint(6.0*self.bandwidth + 0.5)
  *             kernel = lambda x2: np.exp(-np.sqrt(x2) / self.bandwidth)             # <<<<<<<<<<<<<<
@@ -3688,7 +3688,7 @@ static PyObject *__pyx_lambda_funcdef_lambda4(PyObject *__pyx_self, PyObject *__
   return __pyx_r;
 }
 
-/* "xnicer/kde.pyx":168
+/* "xnicer/kde/kde.pyx":168
  *         elif self.kernel == 'cosine':
  *             self.kernel_radius = np.int(np.ceil(self.bandwidth + 0.5))
  *             kernel = lambda x2: np.maximum(np.cos(np.sqrt(x2) / (2*self.bandwidth/np.pi)), 0.0)             # <<<<<<<<<<<<<<
@@ -3860,7 +3860,7 @@ static PyObject *__pyx_lambda_funcdef_lambda5(PyObject *__pyx_self, PyObject *__
 }
 static PyObject *__pyx_gb_6xnicer_3kde_3KDE_8__init___8generator(__pyx_CoroutineObject *__pyx_generator, CYTHON_UNUSED PyThreadState *__pyx_tstate, PyObject *__pyx_sent_value); /* proto */
 
-/* "xnicer/kde.pyx":176
+/* "xnicer/kde/kde.pyx":176
  *         self.kernel_size = self.kernel_radius * 2 + 1
  *         # Compute the framed_naxis for the framing
  *         self.framed_naxis = tuple(axis + self.kernel_size*2 for axis in self.naxis)             # <<<<<<<<<<<<<<
@@ -3984,7 +3984,7 @@ static PyObject *__pyx_gb_6xnicer_3kde_3KDE_8__init___8generator(__pyx_Coroutine
   return __pyx_r;
 }
 
-/* "xnicer/kde.pyx":111
+/* "xnicer/kde/kde.pyx":111
  *         self.max_power = max_power
  * 
  *     def __init__(self, naxis, bandwidth=1.0, kernel='gaussian', metric=2.0,             # <<<<<<<<<<<<<<
@@ -4030,7 +4030,7 @@ static int __pyx_pf_6xnicer_3kde_3KDE_2__init__(struct __pyx_obj_6xnicer_3kde_KD
   __Pyx_GIVEREF((PyObject *)__pyx_cur_scope->__pyx_v_self);
   __Pyx_INCREF(__pyx_v_kernel);
 
-  /* "xnicer/kde.pyx":151
+  /* "xnicer/kde/kde.pyx":151
  *             error estimates.
  *         """
  *         if self.kernel == 'gaussian':             # <<<<<<<<<<<<<<
@@ -4041,7 +4041,7 @@ static int __pyx_pf_6xnicer_3kde_3KDE_2__init__(struct __pyx_obj_6xnicer_3kde_KD
   __pyx_t_2 = (__pyx_t_1 != 0);
   if (__pyx_t_2) {
 
-    /* "xnicer/kde.pyx":152
+    /* "xnicer/kde/kde.pyx":152
  *         """
  *         if self.kernel == 'gaussian':
  *             self.kernel_radius = lrint(3.0*self.bandwidth + 0.5)             # <<<<<<<<<<<<<<
@@ -4050,7 +4050,7 @@ static int __pyx_pf_6xnicer_3kde_3KDE_2__init__(struct __pyx_obj_6xnicer_3kde_KD
  */
     __pyx_cur_scope->__pyx_v_self->kernel_radius = lrint(((3.0 * __pyx_cur_scope->__pyx_v_self->bandwidth) + 0.5));
 
-    /* "xnicer/kde.pyx":153
+    /* "xnicer/kde/kde.pyx":153
  *         if self.kernel == 'gaussian':
  *             self.kernel_radius = lrint(3.0*self.bandwidth + 0.5)
  *             kernel = lambda x2: np.exp(-x2 / (2*self.bandwidth*2))             # <<<<<<<<<<<<<<
@@ -4062,7 +4062,7 @@ static int __pyx_pf_6xnicer_3kde_3KDE_2__init__(struct __pyx_obj_6xnicer_3kde_KD
     __Pyx_DECREF_SET(__pyx_v_kernel, __pyx_t_3);
     __pyx_t_3 = 0;
 
-    /* "xnicer/kde.pyx":151
+    /* "xnicer/kde/kde.pyx":151
  *             error estimates.
  *         """
  *         if self.kernel == 'gaussian':             # <<<<<<<<<<<<<<
@@ -4072,7 +4072,7 @@ static int __pyx_pf_6xnicer_3kde_3KDE_2__init__(struct __pyx_obj_6xnicer_3kde_KD
     goto __pyx_L3;
   }
 
-  /* "xnicer/kde.pyx":154
+  /* "xnicer/kde/kde.pyx":154
  *             self.kernel_radius = lrint(3.0*self.bandwidth + 0.5)
  *             kernel = lambda x2: np.exp(-x2 / (2*self.bandwidth*2))
  *         elif self.kernel == 'tophat':             # <<<<<<<<<<<<<<
@@ -4083,7 +4083,7 @@ static int __pyx_pf_6xnicer_3kde_3KDE_2__init__(struct __pyx_obj_6xnicer_3kde_KD
   __pyx_t_1 = (__pyx_t_2 != 0);
   if (__pyx_t_1) {
 
-    /* "xnicer/kde.pyx":155
+    /* "xnicer/kde/kde.pyx":155
  *             kernel = lambda x2: np.exp(-x2 / (2*self.bandwidth*2))
  *         elif self.kernel == 'tophat':
  *             self.kernel_radius = np.int(np.ceil(self.bandwidth + 0.5))             # <<<<<<<<<<<<<<
@@ -4138,7 +4138,7 @@ static int __pyx_pf_6xnicer_3kde_3KDE_2__init__(struct __pyx_obj_6xnicer_3kde_KD
     __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
     __pyx_cur_scope->__pyx_v_self->kernel_radius = __pyx_t_9;
 
-    /* "xnicer/kde.pyx":156
+    /* "xnicer/kde/kde.pyx":156
  *         elif self.kernel == 'tophat':
  *             self.kernel_radius = np.int(np.ceil(self.bandwidth + 0.5))
  *             kernel = lambda x2: (x2 <= self.bandwidth**2).astype(np.float)             # <<<<<<<<<<<<<<
@@ -4150,7 +4150,7 @@ static int __pyx_pf_6xnicer_3kde_3KDE_2__init__(struct __pyx_obj_6xnicer_3kde_KD
     __Pyx_DECREF_SET(__pyx_v_kernel, __pyx_t_3);
     __pyx_t_3 = 0;
 
-    /* "xnicer/kde.pyx":154
+    /* "xnicer/kde/kde.pyx":154
  *             self.kernel_radius = lrint(3.0*self.bandwidth + 0.5)
  *             kernel = lambda x2: np.exp(-x2 / (2*self.bandwidth*2))
  *         elif self.kernel == 'tophat':             # <<<<<<<<<<<<<<
@@ -4160,7 +4160,7 @@ static int __pyx_pf_6xnicer_3kde_3KDE_2__init__(struct __pyx_obj_6xnicer_3kde_KD
     goto __pyx_L3;
   }
 
-  /* "xnicer/kde.pyx":157
+  /* "xnicer/kde/kde.pyx":157
  *             self.kernel_radius = np.int(np.ceil(self.bandwidth + 0.5))
  *             kernel = lambda x2: (x2 <= self.bandwidth**2).astype(np.float)
  *         elif self.kernel == 'linear':             # <<<<<<<<<<<<<<
@@ -4171,7 +4171,7 @@ static int __pyx_pf_6xnicer_3kde_3KDE_2__init__(struct __pyx_obj_6xnicer_3kde_KD
   __pyx_t_2 = (__pyx_t_1 != 0);
   if (__pyx_t_2) {
 
-    /* "xnicer/kde.pyx":158
+    /* "xnicer/kde/kde.pyx":158
  *             kernel = lambda x2: (x2 <= self.bandwidth**2).astype(np.float)
  *         elif self.kernel == 'linear':
  *             self.kernel_radius = np.int(np.ceil(self.bandwidth + 0.5))             # <<<<<<<<<<<<<<
@@ -4226,7 +4226,7 @@ static int __pyx_pf_6xnicer_3kde_3KDE_2__init__(struct __pyx_obj_6xnicer_3kde_KD
     __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
     __pyx_cur_scope->__pyx_v_self->kernel_radius = __pyx_t_9;
 
-    /* "xnicer/kde.pyx":159
+    /* "xnicer/kde/kde.pyx":159
  *         elif self.kernel == 'linear':
  *             self.kernel_radius = np.int(np.ceil(self.bandwidth + 0.5))
  *             kernel = lambda x2: np.maximum(1.0 - np.sqrt(x2) / self.bandwidth, 0.0)             # <<<<<<<<<<<<<<
@@ -4238,7 +4238,7 @@ static int __pyx_pf_6xnicer_3kde_3KDE_2__init__(struct __pyx_obj_6xnicer_3kde_KD
     __Pyx_DECREF_SET(__pyx_v_kernel, __pyx_t_3);
     __pyx_t_3 = 0;
 
-    /* "xnicer/kde.pyx":157
+    /* "xnicer/kde/kde.pyx":157
  *             self.kernel_radius = np.int(np.ceil(self.bandwidth + 0.5))
  *             kernel = lambda x2: (x2 <= self.bandwidth**2).astype(np.float)
  *         elif self.kernel == 'linear':             # <<<<<<<<<<<<<<
@@ -4248,7 +4248,7 @@ static int __pyx_pf_6xnicer_3kde_3KDE_2__init__(struct __pyx_obj_6xnicer_3kde_KD
     goto __pyx_L3;
   }
 
-  /* "xnicer/kde.pyx":160
+  /* "xnicer/kde/kde.pyx":160
  *             self.kernel_radius = np.int(np.ceil(self.bandwidth + 0.5))
  *             kernel = lambda x2: np.maximum(1.0 - np.sqrt(x2) / self.bandwidth, 0.0)
  *         elif self.kernel == 'epanechinov':             # <<<<<<<<<<<<<<
@@ -4259,7 +4259,7 @@ static int __pyx_pf_6xnicer_3kde_3KDE_2__init__(struct __pyx_obj_6xnicer_3kde_KD
   __pyx_t_1 = (__pyx_t_2 != 0);
   if (__pyx_t_1) {
 
-    /* "xnicer/kde.pyx":161
+    /* "xnicer/kde/kde.pyx":161
  *             kernel = lambda x2: np.maximum(1.0 - np.sqrt(x2) / self.bandwidth, 0.0)
  *         elif self.kernel == 'epanechinov':
  *             self.kernel_radius = np.int(np.ceil(self.bandwidth + 0.5))             # <<<<<<<<<<<<<<
@@ -4314,7 +4314,7 @@ static int __pyx_pf_6xnicer_3kde_3KDE_2__init__(struct __pyx_obj_6xnicer_3kde_KD
     __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
     __pyx_cur_scope->__pyx_v_self->kernel_radius = __pyx_t_9;
 
-    /* "xnicer/kde.pyx":162
+    /* "xnicer/kde/kde.pyx":162
  *         elif self.kernel == 'epanechinov':
  *             self.kernel_radius = np.int(np.ceil(self.bandwidth + 0.5))
  *             kernel = lambda x2: np.maximum(1.0 - x2 / self.bandwidth**2, 0.0)             # <<<<<<<<<<<<<<
@@ -4326,7 +4326,7 @@ static int __pyx_pf_6xnicer_3kde_3KDE_2__init__(struct __pyx_obj_6xnicer_3kde_KD
     __Pyx_DECREF_SET(__pyx_v_kernel, __pyx_t_3);
     __pyx_t_3 = 0;
 
-    /* "xnicer/kde.pyx":160
+    /* "xnicer/kde/kde.pyx":160
  *             self.kernel_radius = np.int(np.ceil(self.bandwidth + 0.5))
  *             kernel = lambda x2: np.maximum(1.0 - np.sqrt(x2) / self.bandwidth, 0.0)
  *         elif self.kernel == 'epanechinov':             # <<<<<<<<<<<<<<
@@ -4336,7 +4336,7 @@ static int __pyx_pf_6xnicer_3kde_3KDE_2__init__(struct __pyx_obj_6xnicer_3kde_KD
     goto __pyx_L3;
   }
 
-  /* "xnicer/kde.pyx":163
+  /* "xnicer/kde/kde.pyx":163
  *             self.kernel_radius = np.int(np.ceil(self.bandwidth + 0.5))
  *             kernel = lambda x2: np.maximum(1.0 - x2 / self.bandwidth**2, 0.0)
  *         elif self.kernel == 'exponential':             # <<<<<<<<<<<<<<
@@ -4347,7 +4347,7 @@ static int __pyx_pf_6xnicer_3kde_3KDE_2__init__(struct __pyx_obj_6xnicer_3kde_KD
   __pyx_t_2 = (__pyx_t_1 != 0);
   if (__pyx_t_2) {
 
-    /* "xnicer/kde.pyx":164
+    /* "xnicer/kde/kde.pyx":164
  *             kernel = lambda x2: np.maximum(1.0 - x2 / self.bandwidth**2, 0.0)
  *         elif self.kernel == 'exponential':
  *             self.kernel_radius = lrint(6.0*self.bandwidth + 0.5)             # <<<<<<<<<<<<<<
@@ -4356,7 +4356,7 @@ static int __pyx_pf_6xnicer_3kde_3KDE_2__init__(struct __pyx_obj_6xnicer_3kde_KD
  */
     __pyx_cur_scope->__pyx_v_self->kernel_radius = lrint(((6.0 * __pyx_cur_scope->__pyx_v_self->bandwidth) + 0.5));
 
-    /* "xnicer/kde.pyx":165
+    /* "xnicer/kde/kde.pyx":165
  *         elif self.kernel == 'exponential':
  *             self.kernel_radius = lrint(6.0*self.bandwidth + 0.5)
  *             kernel = lambda x2: np.exp(-np.sqrt(x2) / self.bandwidth)             # <<<<<<<<<<<<<<
@@ -4368,7 +4368,7 @@ static int __pyx_pf_6xnicer_3kde_3KDE_2__init__(struct __pyx_obj_6xnicer_3kde_KD
     __Pyx_DECREF_SET(__pyx_v_kernel, __pyx_t_3);
     __pyx_t_3 = 0;
 
-    /* "xnicer/kde.pyx":163
+    /* "xnicer/kde/kde.pyx":163
  *             self.kernel_radius = np.int(np.ceil(self.bandwidth + 0.5))
  *             kernel = lambda x2: np.maximum(1.0 - x2 / self.bandwidth**2, 0.0)
  *         elif self.kernel == 'exponential':             # <<<<<<<<<<<<<<
@@ -4378,7 +4378,7 @@ static int __pyx_pf_6xnicer_3kde_3KDE_2__init__(struct __pyx_obj_6xnicer_3kde_KD
     goto __pyx_L3;
   }
 
-  /* "xnicer/kde.pyx":166
+  /* "xnicer/kde/kde.pyx":166
  *             self.kernel_radius = lrint(6.0*self.bandwidth + 0.5)
  *             kernel = lambda x2: np.exp(-np.sqrt(x2) / self.bandwidth)
  *         elif self.kernel == 'cosine':             # <<<<<<<<<<<<<<
@@ -4389,7 +4389,7 @@ static int __pyx_pf_6xnicer_3kde_3KDE_2__init__(struct __pyx_obj_6xnicer_3kde_KD
   __pyx_t_1 = (__pyx_t_2 != 0);
   if (likely(__pyx_t_1)) {
 
-    /* "xnicer/kde.pyx":167
+    /* "xnicer/kde/kde.pyx":167
  *             kernel = lambda x2: np.exp(-np.sqrt(x2) / self.bandwidth)
  *         elif self.kernel == 'cosine':
  *             self.kernel_radius = np.int(np.ceil(self.bandwidth + 0.5))             # <<<<<<<<<<<<<<
@@ -4444,7 +4444,7 @@ static int __pyx_pf_6xnicer_3kde_3KDE_2__init__(struct __pyx_obj_6xnicer_3kde_KD
     __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
     __pyx_cur_scope->__pyx_v_self->kernel_radius = __pyx_t_9;
 
-    /* "xnicer/kde.pyx":168
+    /* "xnicer/kde/kde.pyx":168
  *         elif self.kernel == 'cosine':
  *             self.kernel_radius = np.int(np.ceil(self.bandwidth + 0.5))
  *             kernel = lambda x2: np.maximum(np.cos(np.sqrt(x2) / (2*self.bandwidth/np.pi)), 0.0)             # <<<<<<<<<<<<<<
@@ -4456,7 +4456,7 @@ static int __pyx_pf_6xnicer_3kde_3KDE_2__init__(struct __pyx_obj_6xnicer_3kde_KD
     __Pyx_DECREF_SET(__pyx_v_kernel, __pyx_t_3);
     __pyx_t_3 = 0;
 
-    /* "xnicer/kde.pyx":166
+    /* "xnicer/kde/kde.pyx":166
  *             self.kernel_radius = lrint(6.0*self.bandwidth + 0.5)
  *             kernel = lambda x2: np.exp(-np.sqrt(x2) / self.bandwidth)
  *         elif self.kernel == 'cosine':             # <<<<<<<<<<<<<<
@@ -4466,7 +4466,7 @@ static int __pyx_pf_6xnicer_3kde_3KDE_2__init__(struct __pyx_obj_6xnicer_3kde_KD
     goto __pyx_L3;
   }
 
-  /* "xnicer/kde.pyx":170
+  /* "xnicer/kde/kde.pyx":170
  *             kernel = lambda x2: np.maximum(np.cos(np.sqrt(x2) / (2*self.bandwidth/np.pi)), 0.0)
  *         else:
  *             raise ValueError('Unknown kernel')             # <<<<<<<<<<<<<<
@@ -4482,7 +4482,7 @@ static int __pyx_pf_6xnicer_3kde_3KDE_2__init__(struct __pyx_obj_6xnicer_3kde_KD
   }
   __pyx_L3:;
 
-  /* "xnicer/kde.pyx":172
+  /* "xnicer/kde/kde.pyx":172
  *             raise ValueError('Unknown kernel')
  *         # Size of the oversampled kernel radius, in each direction
  *         kernel_over_radius = self.kernel_radius * self.oversampling + self.oversampling // 2             # <<<<<<<<<<<<<<
@@ -4494,7 +4494,7 @@ static int __pyx_pf_6xnicer_3kde_3KDE_2__init__(struct __pyx_obj_6xnicer_3kde_KD
   __pyx_v_kernel_over_radius = __pyx_t_3;
   __pyx_t_3 = 0;
 
-  /* "xnicer/kde.pyx":174
+  /* "xnicer/kde/kde.pyx":174
  *         kernel_over_radius = self.kernel_radius * self.oversampling + self.oversampling // 2
  *         # The kernel size: twice the kernel radius + one pixel for the center
  *         self.kernel_size = self.kernel_radius * 2 + 1             # <<<<<<<<<<<<<<
@@ -4503,7 +4503,7 @@ static int __pyx_pf_6xnicer_3kde_3KDE_2__init__(struct __pyx_obj_6xnicer_3kde_KD
  */
   __pyx_cur_scope->__pyx_v_self->kernel_size = ((__pyx_cur_scope->__pyx_v_self->kernel_radius * 2) + 1);
 
-  /* "xnicer/kde.pyx":176
+  /* "xnicer/kde/kde.pyx":176
  *         self.kernel_size = self.kernel_radius * 2 + 1
  *         # Compute the framed_naxis for the framing
  *         self.framed_naxis = tuple(axis + self.kernel_size*2 for axis in self.naxis)             # <<<<<<<<<<<<<<
@@ -4521,7 +4521,7 @@ static int __pyx_pf_6xnicer_3kde_3KDE_2__init__(struct __pyx_obj_6xnicer_3kde_KD
   __pyx_cur_scope->__pyx_v_self->framed_naxis = ((PyObject*)__pyx_t_4);
   __pyx_t_4 = 0;
 
-  /* "xnicer/kde.pyx":178
+  /* "xnicer/kde/kde.pyx":178
  *         self.framed_naxis = tuple(axis + self.kernel_size*2 for axis in self.naxis)
  *         # Make an oversampled grid
  *         coords = np.mgrid[(slice(-kernel_over_radius, kernel_over_radius+1),) *             # <<<<<<<<<<<<<<
@@ -4542,7 +4542,7 @@ static int __pyx_pf_6xnicer_3kde_3KDE_2__init__(struct __pyx_obj_6xnicer_3kde_KD
   __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
   __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
 
-  /* "xnicer/kde.pyx":179
+  /* "xnicer/kde/kde.pyx":179
  *         # Make an oversampled grid
  *         coords = np.mgrid[(slice(-kernel_over_radius, kernel_over_radius+1),) *
  *                           self.ndim] / self.oversampling             # <<<<<<<<<<<<<<
@@ -4560,7 +4560,7 @@ static int __pyx_pf_6xnicer_3kde_3KDE_2__init__(struct __pyx_obj_6xnicer_3kde_KD
   }
   __Pyx_DECREF(__pyx_t_6); __pyx_t_6 = 0;
 
-  /* "xnicer/kde.pyx":178
+  /* "xnicer/kde/kde.pyx":178
  *         self.framed_naxis = tuple(axis + self.kernel_size*2 for axis in self.naxis)
  *         # Make an oversampled grid
  *         coords = np.mgrid[(slice(-kernel_over_radius, kernel_over_radius+1),) *             # <<<<<<<<<<<<<<
@@ -4572,7 +4572,7 @@ static int __pyx_pf_6xnicer_3kde_3KDE_2__init__(struct __pyx_obj_6xnicer_3kde_KD
   __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
   __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
 
-  /* "xnicer/kde.pyx":179
+  /* "xnicer/kde/kde.pyx":179
  *         # Make an oversampled grid
  *         coords = np.mgrid[(slice(-kernel_over_radius, kernel_over_radius+1),) *
  *                           self.ndim] / self.oversampling             # <<<<<<<<<<<<<<
@@ -4588,7 +4588,7 @@ static int __pyx_pf_6xnicer_3kde_3KDE_2__init__(struct __pyx_obj_6xnicer_3kde_KD
   __pyx_v_coords = __pyx_t_3;
   __pyx_t_3 = 0;
 
-  /* "xnicer/kde.pyx":181
+  /* "xnicer/kde/kde.pyx":181
  *                           self.ndim] / self.oversampling
  *         # Convert the coords 2D array to 1D using the metric
  *         if self.metric == 2.0:             # <<<<<<<<<<<<<<
@@ -4598,7 +4598,7 @@ static int __pyx_pf_6xnicer_3kde_3KDE_2__init__(struct __pyx_obj_6xnicer_3kde_KD
   __pyx_t_1 = ((__pyx_cur_scope->__pyx_v_self->metric == 2.0) != 0);
   if (__pyx_t_1) {
 
-    /* "xnicer/kde.pyx":182
+    /* "xnicer/kde/kde.pyx":182
  *         # Convert the coords 2D array to 1D using the metric
  *         if self.metric == 2.0:
  *             coords = np.sum(coords**2, axis=0)             # <<<<<<<<<<<<<<
@@ -4628,7 +4628,7 @@ static int __pyx_pf_6xnicer_3kde_3KDE_2__init__(struct __pyx_obj_6xnicer_3kde_KD
     __Pyx_DECREF_SET(__pyx_v_coords, __pyx_t_4);
     __pyx_t_4 = 0;
 
-    /* "xnicer/kde.pyx":181
+    /* "xnicer/kde/kde.pyx":181
  *                           self.ndim] / self.oversampling
  *         # Convert the coords 2D array to 1D using the metric
  *         if self.metric == 2.0:             # <<<<<<<<<<<<<<
@@ -4638,7 +4638,7 @@ static int __pyx_pf_6xnicer_3kde_3KDE_2__init__(struct __pyx_obj_6xnicer_3kde_KD
     goto __pyx_L4;
   }
 
-  /* "xnicer/kde.pyx":183
+  /* "xnicer/kde/kde.pyx":183
  *         if self.metric == 2.0:
  *             coords = np.sum(coords**2, axis=0)
  *         elif self.metric == 1.0:             # <<<<<<<<<<<<<<
@@ -4648,7 +4648,7 @@ static int __pyx_pf_6xnicer_3kde_3KDE_2__init__(struct __pyx_obj_6xnicer_3kde_KD
   __pyx_t_1 = ((__pyx_cur_scope->__pyx_v_self->metric == 1.0) != 0);
   if (__pyx_t_1) {
 
-    /* "xnicer/kde.pyx":184
+    /* "xnicer/kde/kde.pyx":184
  *             coords = np.sum(coords**2, axis=0)
  *         elif self.metric == 1.0:
  *             coords = np.sum(np.abs(coords), axis=0)**2             # <<<<<<<<<<<<<<
@@ -4699,7 +4699,7 @@ static int __pyx_pf_6xnicer_3kde_3KDE_2__init__(struct __pyx_obj_6xnicer_3kde_KD
     __Pyx_DECREF_SET(__pyx_v_coords, __pyx_t_4);
     __pyx_t_4 = 0;
 
-    /* "xnicer/kde.pyx":183
+    /* "xnicer/kde/kde.pyx":183
  *         if self.metric == 2.0:
  *             coords = np.sum(coords**2, axis=0)
  *         elif self.metric == 1.0:             # <<<<<<<<<<<<<<
@@ -4709,7 +4709,7 @@ static int __pyx_pf_6xnicer_3kde_3KDE_2__init__(struct __pyx_obj_6xnicer_3kde_KD
     goto __pyx_L4;
   }
 
-  /* "xnicer/kde.pyx":185
+  /* "xnicer/kde/kde.pyx":185
  *         elif self.metric == 1.0:
  *             coords = np.sum(np.abs(coords), axis=0)**2
  *         elif self.metric == np.inf:             # <<<<<<<<<<<<<<
@@ -4730,7 +4730,7 @@ static int __pyx_pf_6xnicer_3kde_3KDE_2__init__(struct __pyx_obj_6xnicer_3kde_KD
   __Pyx_DECREF(__pyx_t_6); __pyx_t_6 = 0;
   if (__pyx_t_1) {
 
-    /* "xnicer/kde.pyx":186
+    /* "xnicer/kde/kde.pyx":186
  *             coords = np.sum(np.abs(coords), axis=0)**2
  *         elif self.metric == np.inf:
  *             coords = np.max(np.abs(coords), axis=0)**2             # <<<<<<<<<<<<<<
@@ -4781,7 +4781,7 @@ static int __pyx_pf_6xnicer_3kde_3KDE_2__init__(struct __pyx_obj_6xnicer_3kde_KD
     __Pyx_DECREF_SET(__pyx_v_coords, __pyx_t_6);
     __pyx_t_6 = 0;
 
-    /* "xnicer/kde.pyx":185
+    /* "xnicer/kde/kde.pyx":185
  *         elif self.metric == 1.0:
  *             coords = np.sum(np.abs(coords), axis=0)**2
  *         elif self.metric == np.inf:             # <<<<<<<<<<<<<<
@@ -4791,7 +4791,7 @@ static int __pyx_pf_6xnicer_3kde_3KDE_2__init__(struct __pyx_obj_6xnicer_3kde_KD
     goto __pyx_L4;
   }
 
-  /* "xnicer/kde.pyx":187
+  /* "xnicer/kde/kde.pyx":187
  *         elif self.metric == np.inf:
  *             coords = np.max(np.abs(coords), axis=0)**2
  *         elif self.metric == 0:             # <<<<<<<<<<<<<<
@@ -4801,7 +4801,7 @@ static int __pyx_pf_6xnicer_3kde_3KDE_2__init__(struct __pyx_obj_6xnicer_3kde_KD
   __pyx_t_1 = ((__pyx_cur_scope->__pyx_v_self->metric == 0.0) != 0);
   if (__pyx_t_1) {
 
-    /* "xnicer/kde.pyx":188
+    /* "xnicer/kde/kde.pyx":188
  *             coords = np.max(np.abs(coords), axis=0)**2
  *         elif self.metric == 0:
  *             coords = np.min(np.abs(coords), axis=0)**2             # <<<<<<<<<<<<<<
@@ -4852,7 +4852,7 @@ static int __pyx_pf_6xnicer_3kde_3KDE_2__init__(struct __pyx_obj_6xnicer_3kde_KD
     __Pyx_DECREF_SET(__pyx_v_coords, __pyx_t_6);
     __pyx_t_6 = 0;
 
-    /* "xnicer/kde.pyx":187
+    /* "xnicer/kde/kde.pyx":187
  *         elif self.metric == np.inf:
  *             coords = np.max(np.abs(coords), axis=0)**2
  *         elif self.metric == 0:             # <<<<<<<<<<<<<<
@@ -4862,7 +4862,7 @@ static int __pyx_pf_6xnicer_3kde_3KDE_2__init__(struct __pyx_obj_6xnicer_3kde_KD
     goto __pyx_L4;
   }
 
-  /* "xnicer/kde.pyx":189
+  /* "xnicer/kde/kde.pyx":189
  *         elif self.metric == 0:
  *             coords = np.min(np.abs(coords), axis=0)**2
  *         elif self.metric > 0:             # <<<<<<<<<<<<<<
@@ -4872,7 +4872,7 @@ static int __pyx_pf_6xnicer_3kde_3KDE_2__init__(struct __pyx_obj_6xnicer_3kde_KD
   __pyx_t_1 = ((__pyx_cur_scope->__pyx_v_self->metric > 0.0) != 0);
   if (likely(__pyx_t_1)) {
 
-    /* "xnicer/kde.pyx":190
+    /* "xnicer/kde/kde.pyx":190
  *             coords = np.min(np.abs(coords), axis=0)**2
  *         elif self.metric > 0:
  *             coords = np.sum((np.abs(coords))**self.metric, axis=0)**(2.0/self.metric)             # <<<<<<<<<<<<<<
@@ -4932,7 +4932,7 @@ static int __pyx_pf_6xnicer_3kde_3KDE_2__init__(struct __pyx_obj_6xnicer_3kde_KD
     __Pyx_DECREF_SET(__pyx_v_coords, __pyx_t_4);
     __pyx_t_4 = 0;
 
-    /* "xnicer/kde.pyx":189
+    /* "xnicer/kde/kde.pyx":189
  *         elif self.metric == 0:
  *             coords = np.min(np.abs(coords), axis=0)**2
  *         elif self.metric > 0:             # <<<<<<<<<<<<<<
@@ -4942,7 +4942,7 @@ static int __pyx_pf_6xnicer_3kde_3KDE_2__init__(struct __pyx_obj_6xnicer_3kde_KD
     goto __pyx_L4;
   }
 
-  /* "xnicer/kde.pyx":192
+  /* "xnicer/kde/kde.pyx":192
  *             coords = np.sum((np.abs(coords))**self.metric, axis=0)**(2.0/self.metric)
  *         else:
  *             raise ValueError('The p-metric must have a non-negative exponent')             # <<<<<<<<<<<<<<
@@ -4958,7 +4958,7 @@ static int __pyx_pf_6xnicer_3kde_3KDE_2__init__(struct __pyx_obj_6xnicer_3kde_KD
   }
   __pyx_L4:;
 
-  /* "xnicer/kde.pyx":194
+  /* "xnicer/kde/kde.pyx":194
  *             raise ValueError('The p-metric must have a non-negative exponent')
  *         # Compute the kernel table on the oversampled area
  *         kernel_table = kernel(coords)             # <<<<<<<<<<<<<<
@@ -4984,7 +4984,7 @@ static int __pyx_pf_6xnicer_3kde_3KDE_2__init__(struct __pyx_obj_6xnicer_3kde_KD
   __pyx_v_kernel_table = __pyx_t_4;
   __pyx_t_4 = 0;
 
-  /* "xnicer/kde.pyx":196
+  /* "xnicer/kde/kde.pyx":196
  *         kernel_table = kernel(coords)
  *         # Sum adjacent pixels to perform a sort of pixel integration, if requested
  *         if self.binned_kernel:             # <<<<<<<<<<<<<<
@@ -4994,7 +4994,7 @@ static int __pyx_pf_6xnicer_3kde_3KDE_2__init__(struct __pyx_obj_6xnicer_3kde_KD
   __pyx_t_1 = (__pyx_cur_scope->__pyx_v_self->binned_kernel != 0);
   if (__pyx_t_1) {
 
-    /* "xnicer/kde.pyx":197
+    /* "xnicer/kde/kde.pyx":197
  *         # Sum adjacent pixels to perform a sort of pixel integration, if requested
  *         if self.binned_kernel:
  *             kernel_table = uniform_filter(kernel_table, size=self.oversampling, mode='constant')             # <<<<<<<<<<<<<<
@@ -5023,7 +5023,7 @@ static int __pyx_pf_6xnicer_3kde_3KDE_2__init__(struct __pyx_obj_6xnicer_3kde_KD
     __Pyx_DECREF_SET(__pyx_v_kernel_table, __pyx_t_3);
     __pyx_t_3 = 0;
 
-    /* "xnicer/kde.pyx":196
+    /* "xnicer/kde/kde.pyx":196
  *         kernel_table = kernel(coords)
  *         # Sum adjacent pixels to perform a sort of pixel integration, if requested
  *         if self.binned_kernel:             # <<<<<<<<<<<<<<
@@ -5032,7 +5032,7 @@ static int __pyx_pf_6xnicer_3kde_3KDE_2__init__(struct __pyx_obj_6xnicer_3kde_KD
  */
   }
 
-  /* "xnicer/kde.pyx":199
+  /* "xnicer/kde/kde.pyx":199
  *             kernel_table = uniform_filter(kernel_table, size=self.oversampling, mode='constant')
  *         # Now reorganize the kernel_table and normalize it
  *         kernel_table = kernel_table.reshape(*(self.kernel_size, self.oversampling) * self.ndim)             # <<<<<<<<<<<<<<
@@ -5066,7 +5066,7 @@ static int __pyx_pf_6xnicer_3kde_3KDE_2__init__(struct __pyx_obj_6xnicer_3kde_KD
   __Pyx_DECREF_SET(__pyx_v_kernel_table, __pyx_t_5);
   __pyx_t_5 = 0;
 
-  /* "xnicer/kde.pyx":202
+  /* "xnicer/kde/kde.pyx":202
  *         # At the end of the next line, the kernel_table has the dimensions
  *         # oversampling^ndim x kernel_size^ndim
  *         kernel_table = kernel_table.transpose(tuple(range(1, 1+2*self.ndim, 2)) +             # <<<<<<<<<<<<<<
@@ -5095,7 +5095,7 @@ static int __pyx_pf_6xnicer_3kde_3KDE_2__init__(struct __pyx_obj_6xnicer_3kde_KD
   __Pyx_GOTREF(__pyx_t_6);
   __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
 
-  /* "xnicer/kde.pyx":203
+  /* "xnicer/kde/kde.pyx":203
  *         # oversampling^ndim x kernel_size^ndim
  *         kernel_table = kernel_table.transpose(tuple(range(1, 1+2*self.ndim, 2)) +
  *                                               tuple(range(0, 2*self.ndim, 2)))             # <<<<<<<<<<<<<<
@@ -5122,7 +5122,7 @@ static int __pyx_pf_6xnicer_3kde_3KDE_2__init__(struct __pyx_obj_6xnicer_3kde_KD
   __Pyx_GOTREF(__pyx_t_7);
   __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
 
-  /* "xnicer/kde.pyx":202
+  /* "xnicer/kde/kde.pyx":202
  *         # At the end of the next line, the kernel_table has the dimensions
  *         # oversampling^ndim x kernel_size^ndim
  *         kernel_table = kernel_table.transpose(tuple(range(1, 1+2*self.ndim, 2)) +             # <<<<<<<<<<<<<<
@@ -5152,7 +5152,7 @@ static int __pyx_pf_6xnicer_3kde_3KDE_2__init__(struct __pyx_obj_6xnicer_3kde_KD
   __Pyx_DECREF_SET(__pyx_v_kernel_table, __pyx_t_5);
   __pyx_t_5 = 0;
 
-  /* "xnicer/kde.pyx":204
+  /* "xnicer/kde/kde.pyx":204
  *         kernel_table = kernel_table.transpose(tuple(range(1, 1+2*self.ndim, 2)) +
  *                                               tuple(range(0, 2*self.ndim, 2)))
  *         last = tuple(range(self.ndim, self.ndim*2))             # <<<<<<<<<<<<<<
@@ -5180,7 +5180,7 @@ static int __pyx_pf_6xnicer_3kde_3KDE_2__init__(struct __pyx_obj_6xnicer_3kde_KD
   __pyx_v_last = ((PyObject*)__pyx_t_3);
   __pyx_t_3 = 0;
 
-  /* "xnicer/kde.pyx":206
+  /* "xnicer/kde/kde.pyx":206
  *         last = tuple(range(self.ndim, self.ndim*2))
  *         kernel_table /= \
  *             np.sum(kernel_table, axis=last)[(Ellipsis,)+(None,)*self.ndim]             # <<<<<<<<<<<<<<
@@ -5218,7 +5218,7 @@ static int __pyx_pf_6xnicer_3kde_3KDE_2__init__(struct __pyx_obj_6xnicer_3kde_KD
   __Pyx_DECREF(__pyx_t_7); __pyx_t_7 = 0;
   __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
 
-  /* "xnicer/kde.pyx":205
+  /* "xnicer/kde/kde.pyx":205
  *                                               tuple(range(0, 2*self.ndim, 2)))
  *         last = tuple(range(self.ndim, self.ndim*2))
  *         kernel_table /= \             # <<<<<<<<<<<<<<
@@ -5231,7 +5231,7 @@ static int __pyx_pf_6xnicer_3kde_3KDE_2__init__(struct __pyx_obj_6xnicer_3kde_KD
   __Pyx_DECREF_SET(__pyx_v_kernel_table, __pyx_t_5);
   __pyx_t_5 = 0;
 
-  /* "xnicer/kde.pyx":208
+  /* "xnicer/kde/kde.pyx":208
  *             np.sum(kernel_table, axis=last)[(Ellipsis,)+(None,)*self.ndim]
  *         # Check everything is OK
  *         assert np.allclose(np.sum(kernel_table, axis=last), 1), "Kernel table normalization error"             # <<<<<<<<<<<<<<
@@ -5319,7 +5319,7 @@ static int __pyx_pf_6xnicer_3kde_3KDE_2__init__(struct __pyx_obj_6xnicer_3kde_KD
   }
   #endif
 
-  /* "xnicer/kde.pyx":209
+  /* "xnicer/kde/kde.pyx":209
  *         # Check everything is OK
  *         assert np.allclose(np.sum(kernel_table, axis=last), 1), "Kernel table normalization error"
  *         self.eff_area = np.mean(1.0 / np.sum(kernel_table*kernel_table, axis=last))             # <<<<<<<<<<<<<<
@@ -5374,7 +5374,7 @@ static int __pyx_pf_6xnicer_3kde_3KDE_2__init__(struct __pyx_obj_6xnicer_3kde_KD
   __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
   __pyx_cur_scope->__pyx_v_self->eff_area = __pyx_t_10;
 
-  /* "xnicer/kde.pyx":211
+  /* "xnicer/kde/kde.pyx":211
  *         self.eff_area = np.mean(1.0 / np.sum(kernel_table*kernel_table, axis=last))
  *         # Reformat so that it is a 2D array
  *         kernel_table = kernel_table.reshape(self.oversampling**self.ndim,             # <<<<<<<<<<<<<<
@@ -5386,7 +5386,7 @@ static int __pyx_pf_6xnicer_3kde_3KDE_2__init__(struct __pyx_obj_6xnicer_3kde_KD
   __pyx_t_7 = __Pyx_PyInt_From_int(__Pyx_pow_int(__pyx_cur_scope->__pyx_v_self->oversampling, __pyx_cur_scope->__pyx_v_self->ndim)); if (unlikely(!__pyx_t_7)) __PYX_ERR(0, 211, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_7);
 
-  /* "xnicer/kde.pyx":212
+  /* "xnicer/kde/kde.pyx":212
  *         # Reformat so that it is a 2D array
  *         kernel_table = kernel_table.reshape(self.oversampling**self.ndim,
  *                                             self.kernel_size**self.ndim)             # <<<<<<<<<<<<<<
@@ -5447,7 +5447,7 @@ static int __pyx_pf_6xnicer_3kde_3KDE_2__init__(struct __pyx_obj_6xnicer_3kde_KD
   __Pyx_DECREF_SET(__pyx_v_kernel_table, __pyx_t_5);
   __pyx_t_5 = 0;
 
-  /* "xnicer/kde.pyx":213
+  /* "xnicer/kde/kde.pyx":213
  *         kernel_table = kernel_table.reshape(self.oversampling**self.ndim,
  *                                             self.kernel_size**self.ndim)
  *         kernel_table_3d = np.empty((self.max_power, self.oversampling**self.ndim,             # <<<<<<<<<<<<<<
@@ -5464,7 +5464,7 @@ static int __pyx_pf_6xnicer_3kde_3KDE_2__init__(struct __pyx_obj_6xnicer_3kde_KD
   __pyx_t_8 = __Pyx_PyInt_From_int(__Pyx_pow_int(__pyx_cur_scope->__pyx_v_self->oversampling, __pyx_cur_scope->__pyx_v_self->ndim)); if (unlikely(!__pyx_t_8)) __PYX_ERR(0, 213, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_8);
 
-  /* "xnicer/kde.pyx":214
+  /* "xnicer/kde/kde.pyx":214
  *                                             self.kernel_size**self.ndim)
  *         kernel_table_3d = np.empty((self.max_power, self.oversampling**self.ndim,
  *                                     self.kernel_size**self.ndim), dtype=np.float32)             # <<<<<<<<<<<<<<
@@ -5474,7 +5474,7 @@ static int __pyx_pf_6xnicer_3kde_3KDE_2__init__(struct __pyx_obj_6xnicer_3kde_KD
   __pyx_t_4 = __Pyx_PyInt_From_int(__Pyx_pow_int(__pyx_cur_scope->__pyx_v_self->kernel_size, __pyx_cur_scope->__pyx_v_self->ndim)); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 214, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_4);
 
-  /* "xnicer/kde.pyx":213
+  /* "xnicer/kde/kde.pyx":213
  *         kernel_table = kernel_table.reshape(self.oversampling**self.ndim,
  *                                             self.kernel_size**self.ndim)
  *         kernel_table_3d = np.empty((self.max_power, self.oversampling**self.ndim,             # <<<<<<<<<<<<<<
@@ -5498,7 +5498,7 @@ static int __pyx_pf_6xnicer_3kde_3KDE_2__init__(struct __pyx_obj_6xnicer_3kde_KD
   PyTuple_SET_ITEM(__pyx_t_4, 0, __pyx_t_7);
   __pyx_t_7 = 0;
 
-  /* "xnicer/kde.pyx":214
+  /* "xnicer/kde/kde.pyx":214
  *                                             self.kernel_size**self.ndim)
  *         kernel_table_3d = np.empty((self.max_power, self.oversampling**self.ndim,
  *                                     self.kernel_size**self.ndim), dtype=np.float32)             # <<<<<<<<<<<<<<
@@ -5515,7 +5515,7 @@ static int __pyx_pf_6xnicer_3kde_3KDE_2__init__(struct __pyx_obj_6xnicer_3kde_KD
   if (PyDict_SetItem(__pyx_t_7, __pyx_n_s_dtype, __pyx_t_5) < 0) __PYX_ERR(0, 214, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
 
-  /* "xnicer/kde.pyx":213
+  /* "xnicer/kde/kde.pyx":213
  *         kernel_table = kernel_table.reshape(self.oversampling**self.ndim,
  *                                             self.kernel_size**self.ndim)
  *         kernel_table_3d = np.empty((self.max_power, self.oversampling**self.ndim,             # <<<<<<<<<<<<<<
@@ -5530,7 +5530,7 @@ static int __pyx_pf_6xnicer_3kde_3KDE_2__init__(struct __pyx_obj_6xnicer_3kde_KD
   __pyx_v_kernel_table_3d = __pyx_t_5;
   __pyx_t_5 = 0;
 
-  /* "xnicer/kde.pyx":215
+  /* "xnicer/kde/kde.pyx":215
  *         kernel_table_3d = np.empty((self.max_power, self.oversampling**self.ndim,
  *                                     self.kernel_size**self.ndim), dtype=np.float32)
  *         for p in range(self.max_power):             # <<<<<<<<<<<<<<
@@ -5585,7 +5585,7 @@ static int __pyx_pf_6xnicer_3kde_3KDE_2__init__(struct __pyx_obj_6xnicer_3kde_KD
     __Pyx_XDECREF_SET(__pyx_v_p, __pyx_t_7);
     __pyx_t_7 = 0;
 
-    /* "xnicer/kde.pyx":216
+    /* "xnicer/kde/kde.pyx":216
  *                                     self.kernel_size**self.ndim), dtype=np.float32)
  *         for p in range(self.max_power):
  *             kernel_table_3d[p, :, :] = (kernel_table**(p+1)).astype(np.float32)             # <<<<<<<<<<<<<<
@@ -5636,7 +5636,7 @@ static int __pyx_pf_6xnicer_3kde_3KDE_2__init__(struct __pyx_obj_6xnicer_3kde_KD
     __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
     __Pyx_DECREF(__pyx_t_7); __pyx_t_7 = 0;
 
-    /* "xnicer/kde.pyx":215
+    /* "xnicer/kde/kde.pyx":215
  *         kernel_table_3d = np.empty((self.max_power, self.oversampling**self.ndim,
  *                                     self.kernel_size**self.ndim), dtype=np.float32)
  *         for p in range(self.max_power):             # <<<<<<<<<<<<<<
@@ -5646,7 +5646,7 @@ static int __pyx_pf_6xnicer_3kde_3KDE_2__init__(struct __pyx_obj_6xnicer_3kde_KD
   }
   __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
 
-  /* "xnicer/kde.pyx":217
+  /* "xnicer/kde/kde.pyx":217
  *         for p in range(self.max_power):
  *             kernel_table_3d[p, :, :] = (kernel_table**(p+1)).astype(np.float32)
  *         self.kernel_table = kernel_table_3d             # <<<<<<<<<<<<<<
@@ -5659,7 +5659,7 @@ static int __pyx_pf_6xnicer_3kde_3KDE_2__init__(struct __pyx_obj_6xnicer_3kde_KD
   __pyx_t_13.memview = NULL;
   __pyx_t_13.data = NULL;
 
-  /* "xnicer/kde.pyx":220
+  /* "xnicer/kde/kde.pyx":220
  *         # Finally build the array index
  *         self.kernel_index = \
  *             np.ravel_multi_index(np.mgrid[(slice(self.kernel_size),)*self.ndim],             # <<<<<<<<<<<<<<
@@ -5696,7 +5696,7 @@ static int __pyx_pf_6xnicer_3kde_3KDE_2__init__(struct __pyx_obj_6xnicer_3kde_KD
   __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
   __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
 
-  /* "xnicer/kde.pyx":221
+  /* "xnicer/kde/kde.pyx":221
  *         self.kernel_index = \
  *             np.ravel_multi_index(np.mgrid[(slice(self.kernel_size),)*self.ndim],
  *                                  self.framed_naxis).ravel()             # <<<<<<<<<<<<<<
@@ -5771,7 +5771,7 @@ static int __pyx_pf_6xnicer_3kde_3KDE_2__init__(struct __pyx_obj_6xnicer_3kde_KD
   __pyx_t_14 = __Pyx_PyObject_to_MemoryviewSlice_ds_long(__pyx_t_5, PyBUF_WRITABLE); if (unlikely(!__pyx_t_14.memview)) __PYX_ERR(0, 221, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
 
-  /* "xnicer/kde.pyx":219
+  /* "xnicer/kde/kde.pyx":219
  *         self.kernel_table = kernel_table_3d
  *         # Finally build the array index
  *         self.kernel_index = \             # <<<<<<<<<<<<<<
@@ -5783,7 +5783,7 @@ static int __pyx_pf_6xnicer_3kde_3KDE_2__init__(struct __pyx_obj_6xnicer_3kde_KD
   __pyx_t_14.memview = NULL;
   __pyx_t_14.data = NULL;
 
-  /* "xnicer/kde.pyx":111
+  /* "xnicer/kde/kde.pyx":111
  *         self.max_power = max_power
  * 
  *     def __init__(self, naxis, bandwidth=1.0, kernel='gaussian', metric=2.0,             # <<<<<<<<<<<<<<
@@ -5818,7 +5818,7 @@ static int __pyx_pf_6xnicer_3kde_3KDE_2__init__(struct __pyx_obj_6xnicer_3kde_KD
   return __pyx_r;
 }
 
-/* "xnicer/kde.pyx":223
+/* "xnicer/kde/kde.pyx":223
  *                                  self.framed_naxis).ravel()
  * 
  *     def __repr__(self):             # <<<<<<<<<<<<<<
@@ -5849,7 +5849,7 @@ static PyObject *__pyx_pf_6xnicer_3kde_3KDE_4__repr__(struct __pyx_obj_6xnicer_3
   PyObject *__pyx_t_5 = NULL;
   __Pyx_RefNannySetupContext("__repr__", 0);
 
-  /* "xnicer/kde.pyx":224
+  /* "xnicer/kde/kde.pyx":224
  * 
  *     def __repr__(self):
  *         return (f"MapMaker({self.naxis)}, "             # <<<<<<<<<<<<<<
@@ -5877,7 +5877,7 @@ static PyObject *__pyx_pf_6xnicer_3kde_3KDE_4__repr__(struct __pyx_obj_6xnicer_3
   __Pyx_GIVEREF(__pyx_kp_u_bandwidth_2);
   PyTuple_SET_ITEM(__pyx_t_1, 2, __pyx_kp_u_bandwidth_2);
 
-  /* "xnicer/kde.pyx":225
+  /* "xnicer/kde/kde.pyx":225
  *     def __repr__(self):
  *         return (f"MapMaker({self.naxis)}, "
  *                 f"bandwidth={self.bandwidth}, kernel='{self.kernel}', "             # <<<<<<<<<<<<<<
@@ -5910,7 +5910,7 @@ static PyObject *__pyx_pf_6xnicer_3kde_3KDE_4__repr__(struct __pyx_obj_6xnicer_3
   __Pyx_GIVEREF(__pyx_kp_u_metric_2);
   PyTuple_SET_ITEM(__pyx_t_1, 6, __pyx_kp_u_metric_2);
 
-  /* "xnicer/kde.pyx":226
+  /* "xnicer/kde/kde.pyx":226
  *         return (f"MapMaker({self.naxis)}, "
  *                 f"bandwidth={self.bandwidth}, kernel='{self.kernel}', "
  *                 f"metric={self.metric}, binned_kernel={self.binned_kernel}, "             # <<<<<<<<<<<<<<
@@ -5942,7 +5942,7 @@ static PyObject *__pyx_pf_6xnicer_3kde_3KDE_4__repr__(struct __pyx_obj_6xnicer_3
   __Pyx_GIVEREF(__pyx_kp_u_max_power_2);
   PyTuple_SET_ITEM(__pyx_t_1, 10, __pyx_kp_u_max_power_2);
 
-  /* "xnicer/kde.pyx":227
+  /* "xnicer/kde/kde.pyx":227
  *                 f"bandwidth={self.bandwidth}, kernel='{self.kernel}', "
  *                 f"metric={self.metric}, binned_kernel={self.binned_kernel}, "
  *                 f"max_power={self.max_power}, oversampling={self.oversampling})")             # <<<<<<<<<<<<<<
@@ -5970,7 +5970,7 @@ static PyObject *__pyx_pf_6xnicer_3kde_3KDE_4__repr__(struct __pyx_obj_6xnicer_3
   __Pyx_GIVEREF(__pyx_kp_u__8);
   PyTuple_SET_ITEM(__pyx_t_1, 14, __pyx_kp_u__8);
 
-  /* "xnicer/kde.pyx":224
+  /* "xnicer/kde/kde.pyx":224
  * 
  *     def __repr__(self):
  *         return (f"MapMaker({self.naxis)}, "             # <<<<<<<<<<<<<<
@@ -5984,7 +5984,7 @@ static PyObject *__pyx_pf_6xnicer_3kde_3KDE_4__repr__(struct __pyx_obj_6xnicer_3
   __pyx_t_4 = 0;
   goto __pyx_L0;
 
-  /* "xnicer/kde.pyx":223
+  /* "xnicer/kde/kde.pyx":223
  *                                  self.framed_naxis).ravel()
  * 
  *     def __repr__(self):             # <<<<<<<<<<<<<<
@@ -6005,7 +6005,7 @@ static PyObject *__pyx_pf_6xnicer_3kde_3KDE_4__repr__(struct __pyx_obj_6xnicer_3
   return __pyx_r;
 }
 
-/* "xnicer/kde.pyx":229
+/* "xnicer/kde/kde.pyx":229
  *                 f"max_power={self.max_power}, oversampling={self.oversampling})")
  * 
  *     def set_naxis(self, naxis):             # <<<<<<<<<<<<<<
@@ -6028,7 +6028,7 @@ static PyObject *__pyx_pw_6xnicer_3kde_3KDE_7set_naxis(PyObject *__pyx_v_self, P
 }
 static PyObject *__pyx_gb_6xnicer_3kde_3KDE_9set_naxis_2generator1(__pyx_CoroutineObject *__pyx_generator, CYTHON_UNUSED PyThreadState *__pyx_tstate, PyObject *__pyx_sent_value); /* proto */
 
-/* "xnicer/kde.pyx":234
+/* "xnicer/kde/kde.pyx":234
  *         # Update the naxis for the framing
  *         self.naxis = tuple(naxis)
  *         self.framed_naxis = tuple(axis + self.kernel_size*2 for axis in self.naxis)             # <<<<<<<<<<<<<<
@@ -6152,7 +6152,7 @@ static PyObject *__pyx_gb_6xnicer_3kde_3KDE_9set_naxis_2generator1(__pyx_Corouti
   return __pyx_r;
 }
 
-/* "xnicer/kde.pyx":229
+/* "xnicer/kde/kde.pyx":229
  *                 f"max_power={self.max_power}, oversampling={self.oversampling})")
  * 
  *     def set_naxis(self, naxis):             # <<<<<<<<<<<<<<
@@ -6187,7 +6187,7 @@ static PyObject *__pyx_pf_6xnicer_3kde_3KDE_6set_naxis(struct __pyx_obj_6xnicer_
   __Pyx_INCREF((PyObject *)__pyx_cur_scope->__pyx_v_self);
   __Pyx_GIVEREF((PyObject *)__pyx_cur_scope->__pyx_v_self);
 
-  /* "xnicer/kde.pyx":230
+  /* "xnicer/kde/kde.pyx":230
  * 
  *     def set_naxis(self, naxis):
  *         if len(naxis) != self.ndim:             # <<<<<<<<<<<<<<
@@ -6198,7 +6198,7 @@ static PyObject *__pyx_pf_6xnicer_3kde_3KDE_6set_naxis(struct __pyx_obj_6xnicer_
   __pyx_t_2 = ((__pyx_t_1 != __pyx_cur_scope->__pyx_v_self->ndim) != 0);
   if (unlikely(__pyx_t_2)) {
 
-    /* "xnicer/kde.pyx":231
+    /* "xnicer/kde/kde.pyx":231
  *     def set_naxis(self, naxis):
  *         if len(naxis) != self.ndim:
  *             raise ValueError("Cannot change the number of axes of a KDE class")             # <<<<<<<<<<<<<<
@@ -6211,7 +6211,7 @@ static PyObject *__pyx_pf_6xnicer_3kde_3KDE_6set_naxis(struct __pyx_obj_6xnicer_
     __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
     __PYX_ERR(0, 231, __pyx_L1_error)
 
-    /* "xnicer/kde.pyx":230
+    /* "xnicer/kde/kde.pyx":230
  * 
  *     def set_naxis(self, naxis):
  *         if len(naxis) != self.ndim:             # <<<<<<<<<<<<<<
@@ -6220,7 +6220,7 @@ static PyObject *__pyx_pf_6xnicer_3kde_3KDE_6set_naxis(struct __pyx_obj_6xnicer_
  */
   }
 
-  /* "xnicer/kde.pyx":233
+  /* "xnicer/kde/kde.pyx":233
  *             raise ValueError("Cannot change the number of axes of a KDE class")
  *         # Update the naxis for the framing
  *         self.naxis = tuple(naxis)             # <<<<<<<<<<<<<<
@@ -6235,7 +6235,7 @@ static PyObject *__pyx_pf_6xnicer_3kde_3KDE_6set_naxis(struct __pyx_obj_6xnicer_
   __pyx_cur_scope->__pyx_v_self->naxis = ((PyObject*)__pyx_t_3);
   __pyx_t_3 = 0;
 
-  /* "xnicer/kde.pyx":234
+  /* "xnicer/kde/kde.pyx":234
  *         # Update the naxis for the framing
  *         self.naxis = tuple(naxis)
  *         self.framed_naxis = tuple(axis + self.kernel_size*2 for axis in self.naxis)             # <<<<<<<<<<<<<<
@@ -6253,7 +6253,7 @@ static PyObject *__pyx_pf_6xnicer_3kde_3KDE_6set_naxis(struct __pyx_obj_6xnicer_
   __pyx_cur_scope->__pyx_v_self->framed_naxis = ((PyObject*)__pyx_t_4);
   __pyx_t_4 = 0;
 
-  /* "xnicer/kde.pyx":237
+  /* "xnicer/kde/kde.pyx":237
  *         # Update the kernel index
  *         self.kernel_index = \
  *             np.ravel_multi_index(np.mgrid[(slice(self.kernel_size),)*self.ndim],             # <<<<<<<<<<<<<<
@@ -6290,7 +6290,7 @@ static PyObject *__pyx_pf_6xnicer_3kde_3KDE_6set_naxis(struct __pyx_obj_6xnicer_
   __Pyx_DECREF(__pyx_t_7); __pyx_t_7 = 0;
   __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
 
-  /* "xnicer/kde.pyx":238
+  /* "xnicer/kde/kde.pyx":238
  *         self.kernel_index = \
  *             np.ravel_multi_index(np.mgrid[(slice(self.kernel_size),)*self.ndim],
  *                                  self.framed_naxis).ravel()             # <<<<<<<<<<<<<<
@@ -6365,7 +6365,7 @@ static PyObject *__pyx_pf_6xnicer_3kde_3KDE_6set_naxis(struct __pyx_obj_6xnicer_
   __pyx_t_10 = __Pyx_PyObject_to_MemoryviewSlice_ds_long(__pyx_t_4, PyBUF_WRITABLE); if (unlikely(!__pyx_t_10.memview)) __PYX_ERR(0, 238, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
 
-  /* "xnicer/kde.pyx":236
+  /* "xnicer/kde/kde.pyx":236
  *         self.framed_naxis = tuple(axis + self.kernel_size*2 for axis in self.naxis)
  *         # Update the kernel index
  *         self.kernel_index = \             # <<<<<<<<<<<<<<
@@ -6377,7 +6377,7 @@ static PyObject *__pyx_pf_6xnicer_3kde_3KDE_6set_naxis(struct __pyx_obj_6xnicer_
   __pyx_t_10.memview = NULL;
   __pyx_t_10.data = NULL;
 
-  /* "xnicer/kde.pyx":239
+  /* "xnicer/kde/kde.pyx":239
  *             np.ravel_multi_index(np.mgrid[(slice(self.kernel_size),)*self.ndim],
  *                                  self.framed_naxis).ravel()
  *         return self             # <<<<<<<<<<<<<<
@@ -6389,7 +6389,7 @@ static PyObject *__pyx_pf_6xnicer_3kde_3KDE_6set_naxis(struct __pyx_obj_6xnicer_
   __pyx_r = ((PyObject *)__pyx_cur_scope->__pyx_v_self);
   goto __pyx_L0;
 
-  /* "xnicer/kde.pyx":229
+  /* "xnicer/kde/kde.pyx":229
  *                 f"max_power={self.max_power}, oversampling={self.oversampling})")
  * 
  *     def set_naxis(self, naxis):             # <<<<<<<<<<<<<<
@@ -6415,7 +6415,7 @@ static PyObject *__pyx_pf_6xnicer_3kde_3KDE_6set_naxis(struct __pyx_obj_6xnicer_
   return __pyx_r;
 }
 
-/* "xnicer/kde.pyx":241
+/* "xnicer/kde/kde.pyx":241
  *         return self
  * 
  *     def mask_inside(self, *args):             # <<<<<<<<<<<<<<
@@ -6456,7 +6456,7 @@ static PyObject *__pyx_pf_6xnicer_3kde_3KDE_8mask_inside(struct __pyx_obj_6xnice
   PyObject *__pyx_t_8 = NULL;
   __Pyx_RefNannySetupContext("mask_inside", 0);
 
-  /* "xnicer/kde.pyx":259
+  /* "xnicer/kde/kde.pyx":259
  *             also its "stamp" is in the field).
  *         """
  *         if len(args) == 0:             # <<<<<<<<<<<<<<
@@ -6467,7 +6467,7 @@ static PyObject *__pyx_pf_6xnicer_3kde_3KDE_8mask_inside(struct __pyx_obj_6xnice
   __pyx_t_2 = ((__pyx_t_1 == 0) != 0);
   if (unlikely(__pyx_t_2)) {
 
-    /* "xnicer/kde.pyx":260
+    /* "xnicer/kde/kde.pyx":260
  *         """
  *         if len(args) == 0:
  *             raise ValueError('At least one array must be provided')             # <<<<<<<<<<<<<<
@@ -6480,7 +6480,7 @@ static PyObject *__pyx_pf_6xnicer_3kde_3KDE_8mask_inside(struct __pyx_obj_6xnice
     __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
     __PYX_ERR(0, 260, __pyx_L1_error)
 
-    /* "xnicer/kde.pyx":259
+    /* "xnicer/kde/kde.pyx":259
  *             also its "stamp" is in the field).
  *         """
  *         if len(args) == 0:             # <<<<<<<<<<<<<<
@@ -6489,7 +6489,7 @@ static PyObject *__pyx_pf_6xnicer_3kde_3KDE_8mask_inside(struct __pyx_obj_6xnice
  */
   }
 
-  /* "xnicer/kde.pyx":261
+  /* "xnicer/kde/kde.pyx":261
  *         if len(args) == 0:
  *             raise ValueError('At least one array must be provided')
  *         elif len(args) == 1:             # <<<<<<<<<<<<<<
@@ -6500,7 +6500,7 @@ static PyObject *__pyx_pf_6xnicer_3kde_3KDE_8mask_inside(struct __pyx_obj_6xnice
   __pyx_t_2 = ((__pyx_t_1 == 1) != 0);
   if (__pyx_t_2) {
 
-    /* "xnicer/kde.pyx":262
+    /* "xnicer/kde/kde.pyx":262
  *             raise ValueError('At least one array must be provided')
  *         elif len(args) == 1:
  *             coords = np.rint(args[0])             # <<<<<<<<<<<<<<
@@ -6530,7 +6530,7 @@ static PyObject *__pyx_pf_6xnicer_3kde_3KDE_8mask_inside(struct __pyx_obj_6xnice
     __pyx_v_coords = __pyx_t_3;
     __pyx_t_3 = 0;
 
-    /* "xnicer/kde.pyx":261
+    /* "xnicer/kde/kde.pyx":261
  *         if len(args) == 0:
  *             raise ValueError('At least one array must be provided')
  *         elif len(args) == 1:             # <<<<<<<<<<<<<<
@@ -6540,7 +6540,7 @@ static PyObject *__pyx_pf_6xnicer_3kde_3KDE_8mask_inside(struct __pyx_obj_6xnice
     goto __pyx_L3;
   }
 
-  /* "xnicer/kde.pyx":264
+  /* "xnicer/kde/kde.pyx":264
  *             coords = np.rint(args[0])
  *         else:
  *             coords = np.rint(np.stack(args, axis=-1))             # <<<<<<<<<<<<<<
@@ -6592,7 +6592,7 @@ static PyObject *__pyx_pf_6xnicer_3kde_3KDE_8mask_inside(struct __pyx_obj_6xnice
   }
   __pyx_L3:;
 
-  /* "xnicer/kde.pyx":265
+  /* "xnicer/kde/kde.pyx":265
  *         else:
  *             coords = np.rint(np.stack(args, axis=-1))
  *         return (np.all(coords >= -self.kernel_radius - 1, axis=-1) &             # <<<<<<<<<<<<<<
@@ -6623,7 +6623,7 @@ static PyObject *__pyx_pf_6xnicer_3kde_3KDE_8mask_inside(struct __pyx_obj_6xnice
   __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
   __Pyx_DECREF(__pyx_t_8); __pyx_t_8 = 0;
 
-  /* "xnicer/kde.pyx":266
+  /* "xnicer/kde/kde.pyx":266
  *             coords = np.rint(np.stack(args, axis=-1))
  *         return (np.all(coords >= -self.kernel_radius - 1, axis=-1) &
  *                 np.all(coords < np.array(self.framed_naxis) - 3*self.kernel_radius - 2, axis=-1))             # <<<<<<<<<<<<<<
@@ -6680,7 +6680,7 @@ static PyObject *__pyx_pf_6xnicer_3kde_3KDE_8mask_inside(struct __pyx_obj_6xnice
   __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
   __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
 
-  /* "xnicer/kde.pyx":265
+  /* "xnicer/kde/kde.pyx":265
  *         else:
  *             coords = np.rint(np.stack(args, axis=-1))
  *         return (np.all(coords >= -self.kernel_radius - 1, axis=-1) &             # <<<<<<<<<<<<<<
@@ -6695,7 +6695,7 @@ static PyObject *__pyx_pf_6xnicer_3kde_3KDE_8mask_inside(struct __pyx_obj_6xnice
   __pyx_t_4 = 0;
   goto __pyx_L0;
 
-  /* "xnicer/kde.pyx":241
+  /* "xnicer/kde/kde.pyx":241
  *         return self
  * 
  *     def mask_inside(self, *args):             # <<<<<<<<<<<<<<
@@ -6720,7 +6720,7 @@ static PyObject *__pyx_pf_6xnicer_3kde_3KDE_8mask_inside(struct __pyx_obj_6xnice
   return __pyx_r;
 }
 
-/* "xnicer/kde.pyx":269
+/* "xnicer/kde/kde.pyx":269
  * 
  * 
  *     cpdef kde_float(self, float[:,:] coords, float[:,:] weights=None, short int[:] power=None,             # <<<<<<<<<<<<<<
@@ -6735,7 +6735,7 @@ static PyObject *__pyx_f_6xnicer_3kde_3KDE_kde_float(struct __pyx_obj_6xnicer_3k
   __Pyx_memviewslice __pyx_v_mask = __pyx_k__13;
   __Pyx_memviewslice __pyx_v_output = __pyx_k__14;
 
-  /* "xnicer/kde.pyx":270
+  /* "xnicer/kde/kde.pyx":270
  * 
  *     cpdef kde_float(self, float[:,:] coords, float[:,:] weights=None, short int[:] power=None,
  *                     short int[:] mask=None, float[:,:] output=None, bint nocut=False,             # <<<<<<<<<<<<<<
@@ -6744,7 +6744,7 @@ static PyObject *__pyx_f_6xnicer_3kde_3KDE_kde_float(struct __pyx_obj_6xnicer_3k
  */
   int __pyx_v_nocut = ((int)0);
 
-  /* "xnicer/kde.pyx":271
+  /* "xnicer/kde/kde.pyx":271
  *     cpdef kde_float(self, float[:,:] coords, float[:,:] weights=None, short int[:] power=None,
  *                     short int[:] mask=None, float[:,:] output=None, bint nocut=False,
  *                     object callback=None):             # <<<<<<<<<<<<<<
@@ -6833,7 +6833,7 @@ static PyObject *__pyx_f_6xnicer_3kde_3KDE_kde_float(struct __pyx_obj_6xnicer_3k
   }
   __PYX_INC_MEMVIEW(&__pyx_v_power, 1);
 
-  /* "xnicer/kde.pyx":269
+  /* "xnicer/kde/kde.pyx":269
  * 
  * 
  *     cpdef kde_float(self, float[:,:] coords, float[:,:] weights=None, short int[:] power=None,             # <<<<<<<<<<<<<<
@@ -6957,7 +6957,7 @@ static PyObject *__pyx_f_6xnicer_3kde_3KDE_kde_float(struct __pyx_obj_6xnicer_3k
     #endif
   }
 
-  /* "xnicer/kde.pyx":277
+  /* "xnicer/kde/kde.pyx":277
  *         See `kde` for details.
  *         """
  *         cdef long n_objs = coords.shape[0], obj, dim, plane, i, j, k             # <<<<<<<<<<<<<<
@@ -6966,7 +6966,7 @@ static PyObject *__pyx_f_6xnicer_3kde_3KDE_kde_float(struct __pyx_obj_6xnicer_3k
  */
   __pyx_v_n_objs = (__pyx_v_coords.shape[0]);
 
-  /* "xnicer/kde.pyx":278
+  /* "xnicer/kde/kde.pyx":278
  *         """
  *         cdef long n_objs = coords.shape[0], obj, dim, plane, i, j, k
  *         cdef long n_planes = 1, coord_i             # <<<<<<<<<<<<<<
@@ -6975,7 +6975,7 @@ static PyObject *__pyx_f_6xnicer_3kde_3KDE_kde_float(struct __pyx_obj_6xnicer_3k
  */
   __pyx_v_n_planes = 1;
 
-  /* "xnicer/kde.pyx":279
+  /* "xnicer/kde/kde.pyx":279
  *         cdef long n_objs = coords.shape[0], obj, dim, plane, i, j, k
  *         cdef long n_planes = 1, coord_i
  *         cdef long kernel_full_size = self.kernel_size**self.ndim             # <<<<<<<<<<<<<<
@@ -6984,7 +6984,7 @@ static PyObject *__pyx_f_6xnicer_3kde_3KDE_kde_float(struct __pyx_obj_6xnicer_3k
  */
   __pyx_v_kernel_full_size = __Pyx_pow_int(__pyx_v_self->kernel_size, __pyx_v_self->ndim);
 
-  /* "xnicer/kde.pyx":280
+  /* "xnicer/kde/kde.pyx":280
  *         cdef long n_planes = 1, coord_i
  *         cdef long kernel_full_size = self.kernel_size**self.ndim
  *         cdef long[:] framed_naxis = np.array(self.framed_naxis, dtype=np.long)             # <<<<<<<<<<<<<<
@@ -7021,7 +7021,7 @@ static PyObject *__pyx_f_6xnicer_3kde_3KDE_kde_float(struct __pyx_obj_6xnicer_3k
   __pyx_t_13.memview = NULL;
   __pyx_t_13.data = NULL;
 
-  /* "xnicer/kde.pyx":281
+  /* "xnicer/kde/kde.pyx":281
  *         cdef long kernel_full_size = self.kernel_size**self.ndim
  *         cdef long[:] framed_naxis = np.array(self.framed_naxis, dtype=np.long)
  *         cdef float coord, delta, weight = 1.0             # <<<<<<<<<<<<<<
@@ -7030,7 +7030,7 @@ static PyObject *__pyx_f_6xnicer_3kde_3KDE_kde_float(struct __pyx_obj_6xnicer_3k
  */
   __pyx_v_weight = 1.0;
 
-  /* "xnicer/kde.pyx":284
+  /* "xnicer/kde/kde.pyx":284
  *         cdef float[:,:] result
  * 
  *         if weights is not None:             # <<<<<<<<<<<<<<
@@ -7040,7 +7040,7 @@ static PyObject *__pyx_f_6xnicer_3kde_3KDE_kde_float(struct __pyx_obj_6xnicer_3k
   __pyx_t_14 = ((((PyObject *) __pyx_v_weights.memview) != Py_None) != 0);
   if (__pyx_t_14) {
 
-    /* "xnicer/kde.pyx":285
+    /* "xnicer/kde/kde.pyx":285
  * 
  *         if weights is not None:
  *             n_planes = weights.shape[0]             # <<<<<<<<<<<<<<
@@ -7049,7 +7049,7 @@ static PyObject *__pyx_f_6xnicer_3kde_3KDE_kde_float(struct __pyx_obj_6xnicer_3k
  */
     __pyx_v_n_planes = (__pyx_v_weights.shape[0]);
 
-    /* "xnicer/kde.pyx":284
+    /* "xnicer/kde/kde.pyx":284
  *         cdef float[:,:] result
  * 
  *         if weights is not None:             # <<<<<<<<<<<<<<
@@ -7059,7 +7059,7 @@ static PyObject *__pyx_f_6xnicer_3kde_3KDE_kde_float(struct __pyx_obj_6xnicer_3k
     goto __pyx_L3;
   }
 
-  /* "xnicer/kde.pyx":286
+  /* "xnicer/kde/kde.pyx":286
  *         if weights is not None:
  *             n_planes = weights.shape[0]
  *         elif power is not None:             # <<<<<<<<<<<<<<
@@ -7069,7 +7069,7 @@ static PyObject *__pyx_f_6xnicer_3kde_3KDE_kde_float(struct __pyx_obj_6xnicer_3k
   __pyx_t_14 = ((((PyObject *) __pyx_v_power.memview) != Py_None) != 0);
   if (__pyx_t_14) {
 
-    /* "xnicer/kde.pyx":287
+    /* "xnicer/kde/kde.pyx":287
  *             n_planes = weights.shape[0]
  *         elif power is not None:
  *             n_planes = power.shape[0]             # <<<<<<<<<<<<<<
@@ -7078,7 +7078,7 @@ static PyObject *__pyx_f_6xnicer_3kde_3KDE_kde_float(struct __pyx_obj_6xnicer_3k
  */
     __pyx_v_n_planes = (__pyx_v_power.shape[0]);
 
-    /* "xnicer/kde.pyx":286
+    /* "xnicer/kde/kde.pyx":286
  *         if weights is not None:
  *             n_planes = weights.shape[0]
  *         elif power is not None:             # <<<<<<<<<<<<<<
@@ -7088,7 +7088,7 @@ static PyObject *__pyx_f_6xnicer_3kde_3KDE_kde_float(struct __pyx_obj_6xnicer_3k
   }
   __pyx_L3:;
 
-  /* "xnicer/kde.pyx":288
+  /* "xnicer/kde/kde.pyx":288
  *         elif power is not None:
  *             n_planes = power.shape[0]
  *         if power is None:             # <<<<<<<<<<<<<<
@@ -7098,7 +7098,7 @@ static PyObject *__pyx_f_6xnicer_3kde_3KDE_kde_float(struct __pyx_obj_6xnicer_3k
   __pyx_t_14 = ((((PyObject *) __pyx_v_power.memview) == Py_None) != 0);
   if (__pyx_t_14) {
 
-    /* "xnicer/kde.pyx":289
+    /* "xnicer/kde/kde.pyx":289
  *             n_planes = power.shape[0]
  *         if power is None:
  *             power = np.zeros(n_planes, dtype=np.short)             # <<<<<<<<<<<<<<
@@ -7138,7 +7138,7 @@ static PyObject *__pyx_f_6xnicer_3kde_3KDE_kde_float(struct __pyx_obj_6xnicer_3k
     __pyx_t_15.memview = NULL;
     __pyx_t_15.data = NULL;
 
-    /* "xnicer/kde.pyx":288
+    /* "xnicer/kde/kde.pyx":288
  *         elif power is not None:
  *             n_planes = power.shape[0]
  *         if power is None:             # <<<<<<<<<<<<<<
@@ -7147,7 +7147,7 @@ static PyObject *__pyx_f_6xnicer_3kde_3KDE_kde_float(struct __pyx_obj_6xnicer_3k
  */
   }
 
-  /* "xnicer/kde.pyx":290
+  /* "xnicer/kde/kde.pyx":290
  *         if power is None:
  *             power = np.zeros(n_planes, dtype=np.short)
  *         if output is not None:             # <<<<<<<<<<<<<<
@@ -7157,7 +7157,7 @@ static PyObject *__pyx_f_6xnicer_3kde_3KDE_kde_float(struct __pyx_obj_6xnicer_3k
   __pyx_t_14 = ((((PyObject *) __pyx_v_output.memview) != Py_None) != 0);
   if (__pyx_t_14) {
 
-    /* "xnicer/kde.pyx":291
+    /* "xnicer/kde/kde.pyx":291
  *             power = np.zeros(n_planes, dtype=np.short)
  *         if output is not None:
  *             result = output             # <<<<<<<<<<<<<<
@@ -7167,7 +7167,7 @@ static PyObject *__pyx_f_6xnicer_3kde_3KDE_kde_float(struct __pyx_obj_6xnicer_3k
     __PYX_INC_MEMVIEW(&__pyx_v_output, 0);
     __pyx_v_result = __pyx_v_output;
 
-    /* "xnicer/kde.pyx":290
+    /* "xnicer/kde/kde.pyx":290
  *         if power is None:
  *             power = np.zeros(n_planes, dtype=np.short)
  *         if output is not None:             # <<<<<<<<<<<<<<
@@ -7177,7 +7177,7 @@ static PyObject *__pyx_f_6xnicer_3kde_3KDE_kde_float(struct __pyx_obj_6xnicer_3k
     goto __pyx_L5;
   }
 
-  /* "xnicer/kde.pyx":293
+  /* "xnicer/kde/kde.pyx":293
  *             result = output
  *         else:
  *             result = np.zeros((n_planes, np.prod(self.framed_naxis)), dtype=np.float32)             # <<<<<<<<<<<<<<
@@ -7247,7 +7247,7 @@ static PyObject *__pyx_f_6xnicer_3kde_3KDE_kde_float(struct __pyx_obj_6xnicer_3k
   }
   __pyx_L5:;
 
-  /* "xnicer/kde.pyx":295
+  /* "xnicer/kde/kde.pyx":295
  *             result = np.zeros((n_planes, np.prod(self.framed_naxis)), dtype=np.float32)
  * 
  *         for obj in range(n_objs):             # <<<<<<<<<<<<<<
@@ -7259,7 +7259,7 @@ static PyObject *__pyx_f_6xnicer_3kde_3KDE_kde_float(struct __pyx_obj_6xnicer_3k
   for (__pyx_t_19 = 0; __pyx_t_19 < __pyx_t_18; __pyx_t_19+=1) {
     __pyx_v_obj = __pyx_t_19;
 
-    /* "xnicer/kde.pyx":296
+    /* "xnicer/kde/kde.pyx":296
  * 
  *         for obj in range(n_objs):
  *             if callback is not None and obj % 16384 == 0:             # <<<<<<<<<<<<<<
@@ -7278,7 +7278,7 @@ static PyObject *__pyx_f_6xnicer_3kde_3KDE_kde_float(struct __pyx_obj_6xnicer_3k
     __pyx_L9_bool_binop_done:;
     if (__pyx_t_14) {
 
-      /* "xnicer/kde.pyx":297
+      /* "xnicer/kde/kde.pyx":297
  *         for obj in range(n_objs):
  *             if callback is not None and obj % 16384 == 0:
  *                 callback(self, obj, n_objs)             # <<<<<<<<<<<<<<
@@ -7344,7 +7344,7 @@ static PyObject *__pyx_f_6xnicer_3kde_3KDE_kde_float(struct __pyx_obj_6xnicer_3k
       __Pyx_DECREF(__pyx_t_8); __pyx_t_8 = 0;
       __Pyx_DECREF(__pyx_t_9); __pyx_t_9 = 0;
 
-      /* "xnicer/kde.pyx":296
+      /* "xnicer/kde/kde.pyx":296
  * 
  *         for obj in range(n_objs):
  *             if callback is not None and obj % 16384 == 0:             # <<<<<<<<<<<<<<
@@ -7353,7 +7353,7 @@ static PyObject *__pyx_f_6xnicer_3kde_3KDE_kde_float(struct __pyx_obj_6xnicer_3k
  */
     }
 
-    /* "xnicer/kde.pyx":298
+    /* "xnicer/kde/kde.pyx":298
  *             if callback is not None and obj % 16384 == 0:
  *                 callback(self, obj, n_objs)
  *             if mask is not None and mask[obj] == 0:             # <<<<<<<<<<<<<<
@@ -7372,7 +7372,7 @@ static PyObject *__pyx_f_6xnicer_3kde_3KDE_kde_float(struct __pyx_obj_6xnicer_3k
     __pyx_L12_bool_binop_done:;
     if (__pyx_t_14) {
 
-      /* "xnicer/kde.pyx":299
+      /* "xnicer/kde/kde.pyx":299
  *                 callback(self, obj, n_objs)
  *             if mask is not None and mask[obj] == 0:
  *                 continue             # <<<<<<<<<<<<<<
@@ -7381,7 +7381,7 @@ static PyObject *__pyx_f_6xnicer_3kde_3KDE_kde_float(struct __pyx_obj_6xnicer_3k
  */
       goto __pyx_L6_continue;
 
-      /* "xnicer/kde.pyx":298
+      /* "xnicer/kde/kde.pyx":298
  *             if callback is not None and obj % 16384 == 0:
  *                 callback(self, obj, n_objs)
  *             if mask is not None and mask[obj] == 0:             # <<<<<<<<<<<<<<
@@ -7390,7 +7390,7 @@ static PyObject *__pyx_f_6xnicer_3kde_3KDE_kde_float(struct __pyx_obj_6xnicer_3k
  */
     }
 
-    /* "xnicer/kde.pyx":300
+    /* "xnicer/kde/kde.pyx":300
  *             if mask is not None and mask[obj] == 0:
  *                 continue
  *             i = j = 0             # <<<<<<<<<<<<<<
@@ -7400,7 +7400,7 @@ static PyObject *__pyx_f_6xnicer_3kde_3KDE_kde_float(struct __pyx_obj_6xnicer_3k
     __pyx_v_i = 0;
     __pyx_v_j = 0;
 
-    /* "xnicer/kde.pyx":301
+    /* "xnicer/kde/kde.pyx":301
  *                 continue
  *             i = j = 0
  *             for dim in range(self.ndim):             # <<<<<<<<<<<<<<
@@ -7412,7 +7412,7 @@ static PyObject *__pyx_f_6xnicer_3kde_3KDE_kde_float(struct __pyx_obj_6xnicer_3k
     for (__pyx_t_24 = 0; __pyx_t_24 < __pyx_t_23; __pyx_t_24+=1) {
       __pyx_v_dim = __pyx_t_24;
 
-      /* "xnicer/kde.pyx":302
+      /* "xnicer/kde/kde.pyx":302
  *             i = j = 0
  *             for dim in range(self.ndim):
  *                 coord = coords[obj, dim] + self.kernel_size             # <<<<<<<<<<<<<<
@@ -7423,7 +7423,7 @@ static PyObject *__pyx_f_6xnicer_3kde_3KDE_kde_float(struct __pyx_obj_6xnicer_3k
       __pyx_t_26 = __pyx_v_dim;
       __pyx_v_coord = ((*((float *) ( /* dim=1 */ (( /* dim=0 */ (__pyx_v_coords.data + __pyx_t_25 * __pyx_v_coords.strides[0]) ) + __pyx_t_26 * __pyx_v_coords.strides[1]) ))) + __pyx_v_self->kernel_size);
 
-      /* "xnicer/kde.pyx":303
+      /* "xnicer/kde/kde.pyx":303
  *             for dim in range(self.ndim):
  *                 coord = coords[obj, dim] + self.kernel_size
  *                 coord_i = lrint(coord)             # <<<<<<<<<<<<<<
@@ -7432,7 +7432,7 @@ static PyObject *__pyx_f_6xnicer_3kde_3KDE_kde_float(struct __pyx_obj_6xnicer_3k
  */
       __pyx_v_coord_i = lrint(__pyx_v_coord);
 
-      /* "xnicer/kde.pyx":304
+      /* "xnicer/kde/kde.pyx":304
  *                 coord = coords[obj, dim] + self.kernel_size
  *                 coord_i = lrint(coord)
  *                 delta = coord - coord_i             # <<<<<<<<<<<<<<
@@ -7441,7 +7441,7 @@ static PyObject *__pyx_f_6xnicer_3kde_3KDE_kde_float(struct __pyx_obj_6xnicer_3k
  */
       __pyx_v_delta = (__pyx_v_coord - __pyx_v_coord_i);
 
-      /* "xnicer/kde.pyx":305
+      /* "xnicer/kde/kde.pyx":305
  *                 coord_i = lrint(coord)
  *                 delta = coord - coord_i
  *                 if fabs(delta) == 0.5:             # <<<<<<<<<<<<<<
@@ -7451,7 +7451,7 @@ static PyObject *__pyx_f_6xnicer_3kde_3KDE_kde_float(struct __pyx_obj_6xnicer_3k
       __pyx_t_14 = ((fabs(__pyx_v_delta) == 0.5) != 0);
       if (__pyx_t_14) {
 
-        /* "xnicer/kde.pyx":306
+        /* "xnicer/kde/kde.pyx":306
  *                 delta = coord - coord_i
  *                 if fabs(delta) == 0.5:
  *                     delta *= 0.999999             # <<<<<<<<<<<<<<
@@ -7460,7 +7460,7 @@ static PyObject *__pyx_f_6xnicer_3kde_3KDE_kde_float(struct __pyx_obj_6xnicer_3k
  */
         __pyx_v_delta = (__pyx_v_delta * 0.999999);
 
-        /* "xnicer/kde.pyx":305
+        /* "xnicer/kde/kde.pyx":305
  *                 coord_i = lrint(coord)
  *                 delta = coord - coord_i
  *                 if fabs(delta) == 0.5:             # <<<<<<<<<<<<<<
@@ -7469,7 +7469,7 @@ static PyObject *__pyx_f_6xnicer_3kde_3KDE_kde_float(struct __pyx_obj_6xnicer_3k
  */
       }
 
-      /* "xnicer/kde.pyx":307
+      /* "xnicer/kde/kde.pyx":307
  *                 if fabs(delta) == 0.5:
  *                     delta *= 0.999999
  *                 if dim > 0:             # <<<<<<<<<<<<<<
@@ -7479,7 +7479,7 @@ static PyObject *__pyx_f_6xnicer_3kde_3KDE_kde_float(struct __pyx_obj_6xnicer_3k
       __pyx_t_14 = ((__pyx_v_dim > 0) != 0);
       if (__pyx_t_14) {
 
-        /* "xnicer/kde.pyx":308
+        /* "xnicer/kde/kde.pyx":308
  *                     delta *= 0.999999
  *                 if dim > 0:
  *                     i *= self.oversampling             # <<<<<<<<<<<<<<
@@ -7488,7 +7488,7 @@ static PyObject *__pyx_f_6xnicer_3kde_3KDE_kde_float(struct __pyx_obj_6xnicer_3k
  */
         __pyx_v_i = (__pyx_v_i * __pyx_v_self->oversampling);
 
-        /* "xnicer/kde.pyx":309
+        /* "xnicer/kde/kde.pyx":309
  *                 if dim > 0:
  *                     i *= self.oversampling
  *                     j *= framed_naxis[dim]             # <<<<<<<<<<<<<<
@@ -7498,7 +7498,7 @@ static PyObject *__pyx_f_6xnicer_3kde_3KDE_kde_float(struct __pyx_obj_6xnicer_3k
         __pyx_t_27 = __pyx_v_dim;
         __pyx_v_j = (__pyx_v_j * (*((long *) ( /* dim=0 */ (__pyx_v_framed_naxis.data + __pyx_t_27 * __pyx_v_framed_naxis.strides[0]) ))));
 
-        /* "xnicer/kde.pyx":307
+        /* "xnicer/kde/kde.pyx":307
  *                 if fabs(delta) == 0.5:
  *                     delta *= 0.999999
  *                 if dim > 0:             # <<<<<<<<<<<<<<
@@ -7507,7 +7507,7 @@ static PyObject *__pyx_f_6xnicer_3kde_3KDE_kde_float(struct __pyx_obj_6xnicer_3k
  */
       }
 
-      /* "xnicer/kde.pyx":310
+      /* "xnicer/kde/kde.pyx":310
  *                     i *= self.oversampling
  *                     j *= framed_naxis[dim]
  *                 i += self.oversampling // 2 - lrint(delta * self.oversampling)             # <<<<<<<<<<<<<<
@@ -7516,7 +7516,7 @@ static PyObject *__pyx_f_6xnicer_3kde_3KDE_kde_float(struct __pyx_obj_6xnicer_3k
  */
       __pyx_v_i = (__pyx_v_i + ((__pyx_v_self->oversampling / 2) - lrint((__pyx_v_delta * __pyx_v_self->oversampling))));
 
-      /* "xnicer/kde.pyx":311
+      /* "xnicer/kde/kde.pyx":311
  *                     j *= framed_naxis[dim]
  *                 i += self.oversampling // 2 - lrint(delta * self.oversampling)
  *                 j += coord_i - self.kernel_radius             # <<<<<<<<<<<<<<
@@ -7526,7 +7526,7 @@ static PyObject *__pyx_f_6xnicer_3kde_3KDE_kde_float(struct __pyx_obj_6xnicer_3k
       __pyx_v_j = (__pyx_v_j + (__pyx_v_coord_i - __pyx_v_self->kernel_radius));
     }
 
-    /* "xnicer/kde.pyx":312
+    /* "xnicer/kde/kde.pyx":312
  *                 i += self.oversampling // 2 - lrint(delta * self.oversampling)
  *                 j += coord_i - self.kernel_radius
  *             for plane in range(n_planes):             # <<<<<<<<<<<<<<
@@ -7538,7 +7538,7 @@ static PyObject *__pyx_f_6xnicer_3kde_3KDE_kde_float(struct __pyx_obj_6xnicer_3k
     for (__pyx_t_29 = 0; __pyx_t_29 < __pyx_t_28; __pyx_t_29+=1) {
       __pyx_v_plane = __pyx_t_29;
 
-      /* "xnicer/kde.pyx":313
+      /* "xnicer/kde/kde.pyx":313
  *                 j += coord_i - self.kernel_radius
  *             for plane in range(n_planes):
  *                 if weights is not None:             # <<<<<<<<<<<<<<
@@ -7548,7 +7548,7 @@ static PyObject *__pyx_f_6xnicer_3kde_3KDE_kde_float(struct __pyx_obj_6xnicer_3k
       __pyx_t_14 = ((((PyObject *) __pyx_v_weights.memview) != Py_None) != 0);
       if (__pyx_t_14) {
 
-        /* "xnicer/kde.pyx":314
+        /* "xnicer/kde/kde.pyx":314
  *             for plane in range(n_planes):
  *                 if weights is not None:
  *                     weight = weights[plane, obj]             # <<<<<<<<<<<<<<
@@ -7559,7 +7559,7 @@ static PyObject *__pyx_f_6xnicer_3kde_3KDE_kde_float(struct __pyx_obj_6xnicer_3k
         __pyx_t_31 = __pyx_v_obj;
         __pyx_v_weight = (*((float *) ( /* dim=1 */ (( /* dim=0 */ (__pyx_v_weights.data + __pyx_t_30 * __pyx_v_weights.strides[0]) ) + __pyx_t_31 * __pyx_v_weights.strides[1]) )));
 
-        /* "xnicer/kde.pyx":313
+        /* "xnicer/kde/kde.pyx":313
  *                 j += coord_i - self.kernel_radius
  *             for plane in range(n_planes):
  *                 if weights is not None:             # <<<<<<<<<<<<<<
@@ -7568,7 +7568,7 @@ static PyObject *__pyx_f_6xnicer_3kde_3KDE_kde_float(struct __pyx_obj_6xnicer_3k
  */
       }
 
-      /* "xnicer/kde.pyx":315
+      /* "xnicer/kde/kde.pyx":315
  *                 if weights is not None:
  *                     weight = weights[plane, obj]
  *                 for k in range(kernel_full_size):             # <<<<<<<<<<<<<<
@@ -7580,7 +7580,7 @@ static PyObject *__pyx_f_6xnicer_3kde_3KDE_kde_float(struct __pyx_obj_6xnicer_3k
       for (__pyx_t_34 = 0; __pyx_t_34 < __pyx_t_33; __pyx_t_34+=1) {
         __pyx_v_k = __pyx_t_34;
 
-        /* "xnicer/kde.pyx":317
+        /* "xnicer/kde/kde.pyx":317
  *                 for k in range(kernel_full_size):
  *                     result[plane, j + self.kernel_index[k]] += \
  *                         weight * self.kernel_table[power[plane], i, k]             # <<<<<<<<<<<<<<
@@ -7592,7 +7592,7 @@ static PyObject *__pyx_f_6xnicer_3kde_3KDE_kde_float(struct __pyx_obj_6xnicer_3k
         __pyx_t_37 = __pyx_v_i;
         __pyx_t_38 = __pyx_v_k;
 
-        /* "xnicer/kde.pyx":316
+        /* "xnicer/kde/kde.pyx":316
  *                     weight = weights[plane, obj]
  *                 for k in range(kernel_full_size):
  *                     result[plane, j + self.kernel_index[k]] += \             # <<<<<<<<<<<<<<
@@ -7608,7 +7608,7 @@ static PyObject *__pyx_f_6xnicer_3kde_3KDE_kde_float(struct __pyx_obj_6xnicer_3k
     __pyx_L6_continue:;
   }
 
-  /* "xnicer/kde.pyx":318
+  /* "xnicer/kde/kde.pyx":318
  *                     result[plane, j + self.kernel_index[k]] += \
  *                         weight * self.kernel_table[power[plane], i, k]
  *         if callback is not None:             # <<<<<<<<<<<<<<
@@ -7619,7 +7619,7 @@ static PyObject *__pyx_f_6xnicer_3kde_3KDE_kde_float(struct __pyx_obj_6xnicer_3k
   __pyx_t_21 = (__pyx_t_14 != 0);
   if (__pyx_t_21) {
 
-    /* "xnicer/kde.pyx":319
+    /* "xnicer/kde/kde.pyx":319
  *                         weight * self.kernel_table[power[plane], i, k]
  *         if callback is not None:
  *             callback(self, n_objs, n_objs)             # <<<<<<<<<<<<<<
@@ -7685,7 +7685,7 @@ static PyObject *__pyx_f_6xnicer_3kde_3KDE_kde_float(struct __pyx_obj_6xnicer_3k
     __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
     __Pyx_DECREF(__pyx_t_9); __pyx_t_9 = 0;
 
-    /* "xnicer/kde.pyx":318
+    /* "xnicer/kde/kde.pyx":318
  *                     result[plane, j + self.kernel_index[k]] += \
  *                         weight * self.kernel_table[power[plane], i, k]
  *         if callback is not None:             # <<<<<<<<<<<<<<
@@ -7694,7 +7694,7 @@ static PyObject *__pyx_f_6xnicer_3kde_3KDE_kde_float(struct __pyx_obj_6xnicer_3k
  */
   }
 
-  /* "xnicer/kde.pyx":320
+  /* "xnicer/kde/kde.pyx":320
  *         if callback is not None:
  *             callback(self, n_objs, n_objs)
  *         if output is None:             # <<<<<<<<<<<<<<
@@ -7704,7 +7704,7 @@ static PyObject *__pyx_f_6xnicer_3kde_3KDE_kde_float(struct __pyx_obj_6xnicer_3k
   __pyx_t_21 = ((((PyObject *) __pyx_v_output.memview) == Py_None) != 0);
   if (__pyx_t_21) {
 
-    /* "xnicer/kde.pyx":321
+    /* "xnicer/kde/kde.pyx":321
  *             callback(self, n_objs, n_objs)
  *         if output is None:
  *             if nocut:             # <<<<<<<<<<<<<<
@@ -7714,7 +7714,7 @@ static PyObject *__pyx_f_6xnicer_3kde_3KDE_kde_float(struct __pyx_obj_6xnicer_3k
     __pyx_t_21 = (__pyx_v_nocut != 0);
     if (__pyx_t_21) {
 
-      /* "xnicer/kde.pyx":322
+      /* "xnicer/kde/kde.pyx":322
  *         if output is None:
  *             if nocut:
  *                 return np.asarray(result).reshape((n_planes,) + self.framed_naxis)             # <<<<<<<<<<<<<<
@@ -7778,7 +7778,7 @@ static PyObject *__pyx_f_6xnicer_3kde_3KDE_kde_float(struct __pyx_obj_6xnicer_3k
       __pyx_t_9 = 0;
       goto __pyx_L0;
 
-      /* "xnicer/kde.pyx":321
+      /* "xnicer/kde/kde.pyx":321
  *             callback(self, n_objs, n_objs)
  *         if output is None:
  *             if nocut:             # <<<<<<<<<<<<<<
@@ -7787,7 +7787,7 @@ static PyObject *__pyx_f_6xnicer_3kde_3KDE_kde_float(struct __pyx_obj_6xnicer_3k
  */
     }
 
-    /* "xnicer/kde.pyx":324
+    /* "xnicer/kde/kde.pyx":324
  *                 return np.asarray(result).reshape((n_planes,) + self.framed_naxis)
  *             else:
  *                 return np.asarray(result).reshape((n_planes,) + self.framed_naxis) \             # <<<<<<<<<<<<<<
@@ -7849,7 +7849,7 @@ static PyObject *__pyx_f_6xnicer_3kde_3KDE_kde_float(struct __pyx_obj_6xnicer_3k
       __Pyx_GOTREF(__pyx_t_9);
       __Pyx_DECREF(__pyx_t_12); __pyx_t_12 = 0;
 
-      /* "xnicer/kde.pyx":325
+      /* "xnicer/kde/kde.pyx":325
  *             else:
  *                 return np.asarray(result).reshape((n_planes,) + self.framed_naxis) \
  *                     [(slice(None),) + (slice(self.kernel_size, -self.kernel_size),)*self.ndim]             # <<<<<<<<<<<<<<
@@ -7886,7 +7886,7 @@ static PyObject *__pyx_f_6xnicer_3kde_3KDE_kde_float(struct __pyx_obj_6xnicer_3k
       goto __pyx_L0;
     }
 
-    /* "xnicer/kde.pyx":320
+    /* "xnicer/kde/kde.pyx":320
  *         if callback is not None:
  *             callback(self, n_objs, n_objs)
  *         if output is None:             # <<<<<<<<<<<<<<
@@ -7895,7 +7895,7 @@ static PyObject *__pyx_f_6xnicer_3kde_3KDE_kde_float(struct __pyx_obj_6xnicer_3k
  */
   }
 
-  /* "xnicer/kde.pyx":327
+  /* "xnicer/kde/kde.pyx":327
  *                     [(slice(None),) + (slice(self.kernel_size, -self.kernel_size),)*self.ndim]
  *         else:
  *             return output             # <<<<<<<<<<<<<<
@@ -7911,7 +7911,7 @@ static PyObject *__pyx_f_6xnicer_3kde_3KDE_kde_float(struct __pyx_obj_6xnicer_3k
     goto __pyx_L0;
   }
 
-  /* "xnicer/kde.pyx":269
+  /* "xnicer/kde/kde.pyx":269
  * 
  * 
  *     cpdef kde_float(self, float[:,:] coords, float[:,:] weights=None, short int[:] power=None,             # <<<<<<<<<<<<<<
@@ -7964,7 +7964,7 @@ static PyObject *__pyx_pw_6xnicer_3kde_3KDE_11kde_float(PyObject *__pyx_v_self, 
     static PyObject **__pyx_pyargnames[] = {&__pyx_n_s_coords,&__pyx_n_s_weights,&__pyx_n_s_power,&__pyx_n_s_mask,&__pyx_n_s_output,&__pyx_n_s_nocut,&__pyx_n_s_callback,0};
     PyObject* values[7] = {0,0,0,0,0,0,0};
 
-    /* "xnicer/kde.pyx":271
+    /* "xnicer/kde/kde.pyx":271
  *     cpdef kde_float(self, float[:,:] coords, float[:,:] weights=None, short int[:] power=None,
  *                     short int[:] mask=None, float[:,:] output=None, bint nocut=False,
  *                     object callback=None):             # <<<<<<<<<<<<<<
@@ -8086,7 +8086,7 @@ static PyObject *__pyx_pw_6xnicer_3kde_3KDE_11kde_float(PyObject *__pyx_v_self, 
       __pyx_v_nocut = __Pyx_PyObject_IsTrue(values[5]); if (unlikely((__pyx_v_nocut == (int)-1) && PyErr_Occurred())) __PYX_ERR(0, 270, __pyx_L3_error)
     } else {
 
-      /* "xnicer/kde.pyx":270
+      /* "xnicer/kde/kde.pyx":270
  * 
  *     cpdef kde_float(self, float[:,:] coords, float[:,:] weights=None, short int[:] power=None,
  *                     short int[:] mask=None, float[:,:] output=None, bint nocut=False,             # <<<<<<<<<<<<<<
@@ -8107,7 +8107,7 @@ static PyObject *__pyx_pw_6xnicer_3kde_3KDE_11kde_float(PyObject *__pyx_v_self, 
   __pyx_L4_argument_unpacking_done:;
   __pyx_r = __pyx_pf_6xnicer_3kde_3KDE_10kde_float(((struct __pyx_obj_6xnicer_3kde_KDE *)__pyx_v_self), __pyx_v_coords, __pyx_v_weights, __pyx_v_power, __pyx_v_mask, __pyx_v_output, __pyx_v_nocut, __pyx_v_callback);
 
-  /* "xnicer/kde.pyx":269
+  /* "xnicer/kde/kde.pyx":269
  * 
  * 
  *     cpdef kde_float(self, float[:,:] coords, float[:,:] weights=None, short int[:] power=None,             # <<<<<<<<<<<<<<
@@ -8156,7 +8156,7 @@ static PyObject *__pyx_pf_6xnicer_3kde_3KDE_10kde_float(struct __pyx_obj_6xnicer
   return __pyx_r;
 }
 
-/* "xnicer/kde.pyx":330
+/* "xnicer/kde/kde.pyx":330
  * 
  * 
  *     cpdef kde_double(self, double[:,:] coords, double[:,:] weights=None, short int[:] power=None,             # <<<<<<<<<<<<<<
@@ -8171,7 +8171,7 @@ static PyObject *__pyx_f_6xnicer_3kde_3KDE_kde_double(struct __pyx_obj_6xnicer_3
   __Pyx_memviewslice __pyx_v_mask = __pyx_k__18;
   __Pyx_memviewslice __pyx_v_output = __pyx_k__19;
 
-  /* "xnicer/kde.pyx":331
+  /* "xnicer/kde/kde.pyx":331
  * 
  *     cpdef kde_double(self, double[:,:] coords, double[:,:] weights=None, short int[:] power=None,
  *                      short int[:] mask=None, double[:,:] output=None, bint nocut=False,             # <<<<<<<<<<<<<<
@@ -8180,7 +8180,7 @@ static PyObject *__pyx_f_6xnicer_3kde_3KDE_kde_double(struct __pyx_obj_6xnicer_3
  */
   int __pyx_v_nocut = ((int)0);
 
-  /* "xnicer/kde.pyx":332
+  /* "xnicer/kde/kde.pyx":332
  *     cpdef kde_double(self, double[:,:] coords, double[:,:] weights=None, short int[:] power=None,
  *                      short int[:] mask=None, double[:,:] output=None, bint nocut=False,
  *                      object callback=None):             # <<<<<<<<<<<<<<
@@ -8269,7 +8269,7 @@ static PyObject *__pyx_f_6xnicer_3kde_3KDE_kde_double(struct __pyx_obj_6xnicer_3
   }
   __PYX_INC_MEMVIEW(&__pyx_v_power, 1);
 
-  /* "xnicer/kde.pyx":330
+  /* "xnicer/kde/kde.pyx":330
  * 
  * 
  *     cpdef kde_double(self, double[:,:] coords, double[:,:] weights=None, short int[:] power=None,             # <<<<<<<<<<<<<<
@@ -8393,7 +8393,7 @@ static PyObject *__pyx_f_6xnicer_3kde_3KDE_kde_double(struct __pyx_obj_6xnicer_3
     #endif
   }
 
-  /* "xnicer/kde.pyx":338
+  /* "xnicer/kde/kde.pyx":338
  *         See `kde` for details.
  *         """
  *         cdef long n_objs = coords.shape[0], obj, dim, plane, i, j, k             # <<<<<<<<<<<<<<
@@ -8402,7 +8402,7 @@ static PyObject *__pyx_f_6xnicer_3kde_3KDE_kde_double(struct __pyx_obj_6xnicer_3
  */
   __pyx_v_n_objs = (__pyx_v_coords.shape[0]);
 
-  /* "xnicer/kde.pyx":339
+  /* "xnicer/kde/kde.pyx":339
  *         """
  *         cdef long n_objs = coords.shape[0], obj, dim, plane, i, j, k
  *         cdef long n_planes = 1, coord_i             # <<<<<<<<<<<<<<
@@ -8411,7 +8411,7 @@ static PyObject *__pyx_f_6xnicer_3kde_3KDE_kde_double(struct __pyx_obj_6xnicer_3
  */
   __pyx_v_n_planes = 1;
 
-  /* "xnicer/kde.pyx":340
+  /* "xnicer/kde/kde.pyx":340
  *         cdef long n_objs = coords.shape[0], obj, dim, plane, i, j, k
  *         cdef long n_planes = 1, coord_i
  *         cdef long kernel_full_size = self.kernel_size**self.ndim             # <<<<<<<<<<<<<<
@@ -8420,7 +8420,7 @@ static PyObject *__pyx_f_6xnicer_3kde_3KDE_kde_double(struct __pyx_obj_6xnicer_3
  */
   __pyx_v_kernel_full_size = __Pyx_pow_int(__pyx_v_self->kernel_size, __pyx_v_self->ndim);
 
-  /* "xnicer/kde.pyx":341
+  /* "xnicer/kde/kde.pyx":341
  *         cdef long n_planes = 1, coord_i
  *         cdef long kernel_full_size = self.kernel_size**self.ndim
  *         cdef long[:] framed_naxis = np.array(self.framed_naxis, dtype=np.long)             # <<<<<<<<<<<<<<
@@ -8457,7 +8457,7 @@ static PyObject *__pyx_f_6xnicer_3kde_3KDE_kde_double(struct __pyx_obj_6xnicer_3
   __pyx_t_13.memview = NULL;
   __pyx_t_13.data = NULL;
 
-  /* "xnicer/kde.pyx":342
+  /* "xnicer/kde/kde.pyx":342
  *         cdef long kernel_full_size = self.kernel_size**self.ndim
  *         cdef long[:] framed_naxis = np.array(self.framed_naxis, dtype=np.long)
  *         cdef double coord, delta, weight = 1.0             # <<<<<<<<<<<<<<
@@ -8466,7 +8466,7 @@ static PyObject *__pyx_f_6xnicer_3kde_3KDE_kde_double(struct __pyx_obj_6xnicer_3
  */
   __pyx_v_weight = 1.0;
 
-  /* "xnicer/kde.pyx":345
+  /* "xnicer/kde/kde.pyx":345
  *         cdef double[:,:] result
  * 
  *         if weights is not None:             # <<<<<<<<<<<<<<
@@ -8476,7 +8476,7 @@ static PyObject *__pyx_f_6xnicer_3kde_3KDE_kde_double(struct __pyx_obj_6xnicer_3
   __pyx_t_14 = ((((PyObject *) __pyx_v_weights.memview) != Py_None) != 0);
   if (__pyx_t_14) {
 
-    /* "xnicer/kde.pyx":346
+    /* "xnicer/kde/kde.pyx":346
  * 
  *         if weights is not None:
  *             n_planes = weights.shape[0]             # <<<<<<<<<<<<<<
@@ -8485,7 +8485,7 @@ static PyObject *__pyx_f_6xnicer_3kde_3KDE_kde_double(struct __pyx_obj_6xnicer_3
  */
     __pyx_v_n_planes = (__pyx_v_weights.shape[0]);
 
-    /* "xnicer/kde.pyx":345
+    /* "xnicer/kde/kde.pyx":345
  *         cdef double[:,:] result
  * 
  *         if weights is not None:             # <<<<<<<<<<<<<<
@@ -8495,7 +8495,7 @@ static PyObject *__pyx_f_6xnicer_3kde_3KDE_kde_double(struct __pyx_obj_6xnicer_3
     goto __pyx_L3;
   }
 
-  /* "xnicer/kde.pyx":347
+  /* "xnicer/kde/kde.pyx":347
  *         if weights is not None:
  *             n_planes = weights.shape[0]
  *         elif power is not None:             # <<<<<<<<<<<<<<
@@ -8505,7 +8505,7 @@ static PyObject *__pyx_f_6xnicer_3kde_3KDE_kde_double(struct __pyx_obj_6xnicer_3
   __pyx_t_14 = ((((PyObject *) __pyx_v_power.memview) != Py_None) != 0);
   if (__pyx_t_14) {
 
-    /* "xnicer/kde.pyx":348
+    /* "xnicer/kde/kde.pyx":348
  *             n_planes = weights.shape[0]
  *         elif power is not None:
  *             n_planes = power.shape[0]             # <<<<<<<<<<<<<<
@@ -8514,7 +8514,7 @@ static PyObject *__pyx_f_6xnicer_3kde_3KDE_kde_double(struct __pyx_obj_6xnicer_3
  */
     __pyx_v_n_planes = (__pyx_v_power.shape[0]);
 
-    /* "xnicer/kde.pyx":347
+    /* "xnicer/kde/kde.pyx":347
  *         if weights is not None:
  *             n_planes = weights.shape[0]
  *         elif power is not None:             # <<<<<<<<<<<<<<
@@ -8524,7 +8524,7 @@ static PyObject *__pyx_f_6xnicer_3kde_3KDE_kde_double(struct __pyx_obj_6xnicer_3
   }
   __pyx_L3:;
 
-  /* "xnicer/kde.pyx":349
+  /* "xnicer/kde/kde.pyx":349
  *         elif power is not None:
  *             n_planes = power.shape[0]
  *         if power is None:             # <<<<<<<<<<<<<<
@@ -8534,7 +8534,7 @@ static PyObject *__pyx_f_6xnicer_3kde_3KDE_kde_double(struct __pyx_obj_6xnicer_3
   __pyx_t_14 = ((((PyObject *) __pyx_v_power.memview) == Py_None) != 0);
   if (__pyx_t_14) {
 
-    /* "xnicer/kde.pyx":350
+    /* "xnicer/kde/kde.pyx":350
  *             n_planes = power.shape[0]
  *         if power is None:
  *             power = np.zeros(n_planes, dtype=np.short)             # <<<<<<<<<<<<<<
@@ -8574,7 +8574,7 @@ static PyObject *__pyx_f_6xnicer_3kde_3KDE_kde_double(struct __pyx_obj_6xnicer_3
     __pyx_t_15.memview = NULL;
     __pyx_t_15.data = NULL;
 
-    /* "xnicer/kde.pyx":349
+    /* "xnicer/kde/kde.pyx":349
  *         elif power is not None:
  *             n_planes = power.shape[0]
  *         if power is None:             # <<<<<<<<<<<<<<
@@ -8583,7 +8583,7 @@ static PyObject *__pyx_f_6xnicer_3kde_3KDE_kde_double(struct __pyx_obj_6xnicer_3
  */
   }
 
-  /* "xnicer/kde.pyx":351
+  /* "xnicer/kde/kde.pyx":351
  *         if power is None:
  *             power = np.zeros(n_planes, dtype=np.short)
  *         if output is not None:             # <<<<<<<<<<<<<<
@@ -8593,7 +8593,7 @@ static PyObject *__pyx_f_6xnicer_3kde_3KDE_kde_double(struct __pyx_obj_6xnicer_3
   __pyx_t_14 = ((((PyObject *) __pyx_v_output.memview) != Py_None) != 0);
   if (__pyx_t_14) {
 
-    /* "xnicer/kde.pyx":352
+    /* "xnicer/kde/kde.pyx":352
  *             power = np.zeros(n_planes, dtype=np.short)
  *         if output is not None:
  *             result = output             # <<<<<<<<<<<<<<
@@ -8603,7 +8603,7 @@ static PyObject *__pyx_f_6xnicer_3kde_3KDE_kde_double(struct __pyx_obj_6xnicer_3
     __PYX_INC_MEMVIEW(&__pyx_v_output, 0);
     __pyx_v_result = __pyx_v_output;
 
-    /* "xnicer/kde.pyx":351
+    /* "xnicer/kde/kde.pyx":351
  *         if power is None:
  *             power = np.zeros(n_planes, dtype=np.short)
  *         if output is not None:             # <<<<<<<<<<<<<<
@@ -8613,7 +8613,7 @@ static PyObject *__pyx_f_6xnicer_3kde_3KDE_kde_double(struct __pyx_obj_6xnicer_3
     goto __pyx_L5;
   }
 
-  /* "xnicer/kde.pyx":354
+  /* "xnicer/kde/kde.pyx":354
  *             result = output
  *         else:
  *             result = np.zeros((n_planes, np.prod(self.framed_naxis)), dtype=np.float64)             # <<<<<<<<<<<<<<
@@ -8683,7 +8683,7 @@ static PyObject *__pyx_f_6xnicer_3kde_3KDE_kde_double(struct __pyx_obj_6xnicer_3
   }
   __pyx_L5:;
 
-  /* "xnicer/kde.pyx":356
+  /* "xnicer/kde/kde.pyx":356
  *             result = np.zeros((n_planes, np.prod(self.framed_naxis)), dtype=np.float64)
  * 
  *         for obj in range(n_objs):             # <<<<<<<<<<<<<<
@@ -8695,7 +8695,7 @@ static PyObject *__pyx_f_6xnicer_3kde_3KDE_kde_double(struct __pyx_obj_6xnicer_3
   for (__pyx_t_19 = 0; __pyx_t_19 < __pyx_t_18; __pyx_t_19+=1) {
     __pyx_v_obj = __pyx_t_19;
 
-    /* "xnicer/kde.pyx":357
+    /* "xnicer/kde/kde.pyx":357
  * 
  *         for obj in range(n_objs):
  *             if callback is not None and obj % 16384 == 0:             # <<<<<<<<<<<<<<
@@ -8714,7 +8714,7 @@ static PyObject *__pyx_f_6xnicer_3kde_3KDE_kde_double(struct __pyx_obj_6xnicer_3
     __pyx_L9_bool_binop_done:;
     if (__pyx_t_14) {
 
-      /* "xnicer/kde.pyx":358
+      /* "xnicer/kde/kde.pyx":358
  *         for obj in range(n_objs):
  *             if callback is not None and obj % 16384 == 0:
  *                 callback(self, obj, n_objs)             # <<<<<<<<<<<<<<
@@ -8780,7 +8780,7 @@ static PyObject *__pyx_f_6xnicer_3kde_3KDE_kde_double(struct __pyx_obj_6xnicer_3
       __Pyx_DECREF(__pyx_t_8); __pyx_t_8 = 0;
       __Pyx_DECREF(__pyx_t_9); __pyx_t_9 = 0;
 
-      /* "xnicer/kde.pyx":357
+      /* "xnicer/kde/kde.pyx":357
  * 
  *         for obj in range(n_objs):
  *             if callback is not None and obj % 16384 == 0:             # <<<<<<<<<<<<<<
@@ -8789,7 +8789,7 @@ static PyObject *__pyx_f_6xnicer_3kde_3KDE_kde_double(struct __pyx_obj_6xnicer_3
  */
     }
 
-    /* "xnicer/kde.pyx":359
+    /* "xnicer/kde/kde.pyx":359
  *             if callback is not None and obj % 16384 == 0:
  *                 callback(self, obj, n_objs)
  *             if mask is not None and mask[obj] == 0:             # <<<<<<<<<<<<<<
@@ -8808,7 +8808,7 @@ static PyObject *__pyx_f_6xnicer_3kde_3KDE_kde_double(struct __pyx_obj_6xnicer_3
     __pyx_L12_bool_binop_done:;
     if (__pyx_t_14) {
 
-      /* "xnicer/kde.pyx":360
+      /* "xnicer/kde/kde.pyx":360
  *                 callback(self, obj, n_objs)
  *             if mask is not None and mask[obj] == 0:
  *                 continue             # <<<<<<<<<<<<<<
@@ -8817,7 +8817,7 @@ static PyObject *__pyx_f_6xnicer_3kde_3KDE_kde_double(struct __pyx_obj_6xnicer_3
  */
       goto __pyx_L6_continue;
 
-      /* "xnicer/kde.pyx":359
+      /* "xnicer/kde/kde.pyx":359
  *             if callback is not None and obj % 16384 == 0:
  *                 callback(self, obj, n_objs)
  *             if mask is not None and mask[obj] == 0:             # <<<<<<<<<<<<<<
@@ -8826,7 +8826,7 @@ static PyObject *__pyx_f_6xnicer_3kde_3KDE_kde_double(struct __pyx_obj_6xnicer_3
  */
     }
 
-    /* "xnicer/kde.pyx":361
+    /* "xnicer/kde/kde.pyx":361
  *             if mask is not None and mask[obj] == 0:
  *                 continue
  *             i = j = 0             # <<<<<<<<<<<<<<
@@ -8836,7 +8836,7 @@ static PyObject *__pyx_f_6xnicer_3kde_3KDE_kde_double(struct __pyx_obj_6xnicer_3
     __pyx_v_i = 0;
     __pyx_v_j = 0;
 
-    /* "xnicer/kde.pyx":362
+    /* "xnicer/kde/kde.pyx":362
  *                 continue
  *             i = j = 0
  *             for dim in range(self.ndim):             # <<<<<<<<<<<<<<
@@ -8848,7 +8848,7 @@ static PyObject *__pyx_f_6xnicer_3kde_3KDE_kde_double(struct __pyx_obj_6xnicer_3
     for (__pyx_t_24 = 0; __pyx_t_24 < __pyx_t_23; __pyx_t_24+=1) {
       __pyx_v_dim = __pyx_t_24;
 
-      /* "xnicer/kde.pyx":363
+      /* "xnicer/kde/kde.pyx":363
  *             i = j = 0
  *             for dim in range(self.ndim):
  *                 coord = coords[obj, dim] + self.kernel_size             # <<<<<<<<<<<<<<
@@ -8859,7 +8859,7 @@ static PyObject *__pyx_f_6xnicer_3kde_3KDE_kde_double(struct __pyx_obj_6xnicer_3
       __pyx_t_26 = __pyx_v_dim;
       __pyx_v_coord = ((*((double *) ( /* dim=1 */ (( /* dim=0 */ (__pyx_v_coords.data + __pyx_t_25 * __pyx_v_coords.strides[0]) ) + __pyx_t_26 * __pyx_v_coords.strides[1]) ))) + __pyx_v_self->kernel_size);
 
-      /* "xnicer/kde.pyx":364
+      /* "xnicer/kde/kde.pyx":364
  *             for dim in range(self.ndim):
  *                 coord = coords[obj, dim] + self.kernel_size
  *                 coord_i = lrint(coord)             # <<<<<<<<<<<<<<
@@ -8868,7 +8868,7 @@ static PyObject *__pyx_f_6xnicer_3kde_3KDE_kde_double(struct __pyx_obj_6xnicer_3
  */
       __pyx_v_coord_i = lrint(__pyx_v_coord);
 
-      /* "xnicer/kde.pyx":365
+      /* "xnicer/kde/kde.pyx":365
  *                 coord = coords[obj, dim] + self.kernel_size
  *                 coord_i = lrint(coord)
  *                 delta = coord - coord_i             # <<<<<<<<<<<<<<
@@ -8877,7 +8877,7 @@ static PyObject *__pyx_f_6xnicer_3kde_3KDE_kde_double(struct __pyx_obj_6xnicer_3
  */
       __pyx_v_delta = (__pyx_v_coord - __pyx_v_coord_i);
 
-      /* "xnicer/kde.pyx":366
+      /* "xnicer/kde/kde.pyx":366
  *                 coord_i = lrint(coord)
  *                 delta = coord - coord_i
  *                 if fabs(delta) == 0.5:             # <<<<<<<<<<<<<<
@@ -8887,7 +8887,7 @@ static PyObject *__pyx_f_6xnicer_3kde_3KDE_kde_double(struct __pyx_obj_6xnicer_3
       __pyx_t_14 = ((fabs(__pyx_v_delta) == 0.5) != 0);
       if (__pyx_t_14) {
 
-        /* "xnicer/kde.pyx":367
+        /* "xnicer/kde/kde.pyx":367
  *                 delta = coord - coord_i
  *                 if fabs(delta) == 0.5:
  *                     delta *= 0.999999             # <<<<<<<<<<<<<<
@@ -8896,7 +8896,7 @@ static PyObject *__pyx_f_6xnicer_3kde_3KDE_kde_double(struct __pyx_obj_6xnicer_3
  */
         __pyx_v_delta = (__pyx_v_delta * 0.999999);
 
-        /* "xnicer/kde.pyx":366
+        /* "xnicer/kde/kde.pyx":366
  *                 coord_i = lrint(coord)
  *                 delta = coord - coord_i
  *                 if fabs(delta) == 0.5:             # <<<<<<<<<<<<<<
@@ -8905,7 +8905,7 @@ static PyObject *__pyx_f_6xnicer_3kde_3KDE_kde_double(struct __pyx_obj_6xnicer_3
  */
       }
 
-      /* "xnicer/kde.pyx":368
+      /* "xnicer/kde/kde.pyx":368
  *                 if fabs(delta) == 0.5:
  *                     delta *= 0.999999
  *                 if dim > 0:             # <<<<<<<<<<<<<<
@@ -8915,7 +8915,7 @@ static PyObject *__pyx_f_6xnicer_3kde_3KDE_kde_double(struct __pyx_obj_6xnicer_3
       __pyx_t_14 = ((__pyx_v_dim > 0) != 0);
       if (__pyx_t_14) {
 
-        /* "xnicer/kde.pyx":369
+        /* "xnicer/kde/kde.pyx":369
  *                     delta *= 0.999999
  *                 if dim > 0:
  *                     i *= self.oversampling             # <<<<<<<<<<<<<<
@@ -8924,7 +8924,7 @@ static PyObject *__pyx_f_6xnicer_3kde_3KDE_kde_double(struct __pyx_obj_6xnicer_3
  */
         __pyx_v_i = (__pyx_v_i * __pyx_v_self->oversampling);
 
-        /* "xnicer/kde.pyx":370
+        /* "xnicer/kde/kde.pyx":370
  *                 if dim > 0:
  *                     i *= self.oversampling
  *                     j *= framed_naxis[dim]             # <<<<<<<<<<<<<<
@@ -8934,7 +8934,7 @@ static PyObject *__pyx_f_6xnicer_3kde_3KDE_kde_double(struct __pyx_obj_6xnicer_3
         __pyx_t_27 = __pyx_v_dim;
         __pyx_v_j = (__pyx_v_j * (*((long *) ( /* dim=0 */ (__pyx_v_framed_naxis.data + __pyx_t_27 * __pyx_v_framed_naxis.strides[0]) ))));
 
-        /* "xnicer/kde.pyx":368
+        /* "xnicer/kde/kde.pyx":368
  *                 if fabs(delta) == 0.5:
  *                     delta *= 0.999999
  *                 if dim > 0:             # <<<<<<<<<<<<<<
@@ -8943,7 +8943,7 @@ static PyObject *__pyx_f_6xnicer_3kde_3KDE_kde_double(struct __pyx_obj_6xnicer_3
  */
       }
 
-      /* "xnicer/kde.pyx":371
+      /* "xnicer/kde/kde.pyx":371
  *                     i *= self.oversampling
  *                     j *= framed_naxis[dim]
  *                 i += self.oversampling // 2 - lrint(delta * self.oversampling)             # <<<<<<<<<<<<<<
@@ -8952,7 +8952,7 @@ static PyObject *__pyx_f_6xnicer_3kde_3KDE_kde_double(struct __pyx_obj_6xnicer_3
  */
       __pyx_v_i = (__pyx_v_i + ((__pyx_v_self->oversampling / 2) - lrint((__pyx_v_delta * __pyx_v_self->oversampling))));
 
-      /* "xnicer/kde.pyx":372
+      /* "xnicer/kde/kde.pyx":372
  *                     j *= framed_naxis[dim]
  *                 i += self.oversampling // 2 - lrint(delta * self.oversampling)
  *                 j += coord_i - self.kernel_radius             # <<<<<<<<<<<<<<
@@ -8962,7 +8962,7 @@ static PyObject *__pyx_f_6xnicer_3kde_3KDE_kde_double(struct __pyx_obj_6xnicer_3
       __pyx_v_j = (__pyx_v_j + (__pyx_v_coord_i - __pyx_v_self->kernel_radius));
     }
 
-    /* "xnicer/kde.pyx":373
+    /* "xnicer/kde/kde.pyx":373
  *                 i += self.oversampling // 2 - lrint(delta * self.oversampling)
  *                 j += coord_i - self.kernel_radius
  *             for plane in range(n_planes):             # <<<<<<<<<<<<<<
@@ -8974,7 +8974,7 @@ static PyObject *__pyx_f_6xnicer_3kde_3KDE_kde_double(struct __pyx_obj_6xnicer_3
     for (__pyx_t_29 = 0; __pyx_t_29 < __pyx_t_28; __pyx_t_29+=1) {
       __pyx_v_plane = __pyx_t_29;
 
-      /* "xnicer/kde.pyx":374
+      /* "xnicer/kde/kde.pyx":374
  *                 j += coord_i - self.kernel_radius
  *             for plane in range(n_planes):
  *                 if weights is not None:             # <<<<<<<<<<<<<<
@@ -8984,7 +8984,7 @@ static PyObject *__pyx_f_6xnicer_3kde_3KDE_kde_double(struct __pyx_obj_6xnicer_3
       __pyx_t_14 = ((((PyObject *) __pyx_v_weights.memview) != Py_None) != 0);
       if (__pyx_t_14) {
 
-        /* "xnicer/kde.pyx":375
+        /* "xnicer/kde/kde.pyx":375
  *             for plane in range(n_planes):
  *                 if weights is not None:
  *                     weight = weights[plane, obj]             # <<<<<<<<<<<<<<
@@ -8995,7 +8995,7 @@ static PyObject *__pyx_f_6xnicer_3kde_3KDE_kde_double(struct __pyx_obj_6xnicer_3
         __pyx_t_31 = __pyx_v_obj;
         __pyx_v_weight = (*((double *) ( /* dim=1 */ (( /* dim=0 */ (__pyx_v_weights.data + __pyx_t_30 * __pyx_v_weights.strides[0]) ) + __pyx_t_31 * __pyx_v_weights.strides[1]) )));
 
-        /* "xnicer/kde.pyx":374
+        /* "xnicer/kde/kde.pyx":374
  *                 j += coord_i - self.kernel_radius
  *             for plane in range(n_planes):
  *                 if weights is not None:             # <<<<<<<<<<<<<<
@@ -9004,7 +9004,7 @@ static PyObject *__pyx_f_6xnicer_3kde_3KDE_kde_double(struct __pyx_obj_6xnicer_3
  */
       }
 
-      /* "xnicer/kde.pyx":376
+      /* "xnicer/kde/kde.pyx":376
  *                 if weights is not None:
  *                     weight = weights[plane, obj]
  *                 for k in range(kernel_full_size):             # <<<<<<<<<<<<<<
@@ -9016,7 +9016,7 @@ static PyObject *__pyx_f_6xnicer_3kde_3KDE_kde_double(struct __pyx_obj_6xnicer_3
       for (__pyx_t_34 = 0; __pyx_t_34 < __pyx_t_33; __pyx_t_34+=1) {
         __pyx_v_k = __pyx_t_34;
 
-        /* "xnicer/kde.pyx":378
+        /* "xnicer/kde/kde.pyx":378
  *                 for k in range(kernel_full_size):
  *                     result[plane, j + self.kernel_index[k]] += \
  *                         weight * self.kernel_table[power[plane], i, k]             # <<<<<<<<<<<<<<
@@ -9028,7 +9028,7 @@ static PyObject *__pyx_f_6xnicer_3kde_3KDE_kde_double(struct __pyx_obj_6xnicer_3
         __pyx_t_37 = __pyx_v_i;
         __pyx_t_38 = __pyx_v_k;
 
-        /* "xnicer/kde.pyx":377
+        /* "xnicer/kde/kde.pyx":377
  *                     weight = weights[plane, obj]
  *                 for k in range(kernel_full_size):
  *                     result[plane, j + self.kernel_index[k]] += \             # <<<<<<<<<<<<<<
@@ -9044,7 +9044,7 @@ static PyObject *__pyx_f_6xnicer_3kde_3KDE_kde_double(struct __pyx_obj_6xnicer_3
     __pyx_L6_continue:;
   }
 
-  /* "xnicer/kde.pyx":379
+  /* "xnicer/kde/kde.pyx":379
  *                     result[plane, j + self.kernel_index[k]] += \
  *                         weight * self.kernel_table[power[plane], i, k]
  *         if callback is not None:             # <<<<<<<<<<<<<<
@@ -9055,7 +9055,7 @@ static PyObject *__pyx_f_6xnicer_3kde_3KDE_kde_double(struct __pyx_obj_6xnicer_3
   __pyx_t_21 = (__pyx_t_14 != 0);
   if (__pyx_t_21) {
 
-    /* "xnicer/kde.pyx":380
+    /* "xnicer/kde/kde.pyx":380
  *                         weight * self.kernel_table[power[plane], i, k]
  *         if callback is not None:
  *             callback(self, n_objs, n_objs)             # <<<<<<<<<<<<<<
@@ -9121,7 +9121,7 @@ static PyObject *__pyx_f_6xnicer_3kde_3KDE_kde_double(struct __pyx_obj_6xnicer_3
     __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
     __Pyx_DECREF(__pyx_t_9); __pyx_t_9 = 0;
 
-    /* "xnicer/kde.pyx":379
+    /* "xnicer/kde/kde.pyx":379
  *                     result[plane, j + self.kernel_index[k]] += \
  *                         weight * self.kernel_table[power[plane], i, k]
  *         if callback is not None:             # <<<<<<<<<<<<<<
@@ -9130,7 +9130,7 @@ static PyObject *__pyx_f_6xnicer_3kde_3KDE_kde_double(struct __pyx_obj_6xnicer_3
  */
   }
 
-  /* "xnicer/kde.pyx":381
+  /* "xnicer/kde/kde.pyx":381
  *         if callback is not None:
  *             callback(self, n_objs, n_objs)
  *         if output is None:             # <<<<<<<<<<<<<<
@@ -9140,7 +9140,7 @@ static PyObject *__pyx_f_6xnicer_3kde_3KDE_kde_double(struct __pyx_obj_6xnicer_3
   __pyx_t_21 = ((((PyObject *) __pyx_v_output.memview) == Py_None) != 0);
   if (__pyx_t_21) {
 
-    /* "xnicer/kde.pyx":382
+    /* "xnicer/kde/kde.pyx":382
  *             callback(self, n_objs, n_objs)
  *         if output is None:
  *             if nocut:             # <<<<<<<<<<<<<<
@@ -9150,7 +9150,7 @@ static PyObject *__pyx_f_6xnicer_3kde_3KDE_kde_double(struct __pyx_obj_6xnicer_3
     __pyx_t_21 = (__pyx_v_nocut != 0);
     if (__pyx_t_21) {
 
-      /* "xnicer/kde.pyx":383
+      /* "xnicer/kde/kde.pyx":383
  *         if output is None:
  *             if nocut:
  *                 return np.asarray(result).reshape((n_planes,) + self.framed_naxis)             # <<<<<<<<<<<<<<
@@ -9214,7 +9214,7 @@ static PyObject *__pyx_f_6xnicer_3kde_3KDE_kde_double(struct __pyx_obj_6xnicer_3
       __pyx_t_9 = 0;
       goto __pyx_L0;
 
-      /* "xnicer/kde.pyx":382
+      /* "xnicer/kde/kde.pyx":382
  *             callback(self, n_objs, n_objs)
  *         if output is None:
  *             if nocut:             # <<<<<<<<<<<<<<
@@ -9223,7 +9223,7 @@ static PyObject *__pyx_f_6xnicer_3kde_3KDE_kde_double(struct __pyx_obj_6xnicer_3
  */
     }
 
-    /* "xnicer/kde.pyx":385
+    /* "xnicer/kde/kde.pyx":385
  *                 return np.asarray(result).reshape((n_planes,) + self.framed_naxis)
  *             else:
  *                 return np.asarray(result).reshape((n_planes,) + self.framed_naxis) \             # <<<<<<<<<<<<<<
@@ -9285,7 +9285,7 @@ static PyObject *__pyx_f_6xnicer_3kde_3KDE_kde_double(struct __pyx_obj_6xnicer_3
       __Pyx_GOTREF(__pyx_t_9);
       __Pyx_DECREF(__pyx_t_12); __pyx_t_12 = 0;
 
-      /* "xnicer/kde.pyx":386
+      /* "xnicer/kde/kde.pyx":386
  *             else:
  *                 return np.asarray(result).reshape((n_planes,) + self.framed_naxis) \
  *                     [(slice(None),) + (slice(self.kernel_size, -self.kernel_size),)*self.ndim]             # <<<<<<<<<<<<<<
@@ -9322,7 +9322,7 @@ static PyObject *__pyx_f_6xnicer_3kde_3KDE_kde_double(struct __pyx_obj_6xnicer_3
       goto __pyx_L0;
     }
 
-    /* "xnicer/kde.pyx":381
+    /* "xnicer/kde/kde.pyx":381
  *         if callback is not None:
  *             callback(self, n_objs, n_objs)
  *         if output is None:             # <<<<<<<<<<<<<<
@@ -9331,7 +9331,7 @@ static PyObject *__pyx_f_6xnicer_3kde_3KDE_kde_double(struct __pyx_obj_6xnicer_3
  */
   }
 
-  /* "xnicer/kde.pyx":388
+  /* "xnicer/kde/kde.pyx":388
  *                     [(slice(None),) + (slice(self.kernel_size, -self.kernel_size),)*self.ndim]
  *         else:
  *             return output             # <<<<<<<<<<<<<<
@@ -9347,7 +9347,7 @@ static PyObject *__pyx_f_6xnicer_3kde_3KDE_kde_double(struct __pyx_obj_6xnicer_3
     goto __pyx_L0;
   }
 
-  /* "xnicer/kde.pyx":330
+  /* "xnicer/kde/kde.pyx":330
  * 
  * 
  *     cpdef kde_double(self, double[:,:] coords, double[:,:] weights=None, short int[:] power=None,             # <<<<<<<<<<<<<<
@@ -9400,7 +9400,7 @@ static PyObject *__pyx_pw_6xnicer_3kde_3KDE_13kde_double(PyObject *__pyx_v_self,
     static PyObject **__pyx_pyargnames[] = {&__pyx_n_s_coords,&__pyx_n_s_weights,&__pyx_n_s_power,&__pyx_n_s_mask,&__pyx_n_s_output,&__pyx_n_s_nocut,&__pyx_n_s_callback,0};
     PyObject* values[7] = {0,0,0,0,0,0,0};
 
-    /* "xnicer/kde.pyx":332
+    /* "xnicer/kde/kde.pyx":332
  *     cpdef kde_double(self, double[:,:] coords, double[:,:] weights=None, short int[:] power=None,
  *                      short int[:] mask=None, double[:,:] output=None, bint nocut=False,
  *                      object callback=None):             # <<<<<<<<<<<<<<
@@ -9522,7 +9522,7 @@ static PyObject *__pyx_pw_6xnicer_3kde_3KDE_13kde_double(PyObject *__pyx_v_self,
       __pyx_v_nocut = __Pyx_PyObject_IsTrue(values[5]); if (unlikely((__pyx_v_nocut == (int)-1) && PyErr_Occurred())) __PYX_ERR(0, 331, __pyx_L3_error)
     } else {
 
-      /* "xnicer/kde.pyx":331
+      /* "xnicer/kde/kde.pyx":331
  * 
  *     cpdef kde_double(self, double[:,:] coords, double[:,:] weights=None, short int[:] power=None,
  *                      short int[:] mask=None, double[:,:] output=None, bint nocut=False,             # <<<<<<<<<<<<<<
@@ -9543,7 +9543,7 @@ static PyObject *__pyx_pw_6xnicer_3kde_3KDE_13kde_double(PyObject *__pyx_v_self,
   __pyx_L4_argument_unpacking_done:;
   __pyx_r = __pyx_pf_6xnicer_3kde_3KDE_12kde_double(((struct __pyx_obj_6xnicer_3kde_KDE *)__pyx_v_self), __pyx_v_coords, __pyx_v_weights, __pyx_v_power, __pyx_v_mask, __pyx_v_output, __pyx_v_nocut, __pyx_v_callback);
 
-  /* "xnicer/kde.pyx":330
+  /* "xnicer/kde/kde.pyx":330
  * 
  * 
  *     cpdef kde_double(self, double[:,:] coords, double[:,:] weights=None, short int[:] power=None,             # <<<<<<<<<<<<<<
@@ -9592,7 +9592,7 @@ static PyObject *__pyx_pf_6xnicer_3kde_3KDE_12kde_double(struct __pyx_obj_6xnice
   return __pyx_r;
 }
 
-/* "xnicer/kde.pyx":391
+/* "xnicer/kde/kde.pyx":391
  * 
  * 
  *     def kde(self, coords, weights=None, power=None, mask=None, output=None,             # <<<<<<<<<<<<<<
@@ -9622,7 +9622,7 @@ static PyObject *__pyx_pw_6xnicer_3kde_3KDE_15kde(PyObject *__pyx_v_self, PyObje
     values[3] = ((PyObject *)Py_None);
     values[4] = ((PyObject *)Py_None);
 
-    /* "xnicer/kde.pyx":392
+    /* "xnicer/kde/kde.pyx":392
  * 
  *     def kde(self, coords, weights=None, power=None, mask=None, output=None,
  *             nocut=False, callback=None):             # <<<<<<<<<<<<<<
@@ -9734,7 +9734,7 @@ static PyObject *__pyx_pw_6xnicer_3kde_3KDE_15kde(PyObject *__pyx_v_self, PyObje
   __pyx_L4_argument_unpacking_done:;
   __pyx_r = __pyx_pf_6xnicer_3kde_3KDE_14kde(((struct __pyx_obj_6xnicer_3kde_KDE *)__pyx_v_self), __pyx_v_coords, __pyx_v_weights, __pyx_v_power, __pyx_v_mask, __pyx_v_output, __pyx_v_nocut, __pyx_v_callback);
 
-  /* "xnicer/kde.pyx":391
+  /* "xnicer/kde/kde.pyx":391
  * 
  * 
  *     def kde(self, coords, weights=None, power=None, mask=None, output=None,             # <<<<<<<<<<<<<<
@@ -9776,7 +9776,7 @@ static PyObject *__pyx_pf_6xnicer_3kde_3KDE_14kde(struct __pyx_obj_6xnicer_3kde_
   __Pyx_INCREF(__pyx_v_mask);
   __Pyx_INCREF(__pyx_v_output);
 
-  /* "xnicer/kde.pyx":444
+  /* "xnicer/kde/kde.pyx":444
  *             result.reshape((n_planes,) + tuple(self.framed_naxis))
  *         """
  *         if coords.dtype == np.float64 or coords.dtype == np.float128:             # <<<<<<<<<<<<<<
@@ -9816,7 +9816,7 @@ static PyObject *__pyx_pf_6xnicer_3kde_3KDE_14kde(struct __pyx_obj_6xnicer_3kde_
   __pyx_L4_bool_binop_done:;
   if (__pyx_t_1) {
 
-    /* "xnicer/kde.pyx":445
+    /* "xnicer/kde/kde.pyx":445
  *         """
  *         if coords.dtype == np.float64 or coords.dtype == np.float128:
  *             float_type = np.float64             # <<<<<<<<<<<<<<
@@ -9831,7 +9831,7 @@ static PyObject *__pyx_pf_6xnicer_3kde_3KDE_14kde(struct __pyx_obj_6xnicer_3kde_
     __pyx_v_float_type = __pyx_t_2;
     __pyx_t_2 = 0;
 
-    /* "xnicer/kde.pyx":444
+    /* "xnicer/kde/kde.pyx":444
  *             result.reshape((n_planes,) + tuple(self.framed_naxis))
  *         """
  *         if coords.dtype == np.float64 or coords.dtype == np.float128:             # <<<<<<<<<<<<<<
@@ -9841,7 +9841,7 @@ static PyObject *__pyx_pf_6xnicer_3kde_3KDE_14kde(struct __pyx_obj_6xnicer_3kde_
     goto __pyx_L3;
   }
 
-  /* "xnicer/kde.pyx":447
+  /* "xnicer/kde/kde.pyx":447
  *             float_type = np.float64
  *         else:
  *             float_type = np.float32             # <<<<<<<<<<<<<<
@@ -9859,7 +9859,7 @@ static PyObject *__pyx_pf_6xnicer_3kde_3KDE_14kde(struct __pyx_obj_6xnicer_3kde_
   }
   __pyx_L3:;
 
-  /* "xnicer/kde.pyx":448
+  /* "xnicer/kde/kde.pyx":448
  *         else:
  *             float_type = np.float32
  *         coords = coords.astype(float_type, copy=False)             # <<<<<<<<<<<<<<
@@ -9884,7 +9884,7 @@ static PyObject *__pyx_pf_6xnicer_3kde_3KDE_14kde(struct __pyx_obj_6xnicer_3kde_
   __Pyx_DECREF_SET(__pyx_v_coords, __pyx_t_6);
   __pyx_t_6 = 0;
 
-  /* "xnicer/kde.pyx":449
+  /* "xnicer/kde/kde.pyx":449
  *             float_type = np.float32
  *         coords = coords.astype(float_type, copy=False)
  *         if weights is not None:             # <<<<<<<<<<<<<<
@@ -9895,7 +9895,7 @@ static PyObject *__pyx_pf_6xnicer_3kde_3KDE_14kde(struct __pyx_obj_6xnicer_3kde_
   __pyx_t_5 = (__pyx_t_1 != 0);
   if (__pyx_t_5) {
 
-    /* "xnicer/kde.pyx":450
+    /* "xnicer/kde/kde.pyx":450
  *         coords = coords.astype(float_type, copy=False)
  *         if weights is not None:
  *             if weights.ndim == 1:             # <<<<<<<<<<<<<<
@@ -9911,7 +9911,7 @@ static PyObject *__pyx_pf_6xnicer_3kde_3KDE_14kde(struct __pyx_obj_6xnicer_3kde_
     __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
     if (__pyx_t_5) {
 
-      /* "xnicer/kde.pyx":451
+      /* "xnicer/kde/kde.pyx":451
  *         if weights is not None:
  *             if weights.ndim == 1:
  *                 weights = weights.reshape(1, -1)             # <<<<<<<<<<<<<<
@@ -9926,7 +9926,7 @@ static PyObject *__pyx_pf_6xnicer_3kde_3KDE_14kde(struct __pyx_obj_6xnicer_3kde_
       __Pyx_DECREF_SET(__pyx_v_weights, __pyx_t_6);
       __pyx_t_6 = 0;
 
-      /* "xnicer/kde.pyx":450
+      /* "xnicer/kde/kde.pyx":450
  *         coords = coords.astype(float_type, copy=False)
  *         if weights is not None:
  *             if weights.ndim == 1:             # <<<<<<<<<<<<<<
@@ -9935,7 +9935,7 @@ static PyObject *__pyx_pf_6xnicer_3kde_3KDE_14kde(struct __pyx_obj_6xnicer_3kde_
  */
     }
 
-    /* "xnicer/kde.pyx":452
+    /* "xnicer/kde/kde.pyx":452
  *             if weights.ndim == 1:
  *                 weights = weights.reshape(1, -1)
  *             weights = weights.astype(float_type, copy=False)             # <<<<<<<<<<<<<<
@@ -9960,7 +9960,7 @@ static PyObject *__pyx_pf_6xnicer_3kde_3KDE_14kde(struct __pyx_obj_6xnicer_3kde_
     __Pyx_DECREF_SET(__pyx_v_weights, __pyx_t_4);
     __pyx_t_4 = 0;
 
-    /* "xnicer/kde.pyx":453
+    /* "xnicer/kde/kde.pyx":453
  *                 weights = weights.reshape(1, -1)
  *             weights = weights.astype(float_type, copy=False)
  *             nplanes = weights.shape[0]             # <<<<<<<<<<<<<<
@@ -9975,7 +9975,7 @@ static PyObject *__pyx_pf_6xnicer_3kde_3KDE_14kde(struct __pyx_obj_6xnicer_3kde_
     __pyx_v_nplanes = __pyx_t_2;
     __pyx_t_2 = 0;
 
-    /* "xnicer/kde.pyx":449
+    /* "xnicer/kde/kde.pyx":449
  *             float_type = np.float32
  *         coords = coords.astype(float_type, copy=False)
  *         if weights is not None:             # <<<<<<<<<<<<<<
@@ -9985,7 +9985,7 @@ static PyObject *__pyx_pf_6xnicer_3kde_3KDE_14kde(struct __pyx_obj_6xnicer_3kde_
     goto __pyx_L6;
   }
 
-  /* "xnicer/kde.pyx":455
+  /* "xnicer/kde/kde.pyx":455
  *             nplanes = weights.shape[0]
  *         else:
  *             nplanes = 1             # <<<<<<<<<<<<<<
@@ -9998,7 +9998,7 @@ static PyObject *__pyx_pf_6xnicer_3kde_3KDE_14kde(struct __pyx_obj_6xnicer_3kde_
   }
   __pyx_L6:;
 
-  /* "xnicer/kde.pyx":456
+  /* "xnicer/kde/kde.pyx":456
  *         else:
  *             nplanes = 1
  *         if power is not None:             # <<<<<<<<<<<<<<
@@ -10009,7 +10009,7 @@ static PyObject *__pyx_pf_6xnicer_3kde_3KDE_14kde(struct __pyx_obj_6xnicer_3kde_
   __pyx_t_1 = (__pyx_t_5 != 0);
   if (__pyx_t_1) {
 
-    /* "xnicer/kde.pyx":457
+    /* "xnicer/kde/kde.pyx":457
  *             nplanes = 1
  *         if power is not None:
  *             if hasattr(power, '__iter__'):             # <<<<<<<<<<<<<<
@@ -10020,7 +10020,7 @@ static PyObject *__pyx_pf_6xnicer_3kde_3KDE_14kde(struct __pyx_obj_6xnicer_3kde_
     __pyx_t_5 = (__pyx_t_1 != 0);
     if (__pyx_t_5) {
 
-      /* "xnicer/kde.pyx":458
+      /* "xnicer/kde/kde.pyx":458
  *         if power is not None:
  *             if hasattr(power, '__iter__'):
  *                 power = np.array(power, dtype=np.short)             # <<<<<<<<<<<<<<
@@ -10054,7 +10054,7 @@ static PyObject *__pyx_pf_6xnicer_3kde_3KDE_14kde(struct __pyx_obj_6xnicer_3kde_
       __Pyx_DECREF_SET(__pyx_v_power, __pyx_t_7);
       __pyx_t_7 = 0;
 
-      /* "xnicer/kde.pyx":457
+      /* "xnicer/kde/kde.pyx":457
  *             nplanes = 1
  *         if power is not None:
  *             if hasattr(power, '__iter__'):             # <<<<<<<<<<<<<<
@@ -10064,7 +10064,7 @@ static PyObject *__pyx_pf_6xnicer_3kde_3KDE_14kde(struct __pyx_obj_6xnicer_3kde_
       goto __pyx_L9;
     }
 
-    /* "xnicer/kde.pyx":460
+    /* "xnicer/kde/kde.pyx":460
  *                 power = np.array(power, dtype=np.short)
  *             else:
  *                 power = np.full((nplanes,), power, dtype=np.short)             # <<<<<<<<<<<<<<
@@ -10109,7 +10109,7 @@ static PyObject *__pyx_pf_6xnicer_3kde_3KDE_14kde(struct __pyx_obj_6xnicer_3kde_
     }
     __pyx_L9:;
 
-    /* "xnicer/kde.pyx":456
+    /* "xnicer/kde/kde.pyx":456
  *         else:
  *             nplanes = 1
  *         if power is not None:             # <<<<<<<<<<<<<<
@@ -10118,7 +10118,7 @@ static PyObject *__pyx_pf_6xnicer_3kde_3KDE_14kde(struct __pyx_obj_6xnicer_3kde_
  */
   }
 
-  /* "xnicer/kde.pyx":461
+  /* "xnicer/kde/kde.pyx":461
  *             else:
  *                 power = np.full((nplanes,), power, dtype=np.short)
  *         if mask is not None:             # <<<<<<<<<<<<<<
@@ -10129,7 +10129,7 @@ static PyObject *__pyx_pf_6xnicer_3kde_3KDE_14kde(struct __pyx_obj_6xnicer_3kde_
   __pyx_t_1 = (__pyx_t_5 != 0);
   if (__pyx_t_1) {
 
-    /* "xnicer/kde.pyx":462
+    /* "xnicer/kde/kde.pyx":462
  *                 power = np.full((nplanes,), power, dtype=np.short)
  *         if mask is not None:
  *             mask = mask.astype(np.short, copy=False)             # <<<<<<<<<<<<<<
@@ -10159,7 +10159,7 @@ static PyObject *__pyx_pf_6xnicer_3kde_3KDE_14kde(struct __pyx_obj_6xnicer_3kde_
     __Pyx_DECREF_SET(__pyx_v_mask, __pyx_t_3);
     __pyx_t_3 = 0;
 
-    /* "xnicer/kde.pyx":461
+    /* "xnicer/kde/kde.pyx":461
  *             else:
  *                 power = np.full((nplanes,), power, dtype=np.short)
  *         if mask is not None:             # <<<<<<<<<<<<<<
@@ -10168,7 +10168,7 @@ static PyObject *__pyx_pf_6xnicer_3kde_3KDE_14kde(struct __pyx_obj_6xnicer_3kde_
  */
   }
 
-  /* "xnicer/kde.pyx":463
+  /* "xnicer/kde/kde.pyx":463
  *         if mask is not None:
  *             mask = mask.astype(np.short, copy=False)
  *         if output is not None:             # <<<<<<<<<<<<<<
@@ -10179,7 +10179,7 @@ static PyObject *__pyx_pf_6xnicer_3kde_3KDE_14kde(struct __pyx_obj_6xnicer_3kde_
   __pyx_t_5 = (__pyx_t_1 != 0);
   if (__pyx_t_5) {
 
-    /* "xnicer/kde.pyx":464
+    /* "xnicer/kde/kde.pyx":464
  *             mask = mask.astype(np.short, copy=False)
  *         if output is not None:
  *             if output.ndim == 1:             # <<<<<<<<<<<<<<
@@ -10195,7 +10195,7 @@ static PyObject *__pyx_pf_6xnicer_3kde_3KDE_14kde(struct __pyx_obj_6xnicer_3kde_
     __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
     if (__pyx_t_5) {
 
-      /* "xnicer/kde.pyx":465
+      /* "xnicer/kde/kde.pyx":465
  *         if output is not None:
  *             if output.ndim == 1:
  *                 output = output.reshape(1, -1)             # <<<<<<<<<<<<<<
@@ -10210,7 +10210,7 @@ static PyObject *__pyx_pf_6xnicer_3kde_3KDE_14kde(struct __pyx_obj_6xnicer_3kde_
       __Pyx_DECREF_SET(__pyx_v_output, __pyx_t_3);
       __pyx_t_3 = 0;
 
-      /* "xnicer/kde.pyx":464
+      /* "xnicer/kde/kde.pyx":464
  *             mask = mask.astype(np.short, copy=False)
  *         if output is not None:
  *             if output.ndim == 1:             # <<<<<<<<<<<<<<
@@ -10219,7 +10219,7 @@ static PyObject *__pyx_pf_6xnicer_3kde_3KDE_14kde(struct __pyx_obj_6xnicer_3kde_
  */
     }
 
-    /* "xnicer/kde.pyx":466
+    /* "xnicer/kde/kde.pyx":466
  *             if output.ndim == 1:
  *                 output = output.reshape(1, -1)
  *             output = output.astype(float_type, copy=False)             # <<<<<<<<<<<<<<
@@ -10244,7 +10244,7 @@ static PyObject *__pyx_pf_6xnicer_3kde_3KDE_14kde(struct __pyx_obj_6xnicer_3kde_
     __Pyx_DECREF_SET(__pyx_v_output, __pyx_t_6);
     __pyx_t_6 = 0;
 
-    /* "xnicer/kde.pyx":463
+    /* "xnicer/kde/kde.pyx":463
  *         if mask is not None:
  *             mask = mask.astype(np.short, copy=False)
  *         if output is not None:             # <<<<<<<<<<<<<<
@@ -10253,7 +10253,7 @@ static PyObject *__pyx_pf_6xnicer_3kde_3KDE_14kde(struct __pyx_obj_6xnicer_3kde_
  */
   }
 
-  /* "xnicer/kde.pyx":467
+  /* "xnicer/kde/kde.pyx":467
  *                 output = output.reshape(1, -1)
  *             output = output.astype(float_type, copy=False)
  *         if float_type == np.float32:             # <<<<<<<<<<<<<<
@@ -10271,7 +10271,7 @@ static PyObject *__pyx_pf_6xnicer_3kde_3KDE_14kde(struct __pyx_obj_6xnicer_3kde_
   __Pyx_DECREF(__pyx_t_6); __pyx_t_6 = 0;
   if (__pyx_t_5) {
 
-    /* "xnicer/kde.pyx":468
+    /* "xnicer/kde/kde.pyx":468
  *             output = output.astype(float_type, copy=False)
  *         if float_type == np.float32:
  *             return self.kde_float(coords, weights, power, mask, output, nocut,             # <<<<<<<<<<<<<<
@@ -10286,7 +10286,7 @@ static PyObject *__pyx_pf_6xnicer_3kde_3KDE_14kde(struct __pyx_obj_6xnicer_3kde_
     __pyx_t_12 = __Pyx_PyObject_to_MemoryviewSlice_dsds_float(__pyx_v_output, PyBUF_WRITABLE); if (unlikely(!__pyx_t_12.memview)) __PYX_ERR(0, 468, __pyx_L1_error)
     __pyx_t_5 = __Pyx_PyObject_IsTrue(__pyx_v_nocut); if (unlikely((__pyx_t_5 == (int)-1) && PyErr_Occurred())) __PYX_ERR(0, 468, __pyx_L1_error)
 
-    /* "xnicer/kde.pyx":469
+    /* "xnicer/kde/kde.pyx":469
  *         if float_type == np.float32:
  *             return self.kde_float(coords, weights, power, mask, output, nocut,
  *                                   callback)             # <<<<<<<<<<<<<<
@@ -10321,7 +10321,7 @@ static PyObject *__pyx_pf_6xnicer_3kde_3KDE_14kde(struct __pyx_obj_6xnicer_3kde_
     __pyx_t_6 = 0;
     goto __pyx_L0;
 
-    /* "xnicer/kde.pyx":467
+    /* "xnicer/kde/kde.pyx":467
  *                 output = output.reshape(1, -1)
  *             output = output.astype(float_type, copy=False)
  *         if float_type == np.float32:             # <<<<<<<<<<<<<<
@@ -10330,7 +10330,7 @@ static PyObject *__pyx_pf_6xnicer_3kde_3KDE_14kde(struct __pyx_obj_6xnicer_3kde_
  */
   }
 
-  /* "xnicer/kde.pyx":471
+  /* "xnicer/kde/kde.pyx":471
  *                                   callback)
  *         else:
  *             return self.kde_double(coords, weights, power, mask, output, nocut,             # <<<<<<<<<<<<<<
@@ -10346,7 +10346,7 @@ static PyObject *__pyx_pf_6xnicer_3kde_3KDE_14kde(struct __pyx_obj_6xnicer_3kde_
     __pyx_t_16 = __Pyx_PyObject_to_MemoryviewSlice_dsds_double(__pyx_v_output, PyBUF_WRITABLE); if (unlikely(!__pyx_t_16.memview)) __PYX_ERR(0, 471, __pyx_L1_error)
     __pyx_t_5 = __Pyx_PyObject_IsTrue(__pyx_v_nocut); if (unlikely((__pyx_t_5 == (int)-1) && PyErr_Occurred())) __PYX_ERR(0, 471, __pyx_L1_error)
 
-    /* "xnicer/kde.pyx":472
+    /* "xnicer/kde/kde.pyx":472
  *         else:
  *             return self.kde_double(coords, weights, power, mask, output, nocut,
  *                                    callback)             # <<<<<<<<<<<<<<
@@ -10382,7 +10382,7 @@ static PyObject *__pyx_pf_6xnicer_3kde_3KDE_14kde(struct __pyx_obj_6xnicer_3kde_
     goto __pyx_L0;
   }
 
-  /* "xnicer/kde.pyx":391
+  /* "xnicer/kde/kde.pyx":391
  * 
  * 
  *     def kde(self, coords, weights=None, power=None, mask=None, output=None,             # <<<<<<<<<<<<<<
@@ -10420,7 +10420,7 @@ static PyObject *__pyx_pf_6xnicer_3kde_3KDE_14kde(struct __pyx_obj_6xnicer_3kde_
   return __pyx_r;
 }
 
-/* "xnicer/kde.pyx":80
+/* "xnicer/kde/kde.pyx":80
  *     """
  *     cdef public:
  *         str kernel             # <<<<<<<<<<<<<<
@@ -10525,7 +10525,7 @@ static int __pyx_pf_6xnicer_3kde_3KDE_6kernel_4__del__(struct __pyx_obj_6xnicer_
   return __pyx_r;
 }
 
-/* "xnicer/kde.pyx":81
+/* "xnicer/kde/kde.pyx":81
  *     cdef public:
  *         str kernel
  *         double metric, bandwidth, eff_area             # <<<<<<<<<<<<<<
@@ -10737,7 +10737,7 @@ static int __pyx_pf_6xnicer_3kde_3KDE_8eff_area_2__set__(struct __pyx_obj_6xnice
   return __pyx_r;
 }
 
-/* "xnicer/kde.pyx":82
+/* "xnicer/kde/kde.pyx":82
  *         str kernel
  *         double metric, bandwidth, eff_area
  *         int kernel_radius, kernel_size             # <<<<<<<<<<<<<<
@@ -10881,7 +10881,7 @@ static int __pyx_pf_6xnicer_3kde_3KDE_11kernel_size_2__set__(struct __pyx_obj_6x
   return __pyx_r;
 }
 
-/* "xnicer/kde.pyx":83
+/* "xnicer/kde/kde.pyx":83
  *         double metric, bandwidth, eff_area
  *         int kernel_radius, kernel_size
  *         int oversampling, ndim, max_power             # <<<<<<<<<<<<<<
@@ -11093,7 +11093,7 @@ static int __pyx_pf_6xnicer_3kde_3KDE_9max_power_2__set__(struct __pyx_obj_6xnic
   return __pyx_r;
 }
 
-/* "xnicer/kde.pyx":84
+/* "xnicer/kde/kde.pyx":84
  *         int kernel_radius, kernel_size
  *         int oversampling, ndim, max_power
  *         tuple naxis             # <<<<<<<<<<<<<<
@@ -11198,7 +11198,7 @@ static int __pyx_pf_6xnicer_3kde_3KDE_5naxis_4__del__(struct __pyx_obj_6xnicer_3
   return __pyx_r;
 }
 
-/* "xnicer/kde.pyx":85
+/* "xnicer/kde/kde.pyx":85
  *         int oversampling, ndim, max_power
  *         tuple naxis
  *         tuple framed_naxis             # <<<<<<<<<<<<<<
@@ -11303,7 +11303,7 @@ static int __pyx_pf_6xnicer_3kde_3KDE_12framed_naxis_4__del__(struct __pyx_obj_6
   return __pyx_r;
 }
 
-/* "xnicer/kde.pyx":86
+/* "xnicer/kde/kde.pyx":86
  *         tuple naxis
  *         tuple framed_naxis
  *         bint binned_kernel             # <<<<<<<<<<<<<<
@@ -25913,7 +25913,7 @@ static CYTHON_SMALL_CODE int __Pyx_InitCachedConstants(void) {
   __Pyx_RefNannyDeclarations
   __Pyx_RefNannySetupContext("__Pyx_InitCachedConstants", 0);
 
-  /* "xnicer/kde.pyx":104
+  /* "xnicer/kde/kde.pyx":104
  *         self.ndim = len(naxis)
  *         if bandwidth <= 0:
  *             raise ValueError("The bandwidth parameter must be positive")             # <<<<<<<<<<<<<<
@@ -25924,7 +25924,7 @@ static CYTHON_SMALL_CODE int __Pyx_InitCachedConstants(void) {
   __Pyx_GOTREF(__pyx_tuple_);
   __Pyx_GIVEREF(__pyx_tuple_);
 
-  /* "xnicer/kde.pyx":107
+  /* "xnicer/kde/kde.pyx":107
  *         self.bandwidth = bandwidth
  *         if oversampling % 2 != 1:
  *             raise ValueError("The oversampling parameter must be an odd integer")             # <<<<<<<<<<<<<<
@@ -25935,7 +25935,7 @@ static CYTHON_SMALL_CODE int __Pyx_InitCachedConstants(void) {
   __Pyx_GOTREF(__pyx_tuple__2);
   __Pyx_GIVEREF(__pyx_tuple__2);
 
-  /* "xnicer/kde.pyx":170
+  /* "xnicer/kde/kde.pyx":170
  *             kernel = lambda x2: np.maximum(np.cos(np.sqrt(x2) / (2*self.bandwidth/np.pi)), 0.0)
  *         else:
  *             raise ValueError('Unknown kernel')             # <<<<<<<<<<<<<<
@@ -25946,7 +25946,7 @@ static CYTHON_SMALL_CODE int __Pyx_InitCachedConstants(void) {
   __Pyx_GOTREF(__pyx_tuple__3);
   __Pyx_GIVEREF(__pyx_tuple__3);
 
-  /* "xnicer/kde.pyx":192
+  /* "xnicer/kde/kde.pyx":192
  *             coords = np.sum((np.abs(coords))**self.metric, axis=0)**(2.0/self.metric)
  *         else:
  *             raise ValueError('The p-metric must have a non-negative exponent')             # <<<<<<<<<<<<<<
@@ -25957,7 +25957,7 @@ static CYTHON_SMALL_CODE int __Pyx_InitCachedConstants(void) {
   __Pyx_GOTREF(__pyx_tuple__4);
   __Pyx_GIVEREF(__pyx_tuple__4);
 
-  /* "xnicer/kde.pyx":206
+  /* "xnicer/kde/kde.pyx":206
  *         last = tuple(range(self.ndim, self.ndim*2))
  *         kernel_table /= \
  *             np.sum(kernel_table, axis=last)[(Ellipsis,)+(None,)*self.ndim]             # <<<<<<<<<<<<<<
@@ -25974,7 +25974,7 @@ static CYTHON_SMALL_CODE int __Pyx_InitCachedConstants(void) {
   PyTuple_SET_ITEM(__pyx_tuple__6, 0, Py_None);
   __Pyx_GIVEREF(__pyx_tuple__6);
 
-  /* "xnicer/kde.pyx":216
+  /* "xnicer/kde/kde.pyx":216
  *                                     self.kernel_size**self.ndim), dtype=np.float32)
  *         for p in range(self.max_power):
  *             kernel_table_3d[p, :, :] = (kernel_table**(p+1)).astype(np.float32)             # <<<<<<<<<<<<<<
@@ -25985,7 +25985,7 @@ static CYTHON_SMALL_CODE int __Pyx_InitCachedConstants(void) {
   __Pyx_GOTREF(__pyx_slice__7);
   __Pyx_GIVEREF(__pyx_slice__7);
 
-  /* "xnicer/kde.pyx":231
+  /* "xnicer/kde/kde.pyx":231
  *     def set_naxis(self, naxis):
  *         if len(naxis) != self.ndim:
  *             raise ValueError("Cannot change the number of axes of a KDE class")             # <<<<<<<<<<<<<<
@@ -25996,7 +25996,7 @@ static CYTHON_SMALL_CODE int __Pyx_InitCachedConstants(void) {
   __Pyx_GOTREF(__pyx_tuple__9);
   __Pyx_GIVEREF(__pyx_tuple__9);
 
-  /* "xnicer/kde.pyx":260
+  /* "xnicer/kde/kde.pyx":260
  *         """
  *         if len(args) == 0:
  *             raise ValueError('At least one array must be provided')             # <<<<<<<<<<<<<<
@@ -26007,7 +26007,7 @@ static CYTHON_SMALL_CODE int __Pyx_InitCachedConstants(void) {
   __Pyx_GOTREF(__pyx_tuple__10);
   __Pyx_GIVEREF(__pyx_tuple__10);
 
-  /* "xnicer/kde.pyx":325
+  /* "xnicer/kde/kde.pyx":325
  *             else:
  *                 return np.asarray(result).reshape((n_planes,) + self.framed_naxis) \
  *                     [(slice(None),) + (slice(self.kernel_size, -self.kernel_size),)*self.ndim]             # <<<<<<<<<<<<<<
@@ -26018,7 +26018,7 @@ static CYTHON_SMALL_CODE int __Pyx_InitCachedConstants(void) {
   __Pyx_GOTREF(__pyx_tuple__15);
   __Pyx_GIVEREF(__pyx_tuple__15);
 
-  /* "xnicer/kde.pyx":451
+  /* "xnicer/kde/kde.pyx":451
  *         if weights is not None:
  *             if weights.ndim == 1:
  *                 weights = weights.reshape(1, -1)             # <<<<<<<<<<<<<<
@@ -26687,7 +26687,7 @@ if (!__Pyx_RefNanny) {
   if (__Pyx_patch_abc() < 0) __PYX_ERR(0, 1, __pyx_L1_error)
   #endif
 
-  /* "xnicer/kde.pyx":9
+  /* "xnicer/kde/kde.pyx":9
  * cimport cython
  * 
  * import numpy as np             # <<<<<<<<<<<<<<
@@ -26699,7 +26699,7 @@ if (!__Pyx_RefNanny) {
   if (PyDict_SetItem(__pyx_d, __pyx_n_s_np, __pyx_t_1) < 0) __PYX_ERR(0, 9, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
 
-  /* "xnicer/kde.pyx":10
+  /* "xnicer/kde/kde.pyx":10
  * 
  * import numpy as np
  * from astropy.io import fits             # <<<<<<<<<<<<<<
@@ -26720,7 +26720,7 @@ if (!__Pyx_RefNanny) {
   __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
 
-  /* "xnicer/kde.pyx":11
+  /* "xnicer/kde/kde.pyx":11
  * import numpy as np
  * from astropy.io import fits
  * import os, glob             # <<<<<<<<<<<<<<
@@ -26736,7 +26736,7 @@ if (!__Pyx_RefNanny) {
   if (PyDict_SetItem(__pyx_d, __pyx_n_s_glob, __pyx_t_2) < 0) __PYX_ERR(0, 11, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
 
-  /* "xnicer/kde.pyx":12
+  /* "xnicer/kde/kde.pyx":12
  * from astropy.io import fits
  * import os, glob
  * from scipy.ndimage import uniform_filter             # <<<<<<<<<<<<<<
@@ -26757,7 +26757,7 @@ if (!__Pyx_RefNanny) {
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
   __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
 
-  /* "xnicer/kde.pyx":269
+  /* "xnicer/kde/kde.pyx":269
  * 
  * 
  *     cpdef kde_float(self, float[:,:] coords, float[:,:] weights=None, short int[:] power=None,             # <<<<<<<<<<<<<<
@@ -26773,7 +26773,7 @@ if (!__Pyx_RefNanny) {
   __pyx_t_4.memview = NULL;
   __pyx_t_4.data = NULL;
 
-  /* "xnicer/kde.pyx":270
+  /* "xnicer/kde/kde.pyx":270
  * 
  *     cpdef kde_float(self, float[:,:] coords, float[:,:] weights=None, short int[:] power=None,
  *                     short int[:] mask=None, float[:,:] output=None, bint nocut=False,             # <<<<<<<<<<<<<<
@@ -26789,7 +26789,7 @@ if (!__Pyx_RefNanny) {
   __pyx_t_3.memview = NULL;
   __pyx_t_3.data = NULL;
 
-  /* "xnicer/kde.pyx":269
+  /* "xnicer/kde/kde.pyx":269
  * 
  * 
  *     cpdef kde_float(self, float[:,:] coords, float[:,:] weights=None, short int[:] power=None,             # <<<<<<<<<<<<<<
@@ -26805,7 +26805,7 @@ if (!__Pyx_RefNanny) {
   __pyx_t_4.memview = NULL;
   __pyx_t_4.data = NULL;
 
-  /* "xnicer/kde.pyx":270
+  /* "xnicer/kde/kde.pyx":270
  * 
  *     cpdef kde_float(self, float[:,:] coords, float[:,:] weights=None, short int[:] power=None,
  *                     short int[:] mask=None, float[:,:] output=None, bint nocut=False,             # <<<<<<<<<<<<<<
@@ -26821,7 +26821,7 @@ if (!__Pyx_RefNanny) {
   __pyx_t_3.memview = NULL;
   __pyx_t_3.data = NULL;
 
-  /* "xnicer/kde.pyx":330
+  /* "xnicer/kde/kde.pyx":330
  * 
  * 
  *     cpdef kde_double(self, double[:,:] coords, double[:,:] weights=None, short int[:] power=None,             # <<<<<<<<<<<<<<
@@ -26837,7 +26837,7 @@ if (!__Pyx_RefNanny) {
   __pyx_t_4.memview = NULL;
   __pyx_t_4.data = NULL;
 
-  /* "xnicer/kde.pyx":331
+  /* "xnicer/kde/kde.pyx":331
  * 
  *     cpdef kde_double(self, double[:,:] coords, double[:,:] weights=None, short int[:] power=None,
  *                      short int[:] mask=None, double[:,:] output=None, bint nocut=False,             # <<<<<<<<<<<<<<
@@ -26853,7 +26853,7 @@ if (!__Pyx_RefNanny) {
   __pyx_t_5.memview = NULL;
   __pyx_t_5.data = NULL;
 
-  /* "xnicer/kde.pyx":330
+  /* "xnicer/kde/kde.pyx":330
  * 
  * 
  *     cpdef kde_double(self, double[:,:] coords, double[:,:] weights=None, short int[:] power=None,             # <<<<<<<<<<<<<<
@@ -26869,7 +26869,7 @@ if (!__Pyx_RefNanny) {
   __pyx_t_4.memview = NULL;
   __pyx_t_4.data = NULL;
 
-  /* "xnicer/kde.pyx":331
+  /* "xnicer/kde/kde.pyx":331
  * 
  *     cpdef kde_double(self, double[:,:] coords, double[:,:] weights=None, short int[:] power=None,
  *                      short int[:] mask=None, double[:,:] output=None, bint nocut=False,             # <<<<<<<<<<<<<<
@@ -26885,7 +26885,7 @@ if (!__Pyx_RefNanny) {
   __pyx_t_5.memview = NULL;
   __pyx_t_5.data = NULL;
 
-  /* "xnicer/kde.pyx":1
+  /* "xnicer/kde/kde.pyx":1
  * #cython: language_level=3             # <<<<<<<<<<<<<<
  * #cython: initializedcheck=False, boundscheck=False, wraparound=False, cdivision=True
  * #cython: profile=False, linetrace=False, embedsignature=True

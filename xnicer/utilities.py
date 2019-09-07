@@ -28,8 +28,8 @@ def cho_solve(L, X):
     Parameters
     ----------
     L: array_like
-        An array with the Cholesky decomposition of a matrix or of an
-        array of matrices
+        A lower triangular matrix, or an array of such matrices.
+        A typical use is when L is the result of Cholesky decomposition.
 
     X: array_like
         A vector or an array of vectors

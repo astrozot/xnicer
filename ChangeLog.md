@@ -15,4 +15,8 @@ Initial release.
 - Addition of attributes to use different classes of objects in
   photometric and color catalogues.
 - A PhotometricCatalogue can now be built automatically from a VOTable
+- Use of Cython code to perform the XD
+- Change of the XDCV class name into XD_Mixture
+- Several tests added in the file test_em_step
+- Better file organization
 

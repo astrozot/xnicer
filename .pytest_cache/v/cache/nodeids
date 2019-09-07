@@ -1,0 +1,10 @@
+[
+  "xnicer/xdeconv/test_em_step.py::test_log_likelihoods",
+  "xnicer/xdeconv/test_em_step.py::test_single_e_step",
+  "xnicer/xdeconv/test_em_step.py::test_single_em_step",
+  "xnicer/xdeconv/test_em_step.py::test_pyxc_1d",
+  "xnicer/xdeconv/test_em_step.py::test_pyxc_1d_fixed",
+  "xnicer/xdeconv/test_em_step.py::test_pyxc_2d",
+  "xnicer/xdeconv/test_em_step.py::test_pyxc_2d_projection",
+  "xnicer/xdeconv/test_em_step.py::test_pyxc_2d_fixed"
+]

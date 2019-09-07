@@ -27,9 +27,14 @@ del os.environ["OMP_NUM_THREADS"]
 from astropy.io import ascii
 from astropy.coordinates import SkyCoord
 from xnicer import *
-from xnicer.catalogs import *
-from xnicer.xdcv import *
-from xnicer.xnicer import *
+
+from astropy.io import votable
+vo = votable.parse('/Users/mlombard/Downloads/vizier_votable.vot')
+table = vo.get_first_table()
+xc = PhotometricCatalogue(table)
+field = table.fields[4]
+votable.ucd.parse_ucd(field.ucd)
+
 
 # Load the control (*_c) and the science (*_s) data. The following lines are
 # based on the Vision dataset in Orion, and have hard-coded here my local
@@ -61,7 +66,7 @@ ext_vec = np.array([2.50, 1.55, 1.0])
 # final accuracy. The last line can be slow, depending on the computer used.
 xdcv = XDCV(n_components=5)
 xnicer = XNicer(xdcv, np.linspace(0.0, 6.0, 5), ext_vec)
-xnicer = XNicer(xdcv, [0.0], ext_vec)
+# xnicer = XNicer(xdcv, [0.0], ext_vec)
 xnicer.fit(phot_c)
 
 # The calibration below is used for the XNicest algorithm: it computes the
@@ -71,6 +76,25 @@ xnicer.calibrate(phot_c, np.linspace(-1.0, 6.0, 29))
 # We now use the trained XNicer object to predict the science field
 # extinctions.
 ext_s = xnicer.predict(phot_s, n_iters=1, full=True)
+
+def logprob(k1):
+    k2 = (2.50 - 1.55) / (1.55 - 1.0) * (k1 - 1.0) + k1
+    xnicer.extinction_vec = np.array([k2, k1, 1.0])
+    xnicer.fit(phot_c, update=True)
+    xnicer.calibrate(phot_c, np.linspace(-1.0, 6.0, 29))
+    ext_s = xnicer.predict(phot_s, n_iters=3)
+    log_evidence = np.sum(ext_s.log_evidence)
+    print(k1, log_evidence)
+    print(xnicer.xdcv.weights_)
+    return log_evidence
+
+xs = np.linspace(1.1, 2.0, 10)
+ys = np.zeros_like(xs)
+for n in range(len(xs)):
+    ys[n] = logprob(xs[n])
+
+from matplotlib import pyplot as plt
+plt.plot(xs, ys*xs); plt.show()
 
 # As a test, we can also compute the extinctions in the control field and make
 # sure they are around zero. Note that each object is weighted by its inverse
@@ -144,17 +168,17 @@ d = cols.cols[:, np.newaxis, :] - \
 T_k = cho_solve(Tc, color_ext_vec)
 
 V2 = np.einsum('...ij,...jk,...lk->...il',
-            cols2.projections[:, np.newaxis, :, :],
-            xnicer.xdcv.covariances_[np.newaxis, :, :, :],
-            cols2.projections[:, np.newaxis,:,:])
+               cols2.projections[:, np.newaxis, :, :],
+               xnicer.xdcv.covariances_[np.newaxis, :, :, :],
+               cols2.projections[:, np.newaxis,:,:])
 T2 = cols2.col_covs[:, np.newaxis, :, :] + V2
 Tc2 = np.linalg.cholesky(T2)
 d2 = cols2.cols[:, np.newaxis, :] - \
     np.einsum('...ij,...j->...i', cols2.projections[:, np.newaxis, :, :],
-            xnicer.xdcv.means_[np.newaxis, :, :])
+              xnicer.xdcv.means_[np.newaxis, :, :])
 T_k2 = cho_solve(Tc2, np.einsum('...ij,...j->...i',
-                            cols2.projections,
-                            color_ext_vec)[:, np.newaxis, :])
+                                cols2.projections,
+                                color_ext_vec)[:, np.newaxis, :])
 
 T_d = cho_solve(Tc, d)
 T_d2 = cho_solve(Tc2, d2)
@@ -190,7 +214,7 @@ means_c2 = xnicer.xdcv.means_[np.newaxis, :, :] + \
     np.einsum('...ji,...j->...i', T_V2, T_d2) - V_W_k2 * means_A2[:, :, np.newaxis]
 
 np.linalg.inv(P)[obj, :, 0, 0]
-variances_A[obj,:]
+variances_A[obj, :]
 variances_A2[obj, :]
 ext_c.variances_A[obj]
 

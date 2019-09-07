@@ -3,11 +3,11 @@ import numpy as np
 from scipy.special import ndtri, logsumexp
 from sklearn.utils import check_array, check_random_state
 from sklearn.mixture import GaussianMixture
-from extreme_deconvolution import extreme_deconvolution
-from .utilities import cho_solve
+# from extreme_deconvolution import extreme_deconvolution
+from . import xdeconv, FIX_AMP, FIX_MEAN, FIX_COVAR, log_likelihoods
 
 
-class XDCV(GaussianMixture):
+class XD_Mixture(GaussianMixture):
     """Extreme decomposition using a Gaussian Mixture Model
 
     This class allows to estimate the parameters of a Gaussian mixture
@@ -47,15 +47,15 @@ class XDCV(GaussianMixture):
     n_init : int, defaults to 1.
         The number of initializations to perform. The best results are kept.
 
-    init_params : {'gmm', 'kmeans', 'random'} or XDCV, defaults to 'gmm'.
+    init_params : {'gmm', 'kmeans', 'random'} or XD_Mixture, defaults to 'gmm'.
         The method used to initialize the weights, the means and the
         precisions.
         Must be one of::
 
-            'gmm'    : data are initialized from a quick GMM fit.
-            'kmeans' : responsibilities are initialized using kmeans.
-            'random' : responsibilities are initialized randomly.
-            XDCV     : instance of a XDCV already fitted.
+            'gmm'      : data are initialized from a quick GMM fit.
+            'kmeans'   : responsibilities are initialized using kmeans.
+            'random'   : responsibilities are initialized randomly.
+            XD_Mixture : instance of a XD_Mixture already fitted.
 
     weights_init : array-like, shape (n_components, ), optional
         The user-provided initial weights, defaults to None.
@@ -161,7 +161,7 @@ class XDCV(GaussianMixture):
                  weights_init=None, means_init=None, precisions_init=None,
                  splitnmerge=0, random_state=None, warm_start=False,
                  regularization=0.0, verbose=0, verbose_interval=10):
-        super(XDCV, self).__init__(
+        super(XD_Mixture, self).__init__(
             n_components=n_components, covariance_type=covariance_type, tol=tol,
             reg_covar=reg_covar, max_iter=max_iter, n_init=n_init,
             init_params=init_params, weights_init=weights_init,
@@ -189,9 +189,9 @@ class XDCV(GaussianMixture):
                              "['full']"
                              % self.covariance_type)
         init_params = self.init_params
-        if self.init_params == 'gmm' or isinstance(self.init_params, XDCV):
+        if self.init_params == 'gmm' or isinstance(self.init_params, XD_Mixture):
             self.init_params = 'kmeans'
-        super(XDCV, self)._check_parameters(Y)
+        super(XD_Mixture, self)._check_parameters(Y)
         self.init_params = init_params
 
     def _check_Y_Yerr(self, Y, Yerr, projection=None, log_weight=None):
@@ -226,7 +226,7 @@ class XDCV(GaussianMixture):
         log_weight: array_like, shape (n_samples,) or None
             The converted log weight.
         """
-        Y = check_array(Y, dtype=[np.float64], order='C', estimator='XDCV')
+        Y = check_array(Y, dtype=[np.float64], order='C', estimator='XD_Mixture')
         n_samples, n_y_features = Y.shape
         if n_samples < self.n_components:
             raise ValueError('Expected n_samples >= n_components '
@@ -235,7 +235,7 @@ class XDCV(GaussianMixture):
         if len(Yerr.shape) not in [2, 3]:
             raise ValueError('Expected a 2d or 3d array for Yerr')
         Yerr = check_array(Yerr, dtype=[
-                           np.float64], order='C', ensure_2d=False, allow_nd=True, estimator='XDCV')
+                           np.float64], order='C', ensure_2d=False, allow_nd=True, estimator='XD_Mixture')
         if Yerr.shape[0] != n_samples:
             raise ValueError('Yerr must have the same number of samples as Y')
         if Yerr.shape[1] != n_y_features:
@@ -245,7 +245,7 @@ class XDCV(GaussianMixture):
                 'Yerr must be of shape (n_samples, n_y_features, n_y_features)')
         if projection is not None:
             projection = check_array(projection, dtype=[np.float64], order='C', ensure_2d=False,
-                                     allow_nd=True, estimator='XDCV')
+                                     allow_nd=True, estimator='XD_Mixture')
             if len(projection.shape) != 3:
                 raise ValueError(
                     'projection must be of shape (n_samples, n_y_features, n_x_features)')
@@ -257,7 +257,7 @@ class XDCV(GaussianMixture):
                     'projection must have the same number of features as Y')
         if log_weight is not None:
             log_weight = check_array(log_weight, dtype=[np.float64], order='C', ensure_2d=False,
-                                     allow_nd=True, estimator='XDCV')
+                                     allow_nd=True, estimator='XD_Mixture')
             if len(log_weight.shape) != 1:
                 raise ValueError('log_weight must be a 1d array')
             if log_weight.shape[0] != n_samples:
@@ -286,7 +286,7 @@ class XDCV(GaussianMixture):
         log_weight: array_like, shape (n_samples,)
             Optional log weights for the various points.
         """
-        if isinstance(self.init_params, XDCV):
+        if isinstance(self.init_params, XD_Mixture):
             parameters = list(p.copy()
                               for p in self.init_params._get_parameters())
             self._set_parameters(parameters)
@@ -396,14 +396,11 @@ class XDCV(GaussianMixture):
                                             projection=projection, log_weight=log_weight)
                 self.lower_bound_ = -np.infty
 
-            self.lower_bound_ = extreme_deconvolution(Y, Yerr,
-                                                      self.weights_, self.means_, self.covariances_,
-                                                      tol=self.tol, maxiter=self.max_iter,
-                                                      w=self.reg_covar, splitnmerge=self.splitnmerge,
-                                                      weight=log_weight, logweight=True,
-                                                      projection=projection,
-                                                      fixamp=fixamp, fixmean=fixmean,
-                                                      fixcovar=fixcovar)
+            self.lower_bound_ = xdeconv(Y, Yerr, self.weights_, self.means_, self.covariances_,
+                                        tol=self.tol, maxiter=self.max_iter,
+                                        regular=self.reg_covar, # FIXME splitnmerge=self.splitnmerge,
+                                        weight=log_weight, projection=projection,
+                                        fixpars=fixamp*FIXAMP + fixmean*FIXMEAN + fixcovar*FIXCOVAR)
             if self.lower_bound_ > max_lower_bound:
                 max_lower_bound = self.lower_bound_
                 best_params = self._get_parameters()
@@ -466,14 +463,12 @@ class XDCV(GaussianMixture):
             mu = self.means_[np.newaxis, :, :]
             T = Yerr + np.einsum('...ij,...jk,...lk->...il', P, V, P)
             delta = Y - np.einsum('...ik,...k->...i', P, mu)
-        # Instead of computing the inverse of the full covariance matrix
-        # does a Cholesky decomposition, an operation that is ~100 times
-        # faster! Then uses forward substitution to invert it.
-        Tc = np.linalg.cholesky(T)
-        Y = cho_solve(Tc, delta)
-        chi2 = np.sum(Y*Y, axis=2) / 2.0
-        Tlogdet = np.sum(np.log(np.diagonal(Tc, axis1=-2, axis2=-1)), axis=-1)
-        return - chi2 - Tlogdet - (n_y_features * np.log(2.0*np.pi) / 2.0)
+        tmp = np.empty(Y.shape[0])
+        result = np.empty(self.n_components, Y.shape[0])
+        for c in range(self.n_components):
+            log_likelihoods(delta[:, c, :], T[:, c, :, :], tmp)
+            result[c, :] = tmp - (n_y_features * np.log(2.0*np.pi) / 2.0)
+        return result
 
     def score_samples(self, Y, Yerr, projection=None):
         """Compute the weighted log probabilities for each sample.

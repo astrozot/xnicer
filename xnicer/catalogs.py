@@ -11,7 +11,67 @@ import copy
 from scipy.optimize import minimize
 from scipy.special import log_ndtr, logsumexp
 from astropy.io import votable
+from astropy.coordinates import SkyCoord
 from .utilities import log1mexp
+
+
+def AstrometricCatalogue(table, frame=None, **kwargs):
+    """Extract coordinates from a VOTable into a SkyCoord object
+
+    Parameters
+    ----------
+    table : VOTable
+        A VOTable that include astrometric coordinates.
+        
+    frame : Coordinate Frame
+        Should be a known coordinate frame, such as 'fk4', 'fk5', 
+        'galactic', 'icrs'... If unspecified, the frame is inferred
+        from the kind of coordinate. In future we should parse the
+        frame from the VO table directly, using `vo.iter_coosys`.
+
+    **kwargs : dictionary
+        Additional keyword arguments passed to SkyCoord.
+
+    Returns
+    -------
+    SkyCoord
+        A SkyCoord object with the coordinates of the input table
+    """
+    frames = {
+        'eq': {'ra': 0, 'dec': 1},
+        'galactic': {'lon': 0, 'lat': 1},
+        'gal': {'lon': 0, 'lat': 1},
+    }
+    result = {}
+    for field in table.fields:
+        ucd = votable.ucd.parse_ucd(field.ucd)
+        force = len(ucd) > 1 and (ucd[1][1] == 'meta.main')
+        words = ucd[0][1].split('.')
+        if words[0] == 'pos':
+            ucd_frame = words[1]
+            ucd_coord = words[2]
+            if ucd_frame in frames and ucd_coord in frames[ucd_frame]:
+                i = frames[ucd_frame][ucd_coord]
+                if ucd_frame not in result:
+                    result[ucd_frame] = [None, None]
+                if force or result[ucd_frame][i] == None:
+                    result[ucd_frame][i] = field                        
+    if 'eq' in result:
+        if frame is None:
+            frame = 'icrs'
+        result = result['eq']
+    elif 'galactic' in result:
+        frame = 'galactic'
+        result = result['galactic']
+    elif 'gal' in result:
+        frame = 'galactic'
+        result = result['gal']
+    else:
+        raise KeyError('No known coordinate system found in the table')
+    return SkyCoord(table.array[result[0].ID],
+                    table.array[result[1].ID], 
+                    frame=frame, unit=result[0].unit,
+                    equinox=result[0].ref, **kwargs)
 
 
 class PhotometricCatalogue(object):
@@ -22,7 +82,7 @@ class PhotometricCatalogue(object):
 
     Parameters
     ----------
-    cat : Table, optional
+    cat : Table or VOTable, optional
         If specified, must be a table containing the magnitude and
         associated errors.
 
@@ -53,6 +113,12 @@ class PhotometricCatalogue(object):
         for each object, the logarithms of the probability that each object
         belongs to a given class. The probabilities, if provided, should be
         normalized to unity, so that logaddexp(log_class_probs, axis=1) == 0.
+        
+    reddening_law : array_like, shape (n_bands,) or None
+        The reddening law associated with the bands in the catalogue. If not
+        provided and the catalogue is a VO table, the reddening law is 
+        inferred from the names of the bands using the Rieke & Lebovsky
+        (1985) data.
 
     use_projection : bool, default to True
         What to do in case of missing band measurements. If true, the
@@ -120,7 +186,7 @@ class PhotometricCatalogue(object):
     """
 
     def __init__(self, cat=None, mags=None, mag_errs=None, log_probs=None,
-                 class_names=None, log_class_probs=None,
+                 class_names=None, log_class_probs=None, reddening_law=None,
                  max_err=1.0, min_bands=2, null_mag=15.0, null_err=100.0):
         # First of all the easy stuff
         self.max_err = max_err
@@ -128,6 +194,7 @@ class PhotometricCatalogue(object):
         self.nc_pars = None
         self.null_mag = null_mag
         self.null_err = null_err
+        self.reddening_law = reddening_law
         if class_names is not None:
             self.class_names = tuple(class_names)
 
@@ -161,8 +228,15 @@ class PhotometricCatalogue(object):
                         if mag is not None and mag_err is not None:
                             mags.append(mag)
                             mag_errs.append(mag_err)
+                            if reddening_law is None:
+                                self.reddening_law.append(rieke_lebovsky[mag])
                 # Regardless of what we have done above, extract the arrray of the table
                 cat = cat.array
+                # Check if we need to extract the reddening law
+                if reddening_law is None:
+                    pass
+                    # FIXME: unfinished
+                    # self.reddening_law = 
 
         # Now deal with the empty constructor case
         if mags is None:

@@ -13,6 +13,7 @@ import warnings
 import copy
 from scipy.special import ndtri, logsumexp
 from sklearn.base import BaseEstimator
+from .xdeconv import XD_Mixture
 from .utilities import log1mexp, cho_solve, cho_matrix_solve
 from .catalogs import ExtinctionCatalogue
 
@@ -22,12 +23,12 @@ class XNicer(BaseEstimator):
 
     This class allows one to estimate the extinction from two color catalogues,
     a control field and a science field. It uses the extreme deconvolution
-    provided by the XDCV class.
+    provided by the XD_Mixture class.
 
     Parameters
     ----------
-    xdcv : XDCV
-        An XDCV instance used to perform all necessary extreme deconvolutions.
+    xdmix : XD_Mixture
+        An XD_Mixture instance used to perform all necessary extreme deconvolutions.
 
     extinctions : array-like, shape (n_extinctions,)
         A 1D vector of extinctions used to perform a selection correction.
@@ -35,13 +36,13 @@ class XNicer(BaseEstimator):
     extinction_vec : array-like, shape (n_bands,)
         The extinction vector, that is A_band / A_ref, for each band.
 
-    log_weights_ : tuple of array-like, shape (n_extinctions, xdcv[class].n_components))
+    log_weights_ : tuple of array-like, shape (n_extinctions, xdmix[class].n_components))
         The log of the weights of the extreme decomposition, for each class of
         objects, at each extintion value.
     """
 
-    def __init__(self, xdcv, extinctions=None, extinction_vec=None):
-        self.xdcv = xdcv
+    def __init__(self, xdmix, extinctions=None, extinction_vec=None):
+        self.xdmix = xdmix
         if extinctions is None:
             extinctions = [0.0]
         self.extinctions = np.array(extinctions)
@@ -49,35 +50,43 @@ class XNicer(BaseEstimator):
         self.log_weights_ = None
         self.calibration = None
 
-    def fit(self, cat):
+    def fit(self, cat, update=False):
         """Initialize the class with control field data.
 
         Parameters
         ----------
         cat : PhotometricCatalogue
             The control field data, as a PhotometricCatalogue.
+            
+        update : bool
+            If true, the first value of self.extinctions is skipped, which
+            makes the whole procedure much faster.
         """
         assert cat.n_bands == len(self.extinction_vec), \
             "The number of bands does not match the length of extinction vector"
         for n, extinction in enumerate(self.extinctions):
+            # If update is set, skip the first iteration: this makes the fitting
+            # procedure much faster
+            if update and n == 0:
+                continue
             # Add the extinction, as requested
             cat_A = cat.extinguish(extinction * self.extinction_vec,
                                    apply_completeness=True, update_errors=False)
             cat_A.mags -= extinction * self.extinction_vec
             cols_A = cat_A.get_colors(use_projection=True)
             if n == 0:
-                    self.xdcv.fit(cols_A.cols, cols_A.col_covs, cols_A.projections, 
+                    self.xdmix.fit(cols_A.cols, cols_A.col_covs, cols_A.projections, 
                                   log_weight=cols_A.log_probs)
             else:
-                    self.xdcv.fit(cols_A.cols, cols_A.col_covs, cols_A.projections,
+                    self.xdmix.fit(cols_A.cols, cols_A.col_covs, cols_A.projections,
                                   fixmean=True, fixcovar=True, log_weight=cols_A.log_probs)
             if self.log_weights_ is None:
                 # We could set this earlier in the __init__, but it does not
-                # work in case the numbero of components for self.xdcv is an
+                # work in case the numbero of components for self.xdmix is an
                 # array (this is possible if we request a BIC criterion)
                 self.log_weights_ = np.zeros(
-                    (len(self.extinctions), self.xdcv.n_components))
-            self.log_weights_[n] = np.log(self.xdcv.weights_)
+                    (len(self.extinctions), self.xdmix.n_components))
+            self.log_weights_[n] = np.log(self.xdmix.weights_)
 
 
     def calibrate(self, cat, extinctions, **kw):
@@ -152,7 +161,7 @@ class XNicer(BaseEstimator):
         # the generation of a different number of colors. Note also that, in
         # this case, we need to keep track of the original objects and of the
         # associated probabilities.
-        res = ExtinctionCatalogue(cols.n_objs, self.xdcv.n_components,
+        res = ExtinctionCatalogue(cols.n_objs, self.xdmix.n_components,
                                   selection=cols.selection,
                                   n_colors=(cat.n_bands-1) if full else 0)
 
@@ -160,16 +169,16 @@ class XNicer(BaseEstimator):
         color_ext_vec = self.extinction_vec[:-1] - self.extinction_vec[1:]
 
         # Compute all parameters (except the weights) for the 1st deconvolution
-        V = self.xdcv.covariances_[np.newaxis, ...]
+        V = self.xdmix.covariances_[np.newaxis, ...]
         if not use_projection:
-            mu = self.xdcv.means_[np.newaxis, :, :]
+            mu = self.xdmix.means_[np.newaxis, :, :]
             PV = PVP = V
         else:
             P = cols.projections[:, np.newaxis, :, :]
             PV = np.einsum('...ij,...jk->...ik', P, V)
             PVP = np.einsum('...ik, ...lk ->...il', PV, P)
             mu = np.einsum('...ij,...j->...i', P,
-                           self.xdcv.means_[np.newaxis,:,:])
+                           self.xdmix.means_[np.newaxis,:,:])
             color_ext_vec = np.einsum('...ij,...j->...i',
                                       cols.projections,
                                       color_ext_vec)[:, np.newaxis, :]
@@ -183,11 +192,11 @@ class XNicer(BaseEstimator):
         # We are now ready to compute the means, variances, and weights for the
         # GMM of the extinction. Each of these parameters has a shape
         # (n_objs, n_bands - 1). We can go on with the means and variances, but
-        # the weights require more care, because they are linked to the xdcv
+        # the weights require more care, because they are linked to the xdmix
         # weights, and these in turn depend on the particular extinction of the
         # star. We therefore initially only compute log_weights0_, the log of
         # the weights of the extinction GMM that does not include any term related
-        # to the xdcv weight.
+        # to the xdmix weight.
         res.means_A[:] = sigma_k2 * np.sum(T_k * T_d, axis=-1)
         # variances_ = np.sum(T_d * T_d, axis=-1) - self.ext*self.ext / sigma_k2
         res.variances_A[:] = sigma_k2
@@ -202,7 +211,7 @@ class XNicer(BaseEstimator):
             res.covariances = -V_TT_k * res.variances_A[:, :, np.newaxis]
             res.variances_c = V - np.einsum('...ij,...ik->...jk', T_V, T_V) - \
                 np.einsum('...i,...j->...ij', V_TT_k, res.covariances)
-            res.means_c = self.xdcv.means_[np.newaxis, :, :] + \
+            res.means_c = self.xdmix.means_[np.newaxis, :, :] + \
                 np.einsum('...ji,...j->...i', T_V, T_d) - \
                 V_TT_k * res.means_A[:,:, np.newaxis]
         # Fine, now need to perform two loops: one outer loop where we iterate

@@ -1,5 +1,9 @@
 import sys
-import setuptools
+from distutils.core import setup
+from distutils.extension import Extension
+# from setuptools import setup
+# from setuptools.extension import Extension
+import numpy as np
 
 with open('README.md', 'r') as fh:
     long_description = fh.read()
@@ -12,12 +16,16 @@ else:
 ext = '.pyx' if USE_CYTHON else '.c'
 
 extensions = [
-    setuptools.extension.Extension(
-        'xnicer.kde',
-        ['xnicer/kde' + ext],
-        language='c++'
-        # add include_dirs, libraries, and library_dirs (all string list)
-        # if you need specific compilation flags
+    Extension(
+        'xnicer.kde.kde',
+        ['xnicer/kde/kde' + ext]
+    ),
+    Extension(
+        'xnicer.xdeconv.em_step',
+        ['xnicer/xdeconv/em_step' + ext],
+        include_dirs=[np.get_include()],
+        extra_compile_args=['-fopenmp'],
+        extra_link_args=['-fopenmp']
     ),
 ]
 
@@ -25,7 +33,7 @@ if USE_CYTHON:
     from Cython.Build import cythonize
     extensions = cythonize(extensions)
 
-setuptools.setup(
+setup(
     name='xnicer',
     version='0.1.0',
     author='Marco Lombardi',
@@ -34,7 +42,7 @@ setuptools.setup(
     long_description=long_description,
     long_description_content_type='text/markdown',
     url='https://github.com/astropy/xnicer',
-    packages=setuptools.find_packages(),
+    packages=[], # was setuptools.find_packages(),
     python_requires='>=3.6',
     setup_requires=['numpy','scipy','sklearn'],
     classifiers=[
