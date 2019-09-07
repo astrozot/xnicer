@@ -15,6 +15,7 @@
 /*.egg-info
 
 # Other stuff
+.pytest_cache
 .mypy_cache
 .vscode
 .eggs
