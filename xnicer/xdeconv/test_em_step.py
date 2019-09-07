@@ -508,7 +508,6 @@ def test_pyxc_1d_fixed():
 
     for iter in range(3*repeats):
         npts = [1000, 3000, 10000][iter // repeats]
-        print(f"# points = {npts}")
         np.random.seed(10 + iter)
         fixpars = ((np.random.rand(3) < 0.3) * FIX_AMP +
                    (np.random.rand(3) < 0.3) * FIX_MEAN +
