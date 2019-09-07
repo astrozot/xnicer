@@ -15,6 +15,32 @@ from astropy.coordinates import SkyCoord
 from .utilities import log1mexp
 
 
+# Table 3 from Rieke & Lebovsky (1985), ApJ 288, 618: ratio A_lambda / A_V.
+rieke_lebovsky_ucd = {
+    'em.opt.U': 1.531,
+    'em.opt.B': 1.324,
+    'em.opt.V': 1.000,
+    'em.opt.R': 0.748,
+    'em.opt.I': 0.482,
+    'em.IR.J': 0.282,
+    'em.IR.H': 0.175,
+    'em.IR.K': 0.112,
+    'em.IR.3-4um': 0.058,
+    'em.IR.4-8um': 0.023
+}
+rieke_lebovsky_names = {
+    'U': 1.531,
+    'B': 1.324,
+    'V': 1.000,
+    'R': 0.748,
+    'I': 0.482,
+    'J': 0.282,
+    'H': 0.175,
+    'K': 0.112,
+    'L': 0.058,
+    'M': 0.023
+}
+
 def AstrometricCatalogue(table, frame=None, **kwargs):
     """Extract coordinates from a VOTable into a SkyCoord object
 
@@ -117,7 +143,7 @@ class PhotometricCatalogue(object):
     reddening_law : array_like, shape (n_bands,) or None
         The reddening law associated with the bands in the catalogue. If not
         provided and the catalogue is a VO table, the reddening law is 
-        inferred from the names of the bands using the Rieke & Lebovsky
+        inferred from the ucd or names of the bands using the Rieke & Lebovsky
         (1985) data.
 
     use_projection : bool, default to True
@@ -194,7 +220,7 @@ class PhotometricCatalogue(object):
         self.nc_pars = None
         self.null_mag = null_mag
         self.null_err = null_err
-        self.reddening_law = reddening_law
+        self.reddening_law = reddening_law.copy() if reddening_law else []
         if class_names is not None:
             self.class_names = tuple(class_names)
 
@@ -224,19 +250,18 @@ class PhotometricCatalogue(object):
                     # Now write the mags and mag_errs arrays        
                     mags = []
                     mag_errs = []
-                    for mag, mag_err in bands.values():
+                    for ucd, (mag, mag_err) in bands.items():
                         if mag is not None and mag_err is not None:
                             mags.append(mag)
                             mag_errs.append(mag_err)
                             if reddening_law is None:
-                                self.reddening_law.append(rieke_lebovsky[mag])
+                                self.reddening_law.append(rieke_lebovsky_ucd[ucd])
                 # Regardless of what we have done above, extract the arrray of the table
                 cat = cat.array
                 # Check if we need to extract the reddening law
                 if reddening_law is None:
-                    pass
-                    # FIXME: unfinished
-                    # self.reddening_law = 
+                    for name in mags:
+                        self.reddening_law.append(rieke_lebovsky_names[name.upper()])
 
         # Now deal with the empty constructor case
         if mags is None:
