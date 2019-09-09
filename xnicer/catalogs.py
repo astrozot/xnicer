@@ -138,24 +138,34 @@ class PhotometricCatalogue(object):
         of all objects; otherwise, a list of strings indicating which columns
         of cat should be interpreted as magnitude errors.
 
-    log_probs : array_like, shape (n_objs, n_bands), or list of strings, or None
-        If cat is not specified, an array with the (log) probabilities to
-        detect each object in each band; otherwise, a list of strings
-        indicating which columns to of cat should be interpreted as
-        probabilities. In any case, if set to None, all objects are assumed to
-        be observable with 100% probability.
-
+    probs : array_like, shape (n_objs, n_bands) or None
+        The (log) probability to observe a given magnitude for a given 
+        object. Used to simulate the effects of extinction through 
+        `extinguish`. If None, the probabilities are ignored (that is, all
+        objects are assumed to be observable with 100% probability).
+        
+    log_probs : bool, default=False
+        If True, `probs` are really log probabilities; otherwise, are
+        just probabilities.
+        
     class_names : tuple or list of strings or None
         The name of the various discrete classes of objects the catalogue
         describes. If None, all objects are taken to be part of the same
         class.
 
-    log_class_probs : array_like, shape (n_objs, n_classes) or None
+    class_probs : array_like, shape (n_objs, n_classes) or None
         If the catalogue contains classified objects, an array that stores,
-        for each object, the logarithms of the probability that each object
-        belongs to a given class. The probabilities, if provided, should be
-        normalized to unity, so that logaddexp(log_class_probs, axis=1) == 0.
+        for each object, the (log) probability that each objecs belongs to a
+        given class. The probabilities should be normalized to unity (that
+        is, the sum for a given object of all probabilities must be 1). 
+        Alternatively, one can provide an array of shape (n_objs, 
+        n_classes-1): in this case, it is assumed that these probabilities
+        are associated to the first n_classes-1 classes; the probability for
+        the last class is inferred from the normalization condition.
         
+    log_class_probs : bool, default=False
+        If True, `class_probs` are really log probabilities.
+
     reddening_law : array_like, shape (n_bands,) or None
         The reddening law associated with the bands in the catalogue. If not
         provided and the catalogue is a VO table, the reddening law is 
@@ -200,10 +210,10 @@ class PhotometricCatalogue(object):
         Array with the extracted magnitude errors.
     
     log_probs : array_like, shape (n_objs, n_bands) or None
-        The log probability to observe a given magnitude for a given object.
-        Used to simulate the effects of extinction through `extinguish`. If
-        None, the probabilities are ignored.
-
+        The log probability to observe a given magnitude for a given 
+        object. Used to simulate the effects of extinction through 
+        `extinguish`. If None, the probabilities are ignored.
+        
     class_names : tuple or list of strings or None
         The name of the various discrete classes of objects the catalogue
         describes. If None, all objects are taken to be part of the same
@@ -213,8 +223,8 @@ class PhotometricCatalogue(object):
         If the catalogue contains classified objects, an array that stores,
         for each object, the logarithms of the probability that each object
         belongs to a given class. The probabilities, if provided, should be
-        normalized to unity, so that logaddexp(log_class_probs, axis=1) == 0.
-
+        normalized to unity along axis 1 (the second axis).
+        
     nc_pars: array_like, shape (n_bands, 3) or None
         Array that reports, for each band, the best-fit number-count
         parameters, written as (exponential slope, 50% completeness limit,
@@ -227,8 +237,9 @@ class PhotometricCatalogue(object):
         The value used to mark a null magnitude error.
     """
 
-    def __init__(self, cat=None, mags=None, mag_errs=None, log_probs=None,
-                 class_names=None, log_class_probs=None, reddening_law=None,
+    def __init__(self, cat=None, mags=None, mag_errs=None, probs=None,
+                 log_probs=False, class_names=None, class_probs=None, 
+                 log_class_probs=False, reddening_law=None,
                  max_err=1.0, min_bands=2, null_mag=15.0, null_err=100.0):
         # First of all the easy stuff
         self.max_err = max_err
@@ -313,18 +324,12 @@ class PhotometricCatalogue(object):
                     "Magnitudes and errors must have the same number of bands")
             self.mag_names = mags
             self.err_names = mag_errs
-            if log_probs is not None:
-                if n_bands != len(log_probs):
+            if probs is not None:
+                if n_bands != len(probs):
                     raise ValueError(
                         "Magnitudes and log-probabilites must have the same number of bands")
-                prob_names = log_probs
-                log_probs = np.empty((n_objs, n_bands))
-            if log_class_probs is not None:
-                if len(self.class_names) != len(log_class_probs):
-                    raise ValueError(
-                        "Class names and log of class probabilities must have the same number of objects")
-                class_prob_names = log_class_probs
-                log_class_probs = np.empty((n_objs, len(self.class_names)))
+                prob_names = probs
+                probs = np.empty((n_objs, n_bands))
             mags = np.empty((n_objs, n_bands))
             mag_errs = np.empty((n_objs, n_bands))
             for n in range(n_bands):
@@ -340,11 +345,26 @@ class PhotometricCatalogue(object):
                                  (~np.isfinite(err_col)))
                 mags[w, n] = null_mag
                 mag_errs[w, n] = null_err
-                if log_probs is not None:
-                    log_probs[:, n] = cat[prob_names[n]]
-                    log_probs[w, n] = 0.0
-                if log_class_probs is not None:
-                    log_class_probs = cat[class_prob_names[n]]
+                if probs is not None:
+                    probs[:, n] = cat[prob_names[n]]
+                    probs[w, n] = -np.inf if log_probs else 0.0 
+            if class_probs is not None:
+                if len(self.class_names) != len(class_probs) and \
+                        len(self.class_names) != len(class_probs) + 1:
+                    raise ValueError(
+                        "Class names and log of class probabilities must have the same number of objects")
+                class_prob_names = class_probs
+                class_probs = np.empty((n_objs, len(self.class_names)))
+                for n in range(len(class_prob_names)):
+                    class_probs[:, n] = cat[class_prob_names[n]]
+                if len(class_probs) != len(self.class_names):
+                    if log_class_probs:
+                        with np.errstate(divide='ignore'):
+                            class_probs[:, -1] = np.log(1.0 - \
+                                np.sum(np.exp(class_probs[:, :-1]), axis=1))
+                    else:
+                        class_probs[:, -1] = 1.0 - \
+                            np.sum(class_probs[:, :-1], axis=1)
         else:
             if mags.ndim != 2 or mag_errs.ndir != 2:
                 raise ValueError(
@@ -356,24 +376,32 @@ class PhotometricCatalogue(object):
             if mag_errs.shape[1] != n_bands:
                 raise ValueError(
                     "Magnitudes and errors must have the same number of bands")
-            if log_probs is not None:
-                if log_probs.ndim != 2:
+            if probs is not None:
+                if probs.ndim != 2:
                     raise ValueError(
                         "Log-probabities must be a two-dimensional array")
-                if n_objs != log_probs.shape[0]:
+                if n_objs != probs.shape[0]:
                     raise ValueError(
                         "Log-probabilites must have the right number of objects")
-                if n_bands != log_probs.shape[1]:
+                if n_bands != probs.shape[1]:
                     raise ValueError(
                         "Log-probabilites must have the right number of bands")
-            if log_class_probs is not None:
-                if log_class_probs.ndim != 2:
+            if class_probs is not None:
+                if class_probs.ndim != 2:
                     raise ValueError(
                         "Log-probabities of classes must be a two-dimensional array")
-                if n_objs != log_class_probs.shape[0]:
+                if n_objs != class_probs.shape[0]:
                     raise ValueError(
                         "Log-probabilites of classes must have the right number of objects")
-                if len(class_names) != log_class_probs.shape[1]:
+                if len(class_names) == class_probs.shape[1] + 1:
+                    class_probs = np.hstack((class_probs, np.zeros((n_objs, 1))))
+                    if log_class_probs:
+                        class_probs[:, -1] = np.log(1.0 - \
+                            np.sum(np.exp(class_probs[:, :-1]), axis=1))
+                    else:
+                        class_probs[:, -1] = 1.0 - \
+                            np.sum(class_probs[:, :-1], axis=1)
+                if len(class_names) != class_probs.shape[1]:
                     raise ValueError(
                         "Log-probabilites of classes must have the same number of classes")
             if n_objs < n_bands:
@@ -395,8 +423,22 @@ class PhotometricCatalogue(object):
         self.n_bands = n_bands
         self.mags = mags
         self.mag_errs = mag_errs
-        self.log_probs = log_probs
-        self.log_class_probs = log_class_probs
+        if probs is not None:
+            if log_probs:
+                self.log_probs = probs
+            else:
+                with np.errstate(divide='ignore'):
+                    self.log_probs = np.log(probs)
+        else:
+            self.log_probs = None
+        if class_probs is not None:
+            if log_class_probs:
+                self.log_class_probs = class_probs
+            else:
+                with np.errstate(divide='ignore'):
+                    self.log_class_probs = np.log(class_probs)
+        else:
+            self.log_class_probs = None
 
     def __len__(self):
         return self.n_objs
