@@ -250,6 +250,8 @@ class PhotometricCatalogue(object):
         self.reddening_law = reddening_law.copy() if reddening_law else []
         if class_names is not None:
             self.class_names = tuple(class_names)
+        else:
+            self.class_names = None
 
         # Check if the input is a VOTable: in case performs the required conversions
         if cat is not None:

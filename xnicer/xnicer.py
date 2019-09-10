@@ -33,7 +33,7 @@ class XNicer(BaseEstimator):
     extinctions : array-like, shape (n_extinctions,)
         A 1D vector of extinctions used to perform a selection correction.
 
-    log_weights_ : tuple of array-like, shape (n_extinctions, xdmix[class].n_components))
+    log_weights_ : tuple of array-like, shape (n_extinctions, xdmix.sum_components))
         The log of the weights of the extreme decomposition, for each class of
         objects, at each extintion value.
     """
@@ -79,7 +79,7 @@ class XNicer(BaseEstimator):
                 # work in case the numbero of components for self.xdmix is an
                 # array (this is possible if we request a BIC criterion)
                 self.log_weights_ = np.zeros(
-                    (len(self.extinctions), self.xdmix.n_components))
+                    (len(self.extinctions), self.xdmix.sum_components))
             self.log_weights_[n] = np.log(self.xdmix.weights_)
 
 
@@ -155,7 +155,7 @@ class XNicer(BaseEstimator):
         # the generation of a different number of colors. Note also that, in
         # this case, we need to keep track of the original objects and of the
         # associated probabilities.
-        res = ExtinctionCatalogue(cols.n_objs, self.xdmix.n_components,
+        res = ExtinctionCatalogue(cols.n_objs, self.xdmix.sum_components,
                                   selection=cols.selection,
                                   n_colors=(cat.n_bands-1) if full else 0)
 
