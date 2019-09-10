@@ -639,8 +639,10 @@ class PhotometricCatalogue(object):
         else:
             projections = None
 
-        return ColorCatalogue(cols, col_covs, selection=self.selection, projections=projections,
-                              log_probs=None, log_class_probs=self.log_class_probs)
+        return ColorCatalogue(cols, col_covs, selection=self.selection, 
+                              projections=projections, log_probs=None, 
+                              log_class_probs=self.log_class_probs,
+                              class_names=self.class_names)
 
     def fit_number_counts(self, start_completeness=20.0, start_width=0.3, method='Nelder-Mead',
                           indices=None):
