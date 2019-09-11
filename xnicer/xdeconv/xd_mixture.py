@@ -396,12 +396,15 @@ class XD_Mixture(GaussianMixture):
                     raise ValueError(
                         "log_class_prob has a number of probabilities different from n_classes")
                 # Distribute equally the class probabilities among the class members
-                full_class_prob = np.empty(Y.shape[0], self.n_components)
+                full_class_prob = np.empty((Y.shape[0], self.n_components))
                 cum_c = 0
-                for e, c in enumerate(self.n_components):
+                for e, c in enumerate(n_components):
                     full_class_prob[:, cum_c:cum_c +
-                                    c] = log_class_prob[:, e] - np.log(c)
+                                    c] = (log_class_prob[:, e] - np.log(c))[:, np.newaxis]
                     cum_c += c
+                print(full_class_prob.shape, Y.shape)
+                print(full_class_prob)
+                print(log_class_prob)
         else:
             self.sum_components = self.n_components
         

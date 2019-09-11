@@ -89,7 +89,7 @@ def xdeconv(ydata, ycovar, xamp, xmean, xcovar,
     classes: array-like, shape (n, k) 
         Log-probabilities that each observation belong to a given cluster.
         
-    fixpars: integer or int array-like, shape (k)
+    fixpars: integer or int array-like, shape (k,)
         Array of bitmasks with the FIX_AMP, FIX_MEAN, and FIX_AMP 
         combinations. If a single value is passed, it is used for all
         components.

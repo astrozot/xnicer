@@ -205,10 +205,19 @@ class PhotometricCatalogue(object):
 
     mags : array_like, shape (n_objs, n_bands)
         Array with the extracted magnitudes.
+        
+    mag_names : array_like, shape (n_bands,) or None
+        The names of the bands present in the catalogue, if available. This
+        variable is only set if the user provide the parameter `cat`.
 
     mag_errs : array_like, shape (n_objs, n_bands, n_bands)
         Array with the extracted magnitude errors.
     
+    err_names : array_like, shape (n_bands,) or None
+        The names of the error in each band present in the catalogue, if 
+        available. This variable is only set if the user provide the 
+        parameter `cat`.
+
     log_probs : array_like, shape (n_objs, n_bands) or None
         The log probability to observe a given magnitude for a given 
         object. Used to simulate the effects of extinction through 
@@ -225,11 +234,21 @@ class PhotometricCatalogue(object):
         belongs to a given class. The probabilities, if provided, should be
         normalized to unity along axis 1 (the second axis).
         
+    reddening_law : array_like, shape (n_bands,) or None
+        The reddening law associated with the bands in the catalogue.
+
     nc_pars: array_like, shape (n_bands, 3) or None
         Array that reports, for each band, the best-fit number-count
         parameters, written as (exponential slope, 50% completeness limit,
         completeness width).
 
+    max_err : float
+        Maximum admissible error above which a datum is discarted.
+
+    min_bands : int
+        The minimum number of bands with valid measuremens to include the
+        object in the final catalogue.
+    
     null_mag: float
         The value used to mark a null magnitude.
 
@@ -252,6 +271,8 @@ class PhotometricCatalogue(object):
             self.class_names = tuple(class_names)
         else:
             self.class_names = None
+        self.mag_names = None
+        self.err_names = None
 
         # Check if the input is a VOTable: in case performs the required conversions
         if cat is not None:
@@ -435,10 +456,10 @@ class PhotometricCatalogue(object):
             self.log_probs = None
         if class_probs is not None:
             if log_class_probs:
-                self.log_class_probs = class_probs
+                self.log_class_probs = class_probs[w]
             else:
                 with np.errstate(divide='ignore'):
-                    self.log_class_probs = np.log(class_probs)
+                    self.log_class_probs = np.log(class_probs[w])
         else:
             self.log_class_probs = None
 
@@ -458,6 +479,43 @@ class PhotometricCatalogue(object):
             res.n_objs = len(res.selection)
         except TypeError:
             res.n_objs = 1
+        return res
+
+    def __add__(self, cat):
+        """Concatenate two PhotometricCatalogue's."""
+        if not isinstance(cat, PhotometricCatalogue):
+            raise ValueError("Expecting a PhotometricCatalogue here")
+        if self.n_bands != cat.n_bands:
+            raise ValueError("The two catalogues have a different number of bands")
+        # Only use classes if they are present and identical in both catalogues
+        if self.class_names is None or cat.class_names is None:
+            use_classes = False
+        else:
+            use_classes = np.all(np.array(self.class_names)
+                                 == np.array(cat.class_names))
+        res = copy.deepcopy(self)
+        res.selection = np.concatenate(())
+        # TODO: Fix possible differences in null_mag and null_err
+        res.mags = np.concatenate((self.mags, cat.mags))
+        res.mag_errs = np.concatenate((self.mag_errs, cat.mag_errs))
+        res.nc_params = None
+        if self.log_probs is None:
+            if cat.log_probs is not None:
+                res.log_probs = np.concatenate(
+                    (np.zeros(self.n_objs, self.n_bands), cat.log_probs))
+            else:
+                res.log_probs = None
+        else:
+            if cat.log_probs is not None:
+                res.log_probs = np.concatenate(
+                    (self.log_probs, cat.log_probs))
+            else:
+                res.log_probs = np.concatenate(
+                    (self.log_probs, np.zeros(cat.n_objs, cat.n_bands)))
+        if use_classes:
+            res.log_class_probs = np.concatenate(
+                (self.log_class_probs, cat.log_class_probs))
+        res.n_objs += cat.n_objs
         return res
 
     def add_log_probs(self):
@@ -558,16 +616,16 @@ class PhotometricCatalogue(object):
                 log_probs = np.concatenate(
                     (log_probs, log_probs[w] + log1mexp(cat.log_probs[w, b])))
                 log_probs[w] = log_probs[w] + cat.log_probs[w, b]
+                if cat.log_class_probs is not None:
+                    cat.log_class_probs = np.concatenate((cat.log_class_probs, cat.log_class_probs[w]))
                 cat.n_objs += len(w)
             cat.log_probs = None
             # We now filter all objects with too small probabilities or not
             # enough valid vands
             w = np.where((log_probs > lp_min) & (np.sum(cat.mag_errs < cat.max_err,
                                                         axis=1) >= cat.min_bands))[0]
-            cat = cat[w]
-
-            res = cat.get_colors(use_projection=use_projection, band=band, map_mags=map_mags,
-                                 extinctions=extinctions)
+            res = cat[w].get_colors(use_projection=use_projection, band=band, 
+                                    map_mags=map_mags, extinctions=extinctions)
             res.log_probs = log_probs[w]
             return res
 

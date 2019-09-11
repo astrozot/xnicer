@@ -70,10 +70,11 @@ class XNicer(BaseEstimator):
             cols_A = cat_A.get_colors(use_projection=True)
             if n == 0:
                     self.xdmix.fit(cols_A.cols, cols_A.col_covs, cols_A.projections, 
-                                  log_weight=cols_A.log_probs)
+                                  log_weight=cols_A.log_probs, log_class_prob=cols_A.log_class_probs)
             else:
                     self.xdmix.fit(cols_A.cols, cols_A.col_covs, cols_A.projections,
-                                  fixpars=FIX_MEAN | FIX_COVAR, log_weight=cols_A.log_probs)
+                                   log_weight=cols_A.log_probs, log_class_prob=cols_A.log_class_probs,
+                                   fixpars=FIX_MEAN | FIX_COVAR)
             if self.log_weights_ is None:
                 # We could set this earlier in the __init__, but it does not
                 # work in case the numbero of components for self.xdmix is an
@@ -149,6 +150,19 @@ class XNicer(BaseEstimator):
         """
         # Compute the colors
         cols = cat.get_colors(use_projection=use_projection)
+        
+        # Check if we need to use classes
+        if cols.log_class_probs is not None and isinstance(self.xdmix.n_components, tuple):
+            use_classes = True
+            # Distribute equally the class probabilities among the class members
+            full_class_prob = np.empty((len(cols), self.xdmix.sum_components))
+            cum_c = 0
+            for e, c in enumerate(self.xdmix.n_components):
+                full_class_prob[:, cum_c:cum_c +
+                                c] = (cols.log_class_probs[:, e] - np.log(c))[:, np.newaxis]
+                cum_c += c
+        else:
+            use_classes = False
 
         # Allocate the result: note that we use cols.n_objs, in case the
         # original catalogue has the log_probs attribute. This would trigger
@@ -221,6 +235,9 @@ class XNicer(BaseEstimator):
             res.log_weights = log_weights0_ + \
                 logsumexp(self.log_weights_[
                             np.newaxis, :, :] + log_ext_weights[:, :, np.newaxis], axis=1)
+            # If the classes are available, use them
+            if use_classes:
+                res.log_weights += full_class_prob
             res.log_evidence = logsumexp(res.log_weights, axis=-1)
             res.log_weights -= res.log_evidence[..., np.newaxis]
             # Now we need to update the weights for the extinction steps according
