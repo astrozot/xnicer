@@ -154,19 +154,25 @@ def xdeconv(ydata, ycovar, xamp, xmean, xcovar,
     with np.errstate(divide='ignore'):
         oldloglike = em_step(w, S, alpha, m, V, Rt=Rt, logweights=wgh,
                              classes=clss, fixpars=fix, regularization=regular)
+    decreased = False
     for iter in range(1, maxiter):
         with np.errstate(divide='ignore'):
             loglike = em_step(w, S, alpha, m, V, Rt=Rt, logweights=wgh,
                               classes=clss, fixpars=fix, regularization=regular)
         diff = loglike - oldloglike
         if diff < 0:
-            warnings.warn(f"Log-likelihood decreased by {diff}")
+            decreased = True
         if abs(diff) < tol:
             break
         oldloglike = loglike
     if maxiter > 1:
         if iter == maxiter-1:
-            warnings.warn(f"Warning: xdeconv did not converge after {maxiter} iterations")
+            warnings.warn(f"xdeconv did not converge after {maxiter} iterations",
+                          RuntimeWarning)
+        if decreased:
+            warnings.warn(
+                f"Log-likelihood decreased during the fitting procedure", RuntimeWarning)
+
         # Saves back all the data: sure this is necessary?
         xamp[:] = alpha
         xmean[:, :] = m.T

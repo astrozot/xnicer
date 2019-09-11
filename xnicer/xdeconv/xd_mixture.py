@@ -329,7 +329,8 @@ class XD_Mixture(GaussianMixture):
                         raise ValueError('Number of valid points smaller than number of components.')
                     if init_params != 'random':
                         warnings.warn(
-                            'Not enough sample datapoints. Using random values for the initial values.')
+                            'Not enough sample datapoints. Using random values for the initial values.',
+                            RuntimeWarning)
                     p = np.where(cmask)[0][np.random.permutation(np.sum(cmask))[:c]]
                     tmp_gmm.means_ = Y[p]
                     tmp_gmm.covariances_ = np.cov(Y[cmask], rowvar=False)[np.newaxis,...]
@@ -404,6 +405,8 @@ class XD_Mixture(GaussianMixture):
                     cum_c += c
         else:
             self.sum_components = self.n_components
+            # Just in case it has been passed, ignore it!
+            log_class_prob = None
         
         # Temporarily change some of the parameters to perform a first
         # initialization
