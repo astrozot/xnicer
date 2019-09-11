@@ -402,9 +402,6 @@ class XD_Mixture(GaussianMixture):
                     full_class_prob[:, cum_c:cum_c +
                                     c] = (log_class_prob[:, e] - np.log(c))[:, np.newaxis]
                     cum_c += c
-                print(full_class_prob.shape, Y.shape)
-                print(full_class_prob)
-                print(log_class_prob)
         else:
             self.sum_components = self.n_components
         
@@ -694,7 +691,6 @@ class XD_Mixture(GaussianMixture):
                 optimal_bic = bics[-1]
                 optimal_par = self.get_params()
                 optimal_res = self._get_parameters()
-            print(n_components, bics[-1])
         if lowest_par:
             self.bic_ = optimal_bic
             self.set_params(**optimal_par)
