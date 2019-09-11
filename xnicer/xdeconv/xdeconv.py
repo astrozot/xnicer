@@ -151,11 +151,13 @@ def xdeconv(ydata, ycovar, xamp, xmean, xcovar,
     else:
         fix = None
 
-    oldloglike = em_step(w, S, alpha, m, V, Rt=Rt, logweights=wgh,
-                         classes=clss, fixpars=fix, regularization=regular)
+    with np.errstate(divide='ignore'):
+        oldloglike = em_step(w, S, alpha, m, V, Rt=Rt, logweights=wgh,
+                             classes=clss, fixpars=fix, regularization=regular)
     for iter in range(1, maxiter):
-        loglike = em_step(w, S, alpha, m, V, Rt=Rt, logweights=wgh,
-                          classes=clss, fixpars=fix, regularization=regular)
+        with np.errstate(divide='ignore'):
+            loglike = em_step(w, S, alpha, m, V, Rt=Rt, logweights=wgh,
+                              classes=clss, fixpars=fix, regularization=regular)
         diff = loglike - oldloglike
         if diff < 0:
             warnings.warn(f"Log-likelihood decreased by {diff}")

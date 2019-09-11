@@ -36,6 +36,16 @@ class XNicer(BaseEstimator):
     log_weights_ : tuple of array-like, shape (n_extinctions, xdmix.sum_components))
         The log of the weights of the extreme decomposition, for each class of
         objects, at each extintion value.
+    
+    calibration : tuple or None
+        A tuple of arrays that saves a list of calibration parameters, 
+        computed through the `calibrate` method:
+        
+        - The extinctions for which the calibration has been computed
+        - The biases associated to each extinction
+        - The normalized sum of inverse variances
+        
+        Set to None if no calibration has been performed.
     """
 
     def __init__(self, xdmix, extinctions=None):
@@ -81,10 +91,11 @@ class XNicer(BaseEstimator):
                 # array (this is possible if we request a BIC criterion)
                 self.log_weights_ = np.zeros(
                     (len(self.extinctions), self.xdmix.sum_components))
-            self.log_weights_[n] = np.log(self.xdmix.weights_)
+            with np.errstate(divide='ignore'):
+                self.log_weights_[n] = np.log(self.xdmix.weights_)
 
 
-    def calibrate(self, cat, extinctions, **kw):
+    def calibrate(self, cat, extinctions=None, **kw):
         """Perform a full calibration of the algorithm for a set of test extinctions.
         
         The calibration works by simulating in turn all extionctions provided,
@@ -105,14 +116,17 @@ class XNicer(BaseEstimator):
             results, cat should have associated log probabilities (see
             `PhotometricCalogue.add_log_probs`).
 
-        extinctions : list of array of floats
+        extinctions : list of array of floats, default to self.extinctions
             The list of extinctions to use for the calibration. All
             extinctions should be non-negative. The first extinction must be 0.
+            Can be different from self.extinction.
 
         kw : dictionary
             Additional keywords are directly passed to `predict`.
         """
         self.calibration = None
+        if extinctions is None:
+            extinctions = self.extinctions
         biases = []
         ivars = []
         if cat.log_probs is None:
