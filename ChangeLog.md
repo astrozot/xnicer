@@ -21,3 +21,5 @@ Initial release.
 - Better file organization
 - Moving the reddening_law vector to the PhotometricCatalogue class
 - Using warnings for warnings :-)
+- Classes of different objects can now be used to improve the XD
+- Using children of Table for all catalogs

@@ -11,6 +11,7 @@ import numpy as np
 import copy
 from scipy.optimize import minimize
 from scipy.special import log_ndtr, logsumexp
+from astropy import table
 from astropy.io import votable
 from astropy.coordinates import SkyCoord
 from .utilities import log1mexp
@@ -57,66 +58,75 @@ def _find_reddening_vector(name):
         return False
     
 
-def AstrometricCatalogue(table, frame=None, **kwargs):
-    """Extract coordinates from a VOTable into a SkyCoord object
+class AstrometricCatalogue(SkyCoord):
+    
+    @classmethod
+    def from_votable(cls, table, frame=None, **kwargs):
+        """Extract coordinates from a VOTable into a SkyCoord object
 
-    Parameters
-    ----------
-    table : VOTable
-        A VOTable that include astrometric coordinates.
-        
-    frame : Coordinate Frame
-        Should be a known coordinate frame, such as 'fk4', 'fk5', 
-        'galactic', 'icrs'... If unspecified, the frame is inferred
-        from the kind of coordinate. In future we should parse the
-        frame from the VO table directly, using `vo.iter_coosys`.
+        Parameters
+        ----------
+        table : VOTable
+            A VOTable that include astrometric coordinates.
+            
+        frame : Coordinate Frame
+            Should be a known coordinate frame, such as 'fk4', 'fk5', 
+            'galactic', 'icrs'... If unspecified, the frame is inferred
+            from the kind of coordinate. In future we should parse the
+            frame from the VO table directly, using `vo.iter_coosys`.
 
-    **kwargs : dictionary
-        Additional keyword arguments passed to SkyCoord.
+        **kwargs : dictionary
+            Additional keyword arguments passed to SkyCoord.
 
-    Returns
-    -------
-    SkyCoord
-        A SkyCoord object with the coordinates of the input table
-    """
-    frames = {
-        'eq': {'ra': 0, 'dec': 1},
-        'galactic': {'lon': 0, 'lat': 1},
-        'gal': {'lon': 0, 'lat': 1},
-    }
-    result = {}
-    for field in table.fields:
-        ucd = votable.ucd.parse_ucd(field.ucd)
-        force = len(ucd) > 1 and (ucd[1][1] == 'meta.main')
-        words = ucd[0][1].split('.')
-        if words[0] == 'pos':
-            ucd_frame = words[1]
-            ucd_coord = words[2]
-            if ucd_frame in frames and ucd_coord in frames[ucd_frame]:
-                i = frames[ucd_frame][ucd_coord]
-                if ucd_frame not in result:
-                    result[ucd_frame] = [None, None]
-                if force or result[ucd_frame][i] == None:
-                    result[ucd_frame][i] = field                        
-    if 'eq' in result:
-        if frame is None:
-            frame = 'icrs'
-        result = result['eq']
-    elif 'galactic' in result:
-        frame = 'galactic'
-        result = result['galactic']
-    elif 'gal' in result:
-        frame = 'galactic'
-        result = result['gal']
-    else:
-        raise KeyError('No known coordinate system found in the table')
-    return SkyCoord(table.array[result[0].ID],
-                    table.array[result[1].ID], 
-                    frame=frame, unit=result[0].unit,
-                    equinox=result[0].ref, **kwargs)
+        Returns
+        -------
+        SkyCoord
+            A SkyCoord object with the coordinates of the input table
+        """
+        frames = {
+            'eq': {'ra': 0, 'dec': 1},
+            'galactic': {'lon': 0, 'lat': 1},
+            'gal': {'lon': 0, 'lat': 1},
+        }
+        result = {}
+        for field in table.fields:
+            ucd = votable.ucd.parse_ucd(field.ucd)
+            force = len(ucd) > 1 and (ucd[1][1] == 'meta.main')
+            words = ucd[0][1].split('.')
+            if words[0] == 'pos':
+                ucd_frame = words[1]
+                ucd_coord = words[2]
+                if ucd_frame in frames and ucd_coord in frames[ucd_frame]:
+                    i = frames[ucd_frame][ucd_coord]
+                    if ucd_frame not in result:
+                        result[ucd_frame] = [None, None]
+                    if force or result[ucd_frame][i] == None:
+                        result[ucd_frame][i] = field                        
+        if 'eq' in result:
+            if frame is None:
+                frame = 'icrs'
+            result = result['eq']
+        elif 'galactic' in result:
+            frame = 'galactic'
+            result = result['galactic']
+        elif 'gal' in result:
+            frame = 'galactic'
+            result = result['gal']
+        else:
+            raise KeyError('No known coordinate system found in the table')
+        return cls(table.array[result[0].ID],
+                   table.array[result[1].ID], 
+                   frame=frame, unit=result[0].unit,
+                   equinox=result[0].ref, **kwargs)
 
+    @classmethod
+    def from_table(cls, table, colnames, unit='deg', frame='icrs', **kw):
+        pars = []
+        for colname in colnames:
+            pars.append(table[colname])
+        return cls(*pars, unit=unit, frame=frame, **kw)
 
-class PhotometricCatalogue(object):
+class PhotometricCatalogue(table.Table):
     """Initialize a new photometric catalogue.
 
     The initialization can be carried using either a Table or arrays of
@@ -124,19 +134,19 @@ class PhotometricCatalogue(object):
 
     Parameters
     ----------
-    cat : Table or VOTable, optional
-        If specified, must be a table containing the magnitude and
-        associated errors.
+    data : Table, VOTable, or table-like object optional
+        If specified, must be a table-like object containing the magnitudes
+        and the associated errors.
 
     mags : array_like, shape (n_objs, n_bands) or list of strings
-        If cat is not specified, an array with the measured magnitudes of all
-        objects; otherwise, a list of strings indicating which columns of cat
-        should be interpreted as magnitudes.
+        If `data` is not specified, an array with the measured magnitudes of 
+        all objects; otherwise, a list of strings indicating which columns 
+        of data should be interpreted as magnitudes.
 
     mag_errs : array_like, shape (n_objs, n_bands) or list of strings
-        If cat is not specified, an array with the measured magnitude errors
+        If data is not specified, an array with the measured magnitude errors
         of all objects; otherwise, a list of strings indicating which columns
-        of cat should be interpreted as magnitude errors.
+        of data should be interpreted as magnitude errors.
 
     probs : array_like, shape (n_objs, n_bands) or None
         The (log) probability to observe a given magnitude for a given 
@@ -200,15 +210,12 @@ class PhotometricCatalogue(object):
         The maximum number of bands used; note that some objects might have
         less bands available.
 
-    selection : array_like, shape (n_objs,)
-        Indices in the original catalogue of objects that have been used.
-
     mags : array_like, shape (n_objs, n_bands)
         Array with the extracted magnitudes.
         
     mag_names : array_like, shape (n_bands,) or None
         The names of the bands present in the catalogue, if available. This
-        variable is only set if the user provide the parameter `cat`.
+        variable is only set if the user provide the parameter `data`.
 
     mag_errs : array_like, shape (n_objs, n_bands, n_bands)
         Array with the extracted magnitude errors.
@@ -216,7 +223,7 @@ class PhotometricCatalogue(object):
     err_names : array_like, shape (n_bands,) or None
         The names of the error in each band present in the catalogue, if 
         available. This variable is only set if the user provide the 
-        parameter `cat`.
+        parameter `data`.
 
     log_probs : array_like, shape (n_objs, n_bands) or None
         The log probability to observe a given magnitude for a given 
@@ -238,7 +245,7 @@ class PhotometricCatalogue(object):
         The reddening law associated with the bands in the catalogue.
 
     nc_pars: array_like, shape (n_bands, 3) or None
-        Array that reports, for each band, the best-fit number-count
+        Array that reports, for each band,< the best-fit number-count
         parameters, written as (exponential slope, 50% completeness limit,
         completeness width).
 
@@ -256,266 +263,269 @@ class PhotometricCatalogue(object):
         The value used to mark a null magnitude error.
     """
 
-    def __init__(self, cat=None, mags=None, mag_errs=None, probs=None,
-                 log_probs=False, class_names=None, class_probs=None, 
-                 log_class_probs=False, reddening_law=None,
-                 max_err=1.0, min_bands=2, null_mag=15.0, null_err=100.0):
-        # First of all the easy stuff
-        self.max_err = max_err
-        self.min_bands = min_bands
-        self.nc_pars = None
-        self.null_mag = null_mag
-        self.null_err = null_err
-        self.reddening_law = reddening_law.copy() if reddening_law else []
-        if class_names is not None:
-            self.class_names = tuple(class_names)
-        else:
-            self.class_names = None
-        self.mag_names = None
-        self.err_names = None
-
-        # Check if the input is a VOTable: in case performs the required conversions
-        if cat is not None:
-            if isinstance(cat, votable.tree.Table):
-                if mags is None:
-                    bands = collections.OrderedDict()
-                    for field in cat.fields:
-                        ucd = votable.ucd.parse_ucd(field.ucd)
-                        if ucd[0][1] == 'phot.mag':
-                            # it's a magnitude, get its name
-                            mag = ucd[1][1]
-                            if mag in bands:
-                                if bands[mag][0] is None:
-                                    bands[mag][0] = field.ID
-                            else:
-                                bands[mag] = [field.ID, None]
-                        if ucd[0][1] == 'stat.error' and ucd[1][1] == 'phot.mag':
-                            # it's a magnitude error, get its name
-                            mag = ucd[2][1]
-                            if mag in bands:
-                                if bands[mag][1] is None:
-                                    bands[mag][1] = field.ID
-                            else:
-                                bands[mag] = [None, field.ID]
-                    # Now write the mags and mag_errs arrays        
-                    mags = []
-                    mag_errs = []
-                    for ucd, (mag, mag_err) in bands.items():
-                        if mag is not None and mag_err is not None:
-                            mags.append(mag)
-                            mag_errs.append(mag_err)
-                            if reddening_law is None:
-                                if ucd in rieke_lebovsky_ucd:
-                                    self.reddening_law.append(rieke_lebovsky_ucd[ucd])
-                                else:
-                                    reddening = _find_reddening_vector(mag)
-                                    if reddening:
-                                        self.reddening_law.append(reddening)
-                                    else:
-                                        warnings.warn(f"Cannot automatically find the reddening law for {mag}")
-                                        self.reddening_law = None
-                                        reddening_law = True
-                # Regardless of what we have done above, extract the arrray of the table
-                cat = cat.array
-            # Check if we need to extract the reddening law
-            if reddening_law is None:
-                for mag in mags:
-                    reddening = _find_reddening_vector(mag)
-                    if reddening:
-                        self.reddening_law.append(reddening)
-                    else:
-                        warnings.warn(f"Cannot automatically find the reddening law for {mag}")
-                        self.reddening_law = None
-                        break
-            if self.reddening_law:
-                self.reddening_law = np.array(self.reddening_law)
-
-
-        # Now deal with the empty constructor case
-        if mags is None:
-            self.n_objs = self.n_bands = 0
-            self.n_bands = 0
-            self.selection = self.mags = self.mag_errs = self.log_probs = None
-            return
-
-        # OK, we got some input, let us use it
-        if cat is not None:
-            n_objs = len(cat)
-            n_bands = len(mags)
-            if n_bands != len(mag_errs):
-                raise ValueError(
-                    "Magnitudes and errors must have the same number of bands")
-            self.mag_names = mags
-            self.err_names = mag_errs
-            if probs is not None:
-                if n_bands != len(probs):
-                    raise ValueError(
-                        "Magnitudes and log-probabilites must have the same number of bands")
-                prob_names = probs
-                probs = np.empty((n_objs, n_bands))
-            mags = np.empty((n_objs, n_bands))
-            mag_errs = np.empty((n_objs, n_bands))
-            for n in range(n_bands):
-                mag_col = cat[self.mag_names[n]]
-                err_col = cat[self.err_names[n]]
-                mags[:, n] = mag_col
-                mag_errs[:, n] = err_col
-                if isinstance(mag_col, np.ma.MaskedArray):
-                    w = np.where((~np.isfinite(mag_col)) | (~np.isfinite(err_col)) |
-                                 mag_col.mask | err_col.mask)
+    @classmethod
+    def from_votable(cls, data, reddening_law=None):
+        bands = collections.OrderedDict()
+        for field in data.fields:
+            ucd = votable.ucd.parse_ucd(field.ucd)
+            if ucd[0][1] == 'phot.mag':
+                # it's a magnitude, get its name
+                mag = ucd[1][1]
+                if mag in bands:
+                    if bands[mag][0] is None:
+                        bands[mag][0] = field.ID
                 else:
-                    w = np.where((~np.isfinite(mag_col)) |
-                                 (~np.isfinite(err_col)))
-                mags[w, n] = null_mag
-                mag_errs[w, n] = null_err
-                if probs is not None:
-                    probs[:, n] = cat[prob_names[n]]
-                    probs[w, n] = -np.inf if log_probs else 0.0 
-            if class_probs is not None:
-                if len(self.class_names) != len(class_probs) and \
-                        len(self.class_names) != len(class_probs) + 1:
-                    raise ValueError(
-                        "Class names and log of class probabilities must have the same number of objects")
-                class_prob_names = class_probs
-                class_probs = np.empty((n_objs, len(self.class_names)))
-                for n in range(len(class_prob_names)):
-                    class_probs[:, n] = cat[class_prob_names[n]]
-                if len(class_probs) != len(self.class_names):
-                    if log_class_probs:
-                        with np.errstate(divide='ignore'):
-                            class_probs[:, -1] = np.log(1.0 - \
-                                np.sum(np.exp(class_probs[:, :-1]), axis=1))
+                    bands[mag] = [field.ID, None]
+            if ucd[0][1] == 'stat.error' and \
+                ucd[1][1] == 'phot.mag':
+                # it's a magnitude error, get its name
+                mag = ucd[2][1]
+                if mag in bands:
+                    if bands[mag][1] is None:
+                        bands[mag][1] = field.ID
+                else:
+                    bands[mag] = [None, field.ID]
+        # Now write the mags and mag_errs arrays        
+        mags = []
+        mag_errs = []
+        for ucd, (mag, mag_err) in bands.items():
+            if mag is not None and mag_err is not None:
+                mags.append(mag)
+                mag_errs.append(mag_err)
+                if reddening_law is None:
+                    reddening_law = []
+                    if ucd in rieke_lebovsky_ucd:
+                        reddening_law.append(rieke_lebovsky_ucd[ucd])
                     else:
-                        class_probs[:, -1] = 1.0 - \
-                            np.sum(class_probs[:, :-1], axis=1)
+                        reddening = _find_reddening_vector(mag)
+                        if reddening:
+                            reddening_law.append(reddening)
+                        else:
+                            warnings.warn(f"Cannot automatically find the reddening law for {mag}")
+                            reddening_law = False
+        if reddening_law == False:
+            reddening_law = None
+        return cls.from_table(data.array, mags, mag_errs, reddening_law=reddening_law)
+
+    @classmethod
+    def from_table(cls, data, mag_names, err_names, prob_names=None,
+                   class_prob_names=None, *args, **kw):
+        # Kind of data allocator
+        if data.masked:
+            allocator = np.ma.empty
         else:
-            if mags.ndim != 2 or mag_errs.ndir != 2:
+            allocator = np.empty
+
+        n_objs = len(data)
+        n_bands = len(mag_names)
+        if n_bands != len(err_names):
+            raise ValueError(
+                "Magnitudes and errors must have the same number of bands")
+        mags = allocator((n_objs, n_bands))
+        mag_errs = allocator((n_objs, n_bands))
+        if prob_names is not None:
+            if n_bands != len(prob_names):
                 raise ValueError(
-                    "Magnitudes and errors must be two-dimensional arrays")
-            n_objs, n_bands = mags.shape
-            if mag_errs.shape[0] != n_objs:
+                    "Magnitudes and log-probabilites must have the same number of bands")
+            probs = allocator((n_objs, n_bands))
+        else:
+            probs = None
+
+        for n in range(n_bands):
+            mags[:, n] = data[mag_names[n]].data
+            mag_errs[:, n] = data[err_names[n]].data
+            if prob_names is not None:
+                probs[:, n] = data[prob_names[n]].data
+        if class_prob_names is not None:
+            class_probs = allocator((n_objs, len(class_prob_names)))
+            for n in range(len(class_prob_names)):
+                class_probs[:, n] = data[class_prob_names[n]].data
+        else:
+            class_probs = None        
+        return cls.from_photometry(mags, mag_errs, 
+                                   mag_names=mag_names, err_names=err_names,
+                                   probs=probs, class_probs=class_probs, 
+                                   *args, **kw)
+
+    @classmethod
+    def from_photometry(cls, mags, mag_errs, mag_names=None, err_names=None,
+                        probs=None,
+                        log_probs=False, class_names=None, class_probs=None,
+                        log_class_probs=False, reddening_law=None,
+                        max_err=1.0, min_bands=2, null_mag=15.0, null_err=99.999):
+
+        cat = cls()
+
+        # Initial checks
+        if mags.ndim != 2 or mag_errs.ndim != 2:
+            raise ValueError(
+                "Magnitudes and errors must be two-dimensional arrays")
+        n_objs, n_bands = mags.shape
+        cat.meta['n_bands'] = n_bands
+        if n_objs < n_bands:
+            raise ValueError(
+                "Expecting a n_objs x n_bands array for mags and errs")
+        if mag_errs.shape[0] != n_objs:
+            raise ValueError(
+                "Magnitudes and errors must have the same number of objects")
+        if mag_errs.shape[1] != n_bands:
+            raise ValueError(
+                "Magnitudes and errors must have the same number of bands")
+        if reddening_law is None:
+            warnings.warn("Reddening law not specified")
+            cat.meta['reddening_law'] = None
+        else:
+            if len(reddening_law) != n_bands:
                 raise ValueError(
-                    "Magnitudes and errors must have the same number of objects")
-            if mag_errs.shape[1] != n_bands:
-                raise ValueError(
-                    "Magnitudes and errors must have the same number of bands")
-            if probs is not None:
-                if probs.ndim != 2:
-                    raise ValueError(
-                        "Log-probabities must be a two-dimensional array")
-                if n_objs != probs.shape[0]:
-                    raise ValueError(
-                        "Log-probabilites must have the right number of objects")
-                if n_bands != probs.shape[1]:
-                    raise ValueError(
-                        "Log-probabilites must have the right number of bands")
-            if class_probs is not None:
-                if class_probs.ndim != 2:
-                    raise ValueError(
-                        "Log-probabities of classes must be a two-dimensional array")
-                if n_objs != class_probs.shape[0]:
-                    raise ValueError(
-                        "Log-probabilites of classes must have the right number of objects")
-                if len(class_names) == class_probs.shape[1] + 1:
-                    class_probs = np.hstack((class_probs, np.zeros((n_objs, 1))))
-                    if log_class_probs:
-                        class_probs[:, -1] = np.log(1.0 - \
-                            np.sum(np.exp(class_probs[:, :-1]), axis=1))
-                    else:
-                        class_probs[:, -1] = 1.0 - \
-                            np.sum(class_probs[:, :-1], axis=1)
-                if len(class_names) != class_probs.shape[1]:
-                    raise ValueError(
-                        "Log-probabilites of classes must have the same number of classes")
-            if n_objs < n_bands:
-                raise ValueError(
-                    "Expecting a n_objs x n_bands array for mags and errs")
-            if reddening_law is None:
-                warnings.warn("Reddening law not specified")
-                self.reddening_law = None
-            else:
-                if len(self.reddening_law) != n_bands:
-                    raise ValueError("The length of the reddening_law vector does not match the number of bands")
-                self.reddening_law = np.array(self.reddening_law)
-        w = np.where(np.sum(mag_errs < max_err, axis=1) >= min_bands)[0]
-        mags = mags[w, :]
-        mag_errs = mag_errs[w, :]
-        # Saves the results
-        self.selection = w
-        self.n_objs = len(w)
-        self.n_bands = n_bands
-        self.mags = mags
-        self.mag_errs = mag_errs
+                    "The length of the reddening_law vector does not match the number of bands")
+            cat.meta['reddening_law'] = np.array(reddening_law)
+
+        # First of all the easy stuff
+        cat.meta['max_err'] = max_err
+        cat.meta['min_bands'] = min_bands
+        cat.meta['nc_pars'] = None
+        cat.meta['null_mag'] = null_mag
+        cat.meta['null_err'] = null_err
+        cat.meta['reddening_law'] = reddening_law.copy() \
+            if reddening_law else []
+        if cat.meta['reddening_law']:
+            cat.meta['reddening_law'] = np.array(cat.meta['reddening_law'])
+        if mag_names is not None:
+            cat.meta['mag_names'] = tuple(mag_names)
+        else:
+            cat.meta['mag_names'] = tuple(f'mag{i+1}' for i in range(n_bands))
+        if err_names is not None:
+            cat.meta['err_names'] = tuple(err_names)
+        else:
+            cat.meta['err_names'] = tuple(f'err_mag{i+1}'
+                                          for i in range(n_bands))
+        if class_names is not None:
+            cat.meta['class_names'] = tuple(class_names)
+        else:
+            cat.meta['class_names'] = None
+        
+        # Create the main columns
+        mask = np.zeros((n_objs, n_bands), dtype=np.bool)
+        if isinstance(mags, np.ma.MaskedArray):
+            mask |= mags.mask
+            mags = mags.filled(null_mag)
+        cat.add_column(table.Column(
+            mags, name='mags', description='Array of magnitudes',
+            unit='mag', format='%6.3f'))
+        if isinstance(mag_errs, np.ma.MaskedArray):
+            mask |= mag_errs.mask
+            mag_errs = mag_errs.filled(null_err)
+        cat.add_column(table.Column(
+            mag_errs, name='mag_errs', 
+            description='Array of errors in magnitudes',
+            unit='mag', format='%5.3f'))
+        mask |= cat['mag_errs'] >= max_err
+        cat['mags'][mask] = null_mag
+        cat['mag_errs'][mask] = null_err
+        
+        # log_prob column
         if probs is not None:
-            if log_probs:
-                self.log_probs = probs
-            else:
+            if probs.ndim != 2:
+                raise ValueError(
+                    "(log-)probabities must be a two-dimensional array")
+            if n_objs != probs.shape[0]:
+                raise ValueError(
+                    "(log-)probabilites must have the right number of objects")
+            if n_bands != probs.shape[1]:
+                raise ValueError(
+                    "(log-)probabilites must have the right number of bands")
+            if not log_probs:
                 with np.errstate(divide='ignore'):
-                    self.log_probs = np.log(probs)
-        else:
-            self.log_probs = None
+                    probs = np.log(probs)
+            if isinstance(probs, np.ma.MaskedArray):
+                probs = probs.filled(-np.inf)
+            cat.add_column(table.Column(
+                probs, name='log_probs',
+                description='Log-probabilities of detection on each band',
+                format='%+5.3f'))
+            cat['log_probs'][mask] = -np.inf
+
+        # class_probs column
         if class_probs is not None:
-            if log_class_probs:
-                self.log_class_probs = class_probs[w]
-            else:
+            if class_probs.ndim != 2:
+                raise ValueError(
+                    "(log-)probabities of classes must be a two-dimensional array")
+            if n_objs != class_probs.shape[0]:
+                raise ValueError(
+                    "(log-)probabilites of classes must have the right number of objects")
+            if class_names is None:
+                raise ValueError("class names must be specified if class probabilities are used")
+            if len(class_names) == class_probs.shape[1] + 1:
+                class_probs = np.hstack((class_probs, np.zeros((n_objs, 1))))
+                if log_class_probs:
+                    class_probs[:, -1] = np.log(1.0 -
+                                                np.sum(np.exp(class_probs[:, :-1]), axis=1))
+                else:
+                    class_probs[:, -1] = 1.0 - \
+                        np.sum(class_probs[:, :-1], axis=1)
+            if len(class_names) != class_probs.shape[1]:
+                raise ValueError(
+                    "(log-)probabilites of classes must have the same number of classes")
+            if not log_class_probs:
                 with np.errstate(divide='ignore'):
-                    self.log_class_probs = np.log(class_probs[w])
+                    class_probs = np.log(class_probs)
+            cat.add_column(table.Column(
+                class_probs, name='log_class_probs',
+                description='log-probabilities of class belonging',
+                format='%+5.3f'))
+            
+        # Remove objects with too few bands
+        idx = np.where(np.sum(cat['mag_errs'] < max_err, axis=1) 
+                       >= min_bands)[0]
+        cat = cat[idx]
+        cat.add_column(table.Column(
+            idx, name='idx', 
+            description='index with respect to the original catalogue',
+            format='%d'
+        ), index=0)
+        return cat
+    
+    def __getitem__(self, item):
+        if isinstance(item, str):
+            if item in self.colnames:
+                return self.columns[item]
+            else:
+                return None
         else:
-            self.log_class_probs = None
-
-    def __len__(self):
-        return self.n_objs
-
-    def __getitem__(self, sliced):
-        res = copy.deepcopy(self)
-        res.selection = res.selection[sliced]
-        res.mags = res.mags[sliced]
-        res.mag_errs = res.mag_errs[sliced]
-        if res.log_probs is not None:
-            res.log_probs = res.log_probs[sliced]
-        if res.log_class_probs is not None:
-            res.log_class_probs = res.log_class_probs[sliced]
-        try:
-            res.n_objs = len(res.selection)
-        except TypeError:
-            res.n_objs = 1
-        return res
+            return super().__getitem__(item)
 
     def __add__(self, cat):
         """Concatenate two PhotometricCatalogue's."""
-        if not isinstance(cat, PhotometricCatalogue):
+        if not isinstance(cat, self.__class__):
             raise ValueError("Expecting a PhotometricCatalogue here")
-        if self.n_bands != cat.n_bands:
+        if self.meta['n_bands'] != cat.meta['n_bands']:
             raise ValueError("The two catalogues have a different number of bands")
         # Only use classes if they are present and identical in both catalogues
-        if self.class_names is None or cat.class_names is None:
+        if 'class_names' not in self.meta or \
+            'class_names' not in cat.meta:
             use_classes = False
         else:
-            use_classes = np.all(np.array(self.class_names)
-                                 == np.array(cat.class_names))
-        res = copy.deepcopy(self)
-        res.selection = np.concatenate(())
+            use_classes = np.all(np.array(self.meta['class_names'])
+                                 == np.array(cat.meta['class_names']))
         # TODO: Fix possible differences in null_mag and null_err
-        res.mags = np.concatenate((self.mags, cat.mags))
-        res.mag_errs = np.concatenate((self.mag_errs, cat.mag_errs))
-        res.nc_params = None
-        if self.log_probs is None:
-            if cat.log_probs is not None:
-                res.log_probs = np.concatenate(
-                    (np.zeros(self.n_objs, self.n_bands), cat.log_probs))
-            else:
-                res.log_probs = None
-        else:
-            if cat.log_probs is not None:
-                res.log_probs = np.concatenate(
-                    (self.log_probs, cat.log_probs))
-            else:
-                res.log_probs = np.concatenate(
-                    (self.log_probs, np.zeros(cat.n_objs, cat.n_bands)))
-        if use_classes:
-            res.log_class_probs = np.concatenate(
-                (self.log_class_probs, cat.log_class_probs))
-        res.n_objs += cat.n_objs
+        res = table.vstack((self, cat))
+        if not use_classes and 'class_log_probs' in res.colnames:
+            res.remove_column('class_log_probs')
+        if res.masked:
+            # Table is masked: we must have missed some columns...
+            if 'log_probs' in res.colnames and np.any(res['log_probs'].mask):
+                w = np.any(res['log_probs'].mask, axis=1)
+                res['log_probs'][w] = 0.0
+            res = res.filled()
+        for k in ('mag_names', 'err_names', 'class_names', 'reddening_law'):
+            if k in self.meta and k in cat.meta:
+                res.meta[k] = copy.copy(self.meta[k])
+        if not use_classes:
+            if 'class_names' in res.meta:
+                del res.meta['class_names']
+            if 'log_class_probs' in res.colnames:
+                res.remove_column('log_class_probs')
+        res.meta['nc_pars'] = None
         return res
 
     def add_log_probs(self):
@@ -524,9 +534,9 @@ class PhotometricCatalogue(object):
         Magnitude measurements with magnitude errors larger than max_err are
         marked with 0 probability.
         """
-        if self.log_probs is None:
-            self.log_probs = np.zeros((self.n_objs, self.n_bands))
-        self.log_probs[np.where(self.mag_errs > self.max_err)] = -np.inf
+        if 'log_probs' not in self.colnames:
+            self['log_probs'] = np.zeros((len(self), self.meta['n_bands']))
+        self['log_probs'][np.where(self['mag_errs'] > self.meta['max_err'])] = -np.inf
 
     def remove_log_probs(self):
         """Removes log probabilities from the photometric catalogue.
@@ -534,178 +544,18 @@ class PhotometricCatalogue(object):
         This method also applies decimation to the data: that is, it "cleans"
         magnitudes bands depending on the value of the log probabilities.
         """
-        if self.log_probs is None:
+        if 'log_probs' not in self.colnames:
             return self
-        removed = self.log_probs < np.log(
-            np.random.uniform(size=(self.n_objs, self.n_bands)))
-        self.mags[removed] = self.null_mag
-        self.mag_errs[removed] = self.null_err
-        self.log_probs = None
+        removed = np.where(self['log_probs'] < np.log(
+            np.random.uniform(size=(len(self), self.meta['n_bands']))))[0]
+        self.remove_rows(removed)
+        self.remove_column('log_probs')
 
-    def get_colors(self, use_projection=True, band=None, map_mags=lambda _: _,
-                   extinctions=None, tolerance=1e-5):
-        """Compute the colors associate to the current catalogue.
+    def get_colors(self, *pars, **kw):
+        return ColorCatalogue.from_photometric_catalogue(self, *pars, **kw)
 
-        This operation is performed by subtracting two consecutive bands. For this reason,
-        it is advisable to sort the band from the bluest to the reddest.
-
-        Arguments
-        ---------
-        use_projection : bool, default to True
-            If True, the procedure sorts bands so that missed bands are
-            excluded from the color computation. A projection matrix will be
-            returned.
-
-        band : int or None, default to None
-            If not None, include in the output a column with a magnitude. This
-            is useful in a number of cases. A negative integer is interpreted
-            as in the index operator [].
-
-        mag_mags : function, default to identity
-            A function used to map the magnitude, used only for the band
-            selected (and thus only if band != None). Must accept an array of
-            shape (n_objs,) and return an array of shape (n_objs,).
-
-        extinctions : array-like, shape (n_objs,), or None, default to None
-            If not None and if band is not None, it is an array of values that
-            will be *subtracted* to the magnitudes of the band before applying
-            map_mags. Used to correcte for estinguished magnitudes in the
-            xnicer code.
-
-        tolerance : float, default to 1e-5
-            The minimum probability allowed: combinations of colors that have
-            a smaller probability will be deleted from the final catalogue.
-            Only used if the catalogue has log_probs associated to it.
-
-        Return value
-        ------------
-        A ColorCatalogue. Note that, in case the catalogue has log_probs sets
-        (and non-vanishing), the result will have a different number of
-        objects with respect to the original catalogue, because it will
-        contain all possible color combinations.
-        """
-        # If we have to work with probabilities, we will make a new catalogue
-        # containing all possible combinations of magnitudes. We will
-        # associate to each combination a probability that this is realized,
-        # and we will call this function again on the all combinations.
-        if self.log_probs is not None:
-            cat = copy.deepcopy(self)
-            lp_min = np.log(tolerance)
-            lp_max = np.log(1 - tolerance)
-            log_probs = np.zeros(cat.n_objs)
-            for b in range(cat.n_bands):
-                # Bands with too small probabilities are directly set to the
-                # null value
-                w = np.where(cat.log_probs[:, b] < lp_min)
-                cat.mags[w, b] = cat.null_mag
-                cat.mag_errs[w, b] = cat.null_err
-                # Other bands with intermediate probabilities (and valid band
-                # measurements) are duplicated; bands with high probabilities
-                # are not duplicated because we assume that the band will
-                # always be observed.
-                w = np.where((cat.log_probs[:, b] > lp_min) & (
-                    cat.log_probs[:, b] < lp_max))[0]
-                cat.selection = np.concatenate(
-                    (cat.selection, cat.selection[w]))
-                cat.mags = np.concatenate((cat.mags, cat.mags[w]))
-                cat.mags[cat.n_objs:, b] = cat.null_mag
-                cat.mag_errs = np.concatenate((cat.mag_errs, cat.mag_errs[w]))
-                cat.mag_errs[cat.n_objs:, b] = cat.null_err
-                cat.log_probs = np.concatenate(
-                    (cat.log_probs, cat.log_probs[w]))
-                log_probs = np.concatenate(
-                    (log_probs, log_probs[w] + log1mexp(cat.log_probs[w, b])))
-                log_probs[w] = log_probs[w] + cat.log_probs[w, b]
-                if cat.log_class_probs is not None:
-                    cat.log_class_probs = np.concatenate((cat.log_class_probs, cat.log_class_probs[w]))
-                cat.n_objs += len(w)
-            cat.log_probs = None
-            # We now filter all objects with too small probabilities or not
-            # enough valid vands
-            w = np.where((log_probs > lp_min) & (np.sum(cat.mag_errs < cat.max_err,
-                                                        axis=1) >= cat.min_bands))[0]
-            res = cat[w].get_colors(use_projection=use_projection, band=band, 
-                                    map_mags=map_mags, extinctions=extinctions)
-            res.log_probs = log_probs[w]
-            return res
-
-        # Computes the colors
-        n_objs = self.n_objs
-        if band is None:
-            n_cols = self.n_bands - 1
-        else:
-            if band < 0:
-                band = self.n_bands + band
-            n_cols = self.n_bands
-        cols = np.zeros((n_objs, n_cols))
-        col_covs = np.zeros((n_objs, n_cols, n_cols))
-        for c in range(self.n_bands - 1):
-            cols[:, c] = self.mags[:, c] - self.mags[:, c+1]
-            col_covs[:, c, c] = self.mag_errs[:, c]**2 + \
-                self.mag_errs[:, c+1]**2
-            if c > 0:
-                col_covs[:, c, c-1] = col_covs[:, c-1, c] = - \
-                    self.mag_errs[:, c]**2
-        if band is not None:
-            mags = self.mags[:, band]
-            mag_errs = self.mag_errs[:, band]
-            if extinctions is not None:
-                mags -= extinctions
-            cols[:, n_cols - 1] = map_mags(mags)
-            diff_map = (map_mags(mags + mag_errs) -
-                        map_mags(mags - mag_errs)) / \
-                       (2*mag_errs)
-            col_covs[:, n_cols - 1, n_cols -
-                     1] = (diff_map*mag_errs)**2
-            if band < self.n_bands - 1:
-                col_covs[:, n_cols-1, band] = col_covs[:, band, n_cols-1] = \
-                    diff_map*mag_errs**2
-            if band > 0:
-                col_covs[:, n_cols-1, band-1] = col_covs[:, band-1, n_cols-1] = \
-                    -diff_map*mag_errs**2
-
-        # Use projections
-        if use_projection:
-            # Projection matrix
-            projections = np.zeros((n_objs, n_cols, n_cols))
-            # Check which magnitudes are usable
-            mask = self.mag_errs < self.max_err
-            csum = np.cumsum(mask, axis=1) - 1
-            line = csum.flat
-            # Create the other two indices for the projections matrix
-            obj, col = np.mgrid[0:n_objs, 0:self.n_bands]
-            obj = obj.flat
-            col = col.flat
-            # Set the projections matrix
-            w = np.where((line >= 0) & (col < self.n_bands - 1))
-            projections[obj[w], line[w], col[w]] = 1
-            # Remove the last row of each object if the last band is not
-            # available for that object
-            last_row = csum[:, -1]
-            w = np.where((last_row >= 0) & (last_row < self.n_bands - 1))
-            projections[w, last_row[w], :] = 0
-            # Add the band row if we need to
-            if band is not None:
-                w = np.where((last_row >= 0) & (mask[:, band]))
-                projections[w, last_row[w], -1] = 1
-            # Now the projections matrix is ready! Use it to compute the cols
-            # and col_covs arrays
-            cols = np.einsum('...ij,...j->...i', projections, cols)
-            col_covs = np.einsum('...ij,...jk,...lk->...il',
-                                 projections, col_covs, projections)
-            # Add errors for degenerate matrices
-            eps = 1e-10
-            col_covs += np.identity(n_cols) * eps
-        else:
-            projections = None
-
-        return ColorCatalogue(cols, col_covs, selection=self.selection, 
-                              projections=projections, log_probs=None, 
-                              log_class_probs=self.log_class_probs,
-                              class_names=self.class_names)
-
-    def fit_number_counts(self, start_completeness=20.0, start_width=0.3, method='Nelder-Mead',
-                          indices=None):
+    def fit_number_counts(self, start_completeness=20.0, start_width=0.3, 
+                          method='Nelder-Mead', indices=None):
         """Perform a fit with a simple model for the number counts.
 
         The assumed model is an exponential distribution, truncated at high
@@ -717,8 +567,8 @@ class PhotometricCatalogue(object):
         its width. Note that this procedure must be used to correctly
         simulate extinction in a control field.
 
-        The results of the best-fit are saved in self.nc_pars and also
-        returned.
+        The results of the best-fit are saved in self.meta['nc_pars'] and 
+        also returned.
         
         Arguments
         ---------
@@ -739,7 +589,7 @@ class PhotometricCatalogue(object):
         nc_pars : array like, shape (n_bands, 3)
             Array with the tripled (exponential slope, 50% completeness
             limit, completeness width) for each band, also saved in
-            self.nc_pars.
+            self.meta['nc_pars'].
         """
         def number_count_lnlikelihood_(x, mags):
             # Magnitude errors ignored here, not sure if important...
@@ -761,9 +611,9 @@ class PhotometricCatalogue(object):
         nc_pars = []
         if indices is None:
             indices = slice(None)
-        for band in range(self.n_bands):
-            mags = self.mags[indices, band]
-            mags = mags[self.mag_errs[indices, band] < self.max_err]
+        for band in range(self.meta['n_bands']):
+            mags = self['mags'][indices, band]
+            mags = mags[self['mag_errs'][indices, band] < self.meta['max_err']]
             p0 = np.array([start_completeness, start_width])
             m = minimize(number_count_lnlikelihood_, p0,
                          args=(mags,), method=method)
@@ -772,8 +622,8 @@ class PhotometricCatalogue(object):
             d = m_c - np.mean(mags)
             beta = 2.0 / (d + np.sqrt(d * d + 4 * s_c * s_c))
             nc_pars.append([beta, m_c, np.abs(s_c)])
-        self.nc_pars = np.array(nc_pars)
-        return self.nc_pars
+        self.meta['nc_pars'] = np.array(nc_pars)
+        return self.meta['nc_pars']
 
     def log_completeness(self, band, magnitudes):
         """Compute the log of the completeness function in a given band.
@@ -793,18 +643,19 @@ class PhotometricCatalogue(object):
             The log of the completeness function, computed for the requested
             band, at the magnitude values indicated.
         """
-        _, m_c, s_c = self.nc_pars[band]
+        _, m_c, s_c = self.meta['nc_pars'][band]
         return log_ndtr((m_c - magnitudes) / s_c)
 
-    def extinguish(self, extinction, apply_completeness=True, update_errors=False):
+    def extinguish(self, extinction, apply_completeness=True, 
+                   update_errors=False):
         """Simulate the effect of extinction and return an updated catalogue.
 
         Arguments
         ---------
         extinction : float or array-like, shape (n_bands,)
-            The extinction to apply for each band, in magnitudes. Must be always
-            non-negative. If it is a float, multiply it by self.reddening_law to
-            obtain the extinction in each band.
+            The extinction to apply for each band, in magnitudes. Must be 
+            always non-negative. If it is a float, multiply it by 
+            self.meta['reddening_law'] to obtain the extinction in each band.
 
         apply_completeness : bool, default to True
             If True, the completeness function is taken into account, and
@@ -823,37 +674,38 @@ class PhotometricCatalogue(object):
         PhotometricCatalogue
             The updated PhotometricCatalogue (self is left untouched).
         """
-        cat = copy.deepcopy(self)
+        cat = self.copy()
         if isinstance(extinction, float):
-            extinction = extinction * self.reddening_law
-        if apply_completeness and cat.nc_pars is None:
+            extinction = extinction * self.meta['reddening_law']
+        if apply_completeness and cat.meta['nc_pars'] is None:
             # Fit the number counts if this has not been done earlier on
             cat.fit_number_counts()
-        for band in range(cat.n_bands):
-            mask = np.where(cat.mag_errs[:, band] < cat.max_err)[0]
-            cat.mags[mask, band] += extinction[band]
+        for band in range(cat.meta['n_bands']):
+            mask = np.where(cat['mag_errs'][:, band] < cat.meta['max_err'])[0]
+            cat['mags'][mask, band] += extinction[band]
             if update_errors:
                 # It would be a good idea to update the errors too! Find a reliable way to do it
                 raise NotImplementedError
             if apply_completeness and extinction[band] > 0:
-                log_completeness_ratio = (cat.log_completeness(band, cat.mags[mask, band]) -
-                                          cat.log_completeness(band, cat.mags[mask, band] - extinction[band]))
-                if cat.log_probs is not None:
-                    cat.log_probs[mask, band] += log_completeness_ratio
+                log_completeness_ratio = (cat.log_completeness(band, cat['mags'][mask, band]) -
+                                          cat.log_completeness(band, cat['mags'][mask, band] - extinction[band]))
+                if 'log_probs' in cat.colnames:
+                    cat['log_probs'][mask, band] += log_completeness_ratio
                 else:
                     removed = log_completeness_ratio < np.log(
                         np.random.uniform(size=len(mask)))
-                    cat.mags[mask[removed], band] = cat.null_mag
-                    cat.mag_errs[mask[removed], band] = cat.null_err
+                    cat['mags'][mask[removed], band] = cat.meta['null_mag']
+                    cat['mag_errs'][mask[removed], band] = cat.meta['null_err']
         # Now remove objects with errors too large
-        if cat.log_probs is None and (apply_completeness or update_errors):
-            w = np.where(np.sum(cat.mag_errs < cat.max_err,
-                                axis=1) >= cat.min_bands)[0]
+        if 'log_probs' in cat.colnames and \
+            (apply_completeness or update_errors):
+            w = np.where(np.sum(cat['mag_errs'] < cat.meta['max_err'],
+                                axis=1) >= cat.meta['min_bands'])[0]
             cat = cat[w]
         return cat
 
 
-class ColorCatalogue(object):
+class ColorCatalogue(table.Table):
     """Initialize a new color catalogue.
 
     The initialization can be carried using an arrays of colors and associated
@@ -866,10 +718,6 @@ class ColorCatalogue(object):
 
     col_covs : array_like, shape (n_objs, n_cols, n_cols)
         An array with the color covariance matrices.
-
-    selection : array_like, shape (n_objs,) or None
-        Indices in the original catalogue of objects that have been used. If
-        None, all objects (in their order) are taken to have been used.
 
     projections : array_like, shape (n_objs, n_cols, n_cols) or None
         If set, the array of projection matrices used to compute the colors.
@@ -906,9 +754,6 @@ class ColorCatalogue(object):
     col_covs : array_like, shape (n_objs, n_cols, n_cols)
         An array with the color covariance matrices.
 
-    selection : array_like, shape (n_objs,)
-        Indices in the original catalogue of objects that have been used.
-
     projections : array_like, shape (n_objs, n_cols, n_cols) or None
         If set, the array of projection matrices used to compute the colors.
 
@@ -928,92 +773,202 @@ class ColorCatalogue(object):
         belongs to a given class. The probabilities, if provided, should be
         normalized to unity, so that logaddexp(log_class_probs, axis=1) == 0.
     """
+    
+    @classmethod
+    def from_photometric_catalogue(cls, cat, use_projection=True, 
+                                   band=None, map_mags=lambda _: _,
+                                   extinctions=None, tolerance=1e-5):
+        """Compute the colors associate to the current catalogue.
 
-    def __init__(self, cols, col_covs, selection=None, projections=None,
-                 log_probs=None, class_names=None, log_class_probs=None):
-        if cols.ndim != 2:
-            raise ValueError('Colors must be a two-dimensional array')
-        n_objs, n_cols = cols.shape
-        if col_covs.ndim != 3:
-            raise ValueError(
-                'Color covariances must be a three-dimensional array')
-        if col_covs.shape[0] != n_objs:
-            raise ValueError(
-                "Color and color covariances must have the same number of objects")
-        if col_covs.shape[1] != n_cols or col_covs.shape[2] != n_cols:
-            raise ValueError(
-                "Wrong shape for the color covariance matrix")
-        if selection is not None:
-            if selection.ndim != 1:
-                raise ValueError(
-                    'Selection must be a one-dimensional array')
-            if selection.shape[0] != n_objs:
-                raise ValueError(
-                    "Color and selection must have the same number of objects")
-        if projections is not None:
-            if projections.ndim != 3:
-                raise ValueError(
-                    'Projections must be a three-dimensional array')
-            if projections.shape[0] != n_objs:
-                raise ValueError(
-                    "Color and projections must have the same number of objects")
-            if projections.shape[1] != n_cols or projections.shape[2] != n_cols:
-                raise ValueError(
-                    "Wrong shape for the projection matrix")
-        if log_probs is not None:
-            if log_probs.ndim != 1:
-                raise ValueError(
-                    'Log probabilities must be a one-dimensional array')
-            if log_probs.shape[0] != n_objs:
-                raise ValueError(
-                    "Color and log-probabilities must have the same number of objects")
-        if log_class_probs is not None:
-            if log_class_probs.ndim != 2:
-                raise ValueError(
-                    'Log probabilities for classes must be a two-dimensional array')
-            if log_class_probs.shape[0] != n_objs or \
-                log_class_probs.shape[1] != len(class_names):
-                raise ValueError(
-                    'Wrong size of log-probabilities for classes')
-        elif class_names is not None:
-            raise ValueError('If class names are provided, log probabilities '
-                'for classes must be provided too')
-        # Saves the results
-        self.n_objs = n_objs
-        self.n_cols = n_cols
-        self.cols = cols
-        self.col_covs = col_covs
-        if selection is not None:
-            self.selection = selection
+        This operation is performed by subtracting two consecutive bands. For
+        this reason, it is advisable to sort the band from the bluest to the
+        reddest.
+
+        Arguments
+        ---------
+        cat : PhotometricCatalogue
+            The catalogue to convert into a ColorCatalogue.
+            
+        use_projection : bool, default to True If True, the procedure sorts
+            bands so that missed bands are excluded from the color
+            computation. A projection matrix will be returned.
+
+        band : int or None, default to None If not None, include in the output
+            a column with a magnitude. This is useful in a number of cases. A
+            negative integer is interpreted as in the index operator [].
+
+        mag_mags : function, default to identity A function used to map the
+            magnitude, used only for the band selected (and thus only if band
+            != None). Must accept an array of shape (n_objs,) and return an
+            array of shape (n_objs,).
+
+        extinctions : array-like, shape (n_objs,), or None, default to None If
+            not None and if band is not None, it is an array of values that
+            will be *subtracted* to the magnitudes of the band before applying
+            map_mags. Used to correcte for estinguished magnitudes in the
+            xnicer code.
+
+        tolerance : float, default to 1e-5 The minimum probability allowed:
+            combinations of colors that have a smaller probability will be
+            deleted from the final catalogue. Only used if the catalogue has
+            log_probs associated to it.
+
+        Return value
+        ------------
+        A ColorCatalogue. Note that, in case the catalogue has log_probs sets
+        (and non-vanishing), the result will have a different number of
+        objects with respect to the original catalogue, because it will
+        contain all possible color combinations.
+        """
+        # If we have to work with probabilities, we will make a new catalogue
+        # containing all possible combinations of magnitudes. We will
+        # associate to each combination a probability that this is realized,
+        # and we will call this function again on the all combinations.
+        if 'log_probs' in cat.colnames is not None:
+            cat2 = cat.copy()
+            lp_min = np.log(tolerance)
+            lp_max = np.log(1 - tolerance)
+            n_objs = len(cat2)
+            log_probs = np.zeros(n_objs)
+            for b in range(cat2.meta['n_bands']):
+                # Bands with too small probabilities are directly set to the
+                # null value
+                w = np.where(cat2['log_probs'][:, b] < lp_min)
+                cat2['mags'][w, b] = cat2.meta['null_mag']
+                cat2['mag_errs'][w, b] = cat2.meta['null_err']
+                # Other bands with intermediate probabilities (and valid band
+                # measurements) are duplicated; bands with high probabilities
+                # are not duplicated because we assume that the band will
+                # always be observed.
+                w = np.where((cat2['log_probs'][:, b] > lp_min) & (
+                    cat2['log_probs'][:, b] < lp_max))[0]
+                cat2 = cat2 + cat2[w]
+                log_probs = np.concatenate(
+                    (log_probs, log_probs[w] + log1mexp(cat2['log_probs'][w, b])))
+                log_probs[w] = log_probs[w] + cat2['log_probs'][w, b]
+                n_objs += len(w)
+            cat2.remove_column('log_probs')
+            # We now filter all objects with too small probabilities or not
+            # enough valid vands
+            w = np.where((log_probs > lp_min) &
+                         (np.sum(cat2['mag_errs'] < cat2.meta['max_err'],
+                                 axis=1) >= cat2.meta['min_bands']))[0]
+            res = cat2[w].get_colors(use_projection=use_projection, band=band,
+                                    map_mags=map_mags, extinctions=extinctions)
+            res['log_probs'] = log_probs[w]
+            return res
+
+        # Computes the colors
+        n_objs = len(cat)
+        if band is None:
+            n_cols = cat.meta['n_bands'] - 1
         else:
-            self.selection = np.arange(n_objs)
-        self.projections = projections
-        self.log_probs = log_probs
-        self.class_names = class_names
-        self.log_class_probs = log_class_probs
+            if band < 0:
+                band = cat.meta['n_bands'] + band
+            n_cols = cat.meta['n_bands']
+        cols = np.zeros((n_objs, n_cols))
+        col_covs = np.zeros((n_objs, n_cols, n_cols))
+        for c in range(cat.meta['n_bands'] - 1):
+            cols[:, c] = cat['mags'][:, c] - cat['mags'][:, c+1]
+            col_covs[:, c, c] = cat['mag_errs'][:, c]**2 + \
+                cat['mag_errs'][:, c+1]**2
+            if c > 0:
+                col_covs[:, c, c-1] = col_covs[:, c-1, c] = - \
+                    cat['mag_errs'][:, c]**2
+        if band is not None:
+            mags = cat['mags'][:, band]
+            mag_errs = cat['mag_errs'][:, band]
+            if extinctions is not None:
+                mags -= extinctions
+            cols[:, n_cols - 1] = map_mags(mags)
+            diff_map = (map_mags(mags + mag_errs) -
+                        map_mags(mags - mag_errs)) / \
+                       (2*mag_errs)
+            col_covs[:, n_cols - 1, n_cols -
+                     1] = (diff_map*mag_errs)**2
+            if band < cat.meta['n_bands'] - 1:
+                col_covs[:, n_cols-1, band] = col_covs[:, band, n_cols-1] = \
+                    diff_map*mag_errs**2
+            if band > 0:
+                col_covs[:, n_cols-1, band-1] = col_covs[:, band-1, n_cols-1] = \
+                    -diff_map*mag_errs**2
 
-    def __len__(self):
-        return self.n_objs
+        # Use projections
+        if use_projection:
+            # Projection matrix
+            projections = np.zeros((n_objs, n_cols, n_cols))
+            # Check which magnitudes are usable
+            mask = cat['mag_errs'] < cat.meta['max_err']
+            csum = np.cumsum(mask, axis=1) - 1
+            line = csum.flat
+            # Create the other two indices for the projections matrix
+            obj, col = np.mgrid[0:n_objs, 0:cat.meta['n_bands']]
+            obj = obj.flat
+            col = col.flat
+            # Set the projections matrix
+            w = np.where((line >= 0) & (col < cat.meta['n_bands'] - 1))
+            projections[obj[w], line[w], col[w]] = 1
+            # Remove the last row of each object if the last band is not
+            # available for that object
+            last_row = csum[:, -1]
+            w = np.where((last_row >= 0) & \
+                (last_row < cat.meta['n_bands'] - 1))
+            projections[w, last_row[w], :] = 0
+            # Add the band row if we need to
+            if band is not None:
+                w = np.where((last_row >= 0) & (mask[:, band]))
+                projections[w, last_row[w], -1] = 1
+            # Now the projections matrix is ready! Use it to compute the cols
+            # and col_covs arrays
+            cols = np.einsum('...ij,...j->...i', projections, cols)
+            col_covs = np.einsum('...ij,...jk,...lk->...il',
+                                 projections, col_covs, projections)
+            # Add errors for degenerate matrices
+            eps = 1e-10
+            col_covs += np.identity(n_cols) * eps
+        else:
+            projections = None
 
-    def __getitem__(self, sliced):
-        res = copy.deepcopy(self)
-        res.cols = res.cols[sliced]
-        res.col_covs = res.col_covs[sliced]
-        res.selection = res.selection[sliced]
-        if res.projections is not None:
-            res.projections = res.projections[sliced]
-        if res.log_probs is not None:
-            res.log_probs = res.log_probs[sliced]
-        if res.log_class_probs is not None:
-            res.log_class_probs = res.log_class_probs[sliced]
-        try:
-            res.n_objs = len(res.selection)
-        except TypeError:
-            res.n_objs = 1
+        res = cls()
+        res.meta['n_bands'] = cat.meta['n_bands']
+        res.meta['min_bands'] = cat.meta['min_bands']
+        if 'reddening_law' in cat.meta:
+            res.meta['reddening_law'] = cat.meta['reddening_law'][:-1] - \
+                cat.meta['reddening_law'][1:]
+        res.add_column(table.Column(
+            cat['idx'], name='idx', 
+            description='index with respect to the original catalogue',
+            format='%d'
+        ))
+        res.add_column(table.Column(
+            cols, name='cols', description='Array of colors',
+            unit='mag', format='%6.3f'))
+        res.add_column(table.Column(
+            col_covs, name='col_covs',
+            description='Array of color covariances',
+            unit='mag**2', format='%8.6f'))
+        if projections is not None:
+            res.add_column(table.Column(
+                projections, name='projections',
+                description='Projection matrices',
+                format='%g'))
+        if 'log_class_probs' in cat.colnames:
+            res['log_class_probs'] = cat['log_class_probs'].copy()
+            res.meta['class_names'] = cat.meta['class_names']
         return res
 
+    def __getitem__(self, item):
+        if isinstance(item, str):
+            if item in self.colnames:
+                return self.columns[item]
+            else:
+                return None
+        else:
+            return super().__getitem__(item)
 
-class ExtinctionCatalogue(object):
+
+
+class ExtinctionCatalogue(table.Table):
     """The result of XNicer extinction measurements.
     
     Parameters
@@ -1105,84 +1060,40 @@ class ExtinctionCatalogue(object):
         in the XNicest algorithm.
     """
 
-    def __init__(self, n_objs, n_components, n_colors=0, selection=None):
-        self.n_objs = n_objs
-        self.n_components = n_components
-        self.n_colors = n_colors
-        self.selection = selection
-        self.log_weights = np.zeros((n_objs, n_components))
-        self.means_A = np.zeros((n_objs, n_components))
-        self.variances_A = np.zeros((n_objs, n_components))
-        self.log_evidence = np.zeros(n_objs)
-        self.log_weight = np.zeros(n_objs)
-        self.mean_A = np.zeros(n_objs)
-        self.variance_A = np.zeros(n_objs)
-        if self.n_colors > 0:
-            self.means_c = np.zeros((n_objs, n_components, n_colors))
-            self.covariances = np.zeros((n_objs, n_components, n_colors))
-            self.variances_c = np.zeros((n_objs, n_components, n_colors, n_colors))
-            self.mean_c = np.zeros((n_objs, n_colors))
-            self.covariance = np.zeros((n_objs, n_colors))
-            self.variance_c = np.zeros((n_objs, n_colors, n_colors))
-        self.xnicest_bias = None
-        self.xnicest_weight = None
-
-    def __len__(self):
-        return self.n_objs
-
-    def __getitem__(self, sliced):
-        res = copy.deepcopy(self)
-        if res.selection is not None:
-            res.selection = res.selection[sliced]
-        res.log_weights = res.log_weights[sliced]
-        res.means_A = res.means_A[sliced]
-        res.variances_A = res.variances_A[sliced]
-        res.log_evidence = res.log_evidence[sliced]
-        res.log_weight = res.log_weight_[sliced]
-        res.mean_A = res.mean_A[sliced]
-        res.variance_A = res.variance_A[sliced]
-        if self.n_colors > 0:
-            res.means_c = res.means_c[sliced]
-            res.covariances = res.covariances[sliced]
-            res.variances_c = res.variances_c[sliced]
-            res.mean_c = res.mean_c[sliced]
-            res.covariance = res.covariance[sliced]
-            res.variance_c = res.variance_c[sliced]
-        if res.xnicest_bias is not None:
-            res.xnicest_bias = res.xnicest_bias[sliced]
-        if res.xnicest_weight is not None:
-            res.xnicest_weight = res.xnicest_weight[sliced]
-        try:
-            res.n_objs = len(res.mean_)
-        except TypeError:
-            res.n_objs = 1
-        return res
+    def __getitem__(self, item):
+        if isinstance(item, str):
+            if item in self.colnames:
+                return self.columns[item]
+            else:
+                return None
+        else:
+            return super().__getitem__(item)
 
     def update_(self):
-        """Compute the mean_, variance_, and log_weight_ attributes.
+        """Compute the mean_A, variance_A, and log_weight columns.
 
-        The mean_ and variance_ attributes are just a single-component
+        The mean_A and variance_A columns are just a single-component
         equivalent of the multi-component extinction.  They are computed using
         a technique identical to the one implemented by merge_components. """
-        ws = np.exp(self.log_weights)
+        ws = np.exp(self['log_weights'])
         norm = np.sum(ws, axis=-1)
-        self.log_weight = np.log(norm)
-        self.mean_A = np.sum(ws * self.means_A, axis=-1) / norm
-        diff_A = self.means_A - self.mean_A[..., np.newaxis]
-        self.variance_A = np.sum(
-            ws*(self.variances_A + diff_A**2), axis=-1) / norm
-        if self.n_colors > 0:
-            self.mean_c = np.sum(ws[..., np.newaxis] *
-                                self.means_c, axis=-2) / norm[..., np.newaxis]
-            diff_c = self.means_c - self.mean_c[..., np.newaxis, :]
-            self.variance_c = np.sum(
+        self['log_weight'] = np.log(norm)
+        self['mean_A'] = np.sum(ws * self['means_A'], axis=-1) / norm
+        diff_A = self['means_A'] - self['mean_A'][..., np.newaxis]
+        self['variance_A'] = np.sum(
+            ws*(self['variances_A'] + diff_A**2), axis=-1) / norm
+        if self.meta['n_colors'] > 0:
+            self['mean_c'] = np.sum(ws[..., np.newaxis] *
+                                self['means_c'], axis=-2) / norm[..., np.newaxis]
+            diff_c = self['means_c'] - self['mean_c'][..., np.newaxis, :]
+            self['variance_c'] = np.sum(
                 ws[..., np.newaxis, np.newaxis] *
-                (self.variances_c +
+                (self['variances_c'] +
                 diff_c[..., np.newaxis, :]*diff_c[..., np.newaxis]),
                 axis=-3) / norm[..., np.newaxis, np.newaxis]
-            self.covariance = np.sum(
+            self['covariance'] = np.sum(
                 ws[..., np.newaxis] *
-                (self.covariances + diff_A[..., np.newaxis] * diff_c),
+                (self['covariances'] + diff_A[..., np.newaxis] * diff_c),
                 axis=-2) / norm[..., np.newaxis]
     
     def merge_components(self, merged_components=None):
@@ -1198,29 +1109,29 @@ class ExtinctionCatalogue(object):
         if self.n_components == 1:
             return self
         if merged_components is None:
-            merged_components = np.arange(self.n_components)
+            merged_components = np.arange(self.meta['n_components'])
         # Make sure merged_components[0] is the smallest value
         if merged_components[0] >= np.min(merged_components[1:]):
             merged_components = np.sort(merged_components)
         # Extract the relevant values
-        ws = np.exp(self.log_weights[..., merged_components])
-        bs = self.means_A[..., merged_components]
-        Vs = self.variances_A[..., merged_components]
+        ws = np.exp(self['log_weights'][..., merged_components])
+        bs = self['means_A'][..., merged_components]
+        Vs = self['variances_A'][..., merged_components]
         # Compute the parameters of the merged gaussians
         w = np.sum(ws, axis=-1)
         b = np.sum(ws * bs, axis=-1) / w
         V = np.sum(ws * (Vs + (b[..., np.newaxis] - bs)**2), axis=-1) / w
         # Create the new parameter arrays
-        ws = np.delete(self.log_weights, merged_components[1:], axis=-1)
-        bs = np.delete(self.means_A, merged_components[1:], axis=-1)
-        Vs = np.delete(self.variances_A, merged_components[1:], axis=-1)
+        ws = np.delete(self['log_weights'], merged_components[1:], axis=-1)
+        bs = np.delete(self['means_A'], merged_components[1:], axis=-1)
+        Vs = np.delete(self['variances_A'], merged_components[1:], axis=-1)
         n_components = self.n_components - len(merged_components) + 1
         ws[..., merged_components[0]] = np.log(w)
         bs[..., merged_components[0]] = b
         Vs[..., merged_components[0]] = V
-        self.log_weights_ = ws
-        self.means_ = bs
-        self.variances_ = Vs
+        self['log_weights'] = ws
+        self['means_A'] = bs
+        self['variances_A'] = Vs
         self.n_components = n_components
         return self
 
@@ -1245,8 +1156,8 @@ class ExtinctionCatalogue(object):
         logprob : array_like, shape (n_samples, n_components)
             Log probabilities of each data point, for each component.
         """
-        T = Xerr[:, np.newaxis] + self.variances_A
-        delta = X[:, np.newaxis] - self.means_A
+        T = Xerr[:, np.newaxis] + self['variances_A']
+        delta = X[:, np.newaxis] - self['means_A']
         return -delta*delta/(2.0*T) - np.log(2.0*np.pi*T) / 2
 
     def score_samples(self, X, Xerr):
@@ -1271,4 +1182,4 @@ class ExtinctionCatalogue(object):
             Log probabilities of each data point in A.
         """
         log = self.score_samples_components(X, Xerr)
-        return logsumexp(self.log_weights + log, axis=-1)
+        return logsumexp(self['log_weights'] + log, axis=-1)

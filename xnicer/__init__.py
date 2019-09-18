@@ -8,4 +8,3 @@ from .xdeconv import XD_Mixture, FIX_NONE, FIX_AMP, FIX_MEAN, FIX_COVAR, FIX_ALL
 from .catalogs import PhotometricCatalogue, ColorCatalogue, ExtinctionCatalogue
 from .kde import KDE
 from .mapping import guess_wcs, make_maps
-

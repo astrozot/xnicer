@@ -186,10 +186,10 @@ def make_maps(coords, ext, wcs, kde, n_iters=3, tolerance=3.0,
             Only returned if the XNicest algorithm has been used.
     """
     names = list(coords.frame.representation_component_names.keys())
-    if ext.selection is not None:
+    if 'idx' in ext.colnames:
         xy = wcs.all_world2pix(
-                getattr(coords, names[0]).deg[ext.selection],
-                getattr(coords, names[1]).deg[ext.selection], 0)
+                getattr(coords, names[0]).deg[ext['idx']],
+                getattr(coords, names[1]).deg[ext['idx']], 0)
     else:
         xy = wcs.all_world2pix(
             getattr(coords, names[0]).deg,
@@ -198,7 +198,7 @@ def make_maps(coords, ext, wcs, kde, n_iters=3, tolerance=3.0,
     mask = kde.mask_inside(xy)
     n_objs = xy.shape[0]
     # Check if we need to use the XNicest algorithm
-    xnicest = bool(use_xnicest) and (ext.xnicest_bias is not None)
+    xnicest = bool(use_xnicest) and ('xnicest_bias' is ext.colnames)
     # Weights & power arrays: 0-cmap, 1-cvar, 2-cwgt, 3-dmap
     # Moreover, if ext4-amap, 5-avar, 6-awgt
     if xnicest:
@@ -207,22 +207,23 @@ def make_maps(coords, ext, wcs, kde, n_iters=3, tolerance=3.0,
     else:
         weights = np.empty((4, n_objs))
         power = np.zeros(4)
-    ext_ivar = 1.0 / ext.variance_
-    weights[0, :] = ext.mean_ * ext_ivar
-    weights[1, :] = ext.mean_ * ext.mean_ * ext_ivar
+    ext_ivar = 1.0 / ext['variance_A']
+    weights[0, :] = ext['mean_A'] * ext_ivar
+    weights[1, :] = ext['mean_A'] * ext['mean_A'] * ext_ivar
     weights[2, :] = ext_ivar
     weights[3, :] = 1
     if xnicest:
-        weights[4, :] = (ext.mean_ - ext.xnicest_bias) * ext_ivar * ext.xnicest_weight
+        weights[4, :] = (ext['mean_A'] - ext['xnicest_bias']) * ext_ivar * \
+            ext['xnicest_weight']
         # FIXME: The following line, used to compute the XNicest error,
         # ignores the error on the xnicest_weight. That is, the final error
         # will be computed by assuming only the error on the extinction. The
         # issue is not so easy to solve (one would need to take into account
         # both the variance on the XNicest weight and the covariance with the
         # extinction). For a further release...
-        weights[5, :] = ext_ivar * ext.xnicest_weight
+        weights[5, :] = ext_ivar * ext['xnicest_weight']
         power[5] = 1
-        weights[6, :] = ext_ivar * ext.xnicest_weight
+        weights[6, :] = ext_ivar * ext['xnicest_weight']
     # Shifted (unframed) coordinates, to the nearest int
     x_ = np.rint(xy[:, 1] + kde.kernel_size).astype(np.int)
     y_ = np.rint(xy[:, 0] + kde.kernel_size).astype(np.int)
@@ -250,7 +251,7 @@ def make_maps(coords, ext, wcs, kde, n_iters=3, tolerance=3.0,
             # Intermediate iterations: update the mask
             x_mask = x_[mask]
             y_mask = y_[mask]
-            clip = (res[0, y_mask, x_mask] - ext.mean_[mask])** 2 \
+            clip = (res[0, y_mask, x_mask] - ext['mean_A'][mask])** 2 \
                 > tolerance**2 * res[1, y_mask, x_mask]
             mask[np.where(mask)[0][clip]] = False
         else:
@@ -276,7 +277,7 @@ def make_maps(coords, ext, wcs, kde, n_iters=3, tolerance=3.0,
         hdu.header['PLANE5'] = ('extinction', '[mag], XNicest method')
         hdu.header['PLANE6'] = ('inverse variance', '[mag^-2], XNicest method')
         hdu.header['PLANE7'] = ('weight', '[mag^2 pix^-1], XNicest method')
-    hdu.header['CREATOR'] = 'XNicer v0.1.0'
+    hdu.header['CREATOR'] = 'XNicer v0.2.0'
     hdu.header['DATE'] = datetime.datetime.now().isoformat()
     hdu.header['AUTHOR'] = 'Marco Lombardi'
     hdu.add_checksum()
