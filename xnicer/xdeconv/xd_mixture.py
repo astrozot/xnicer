@@ -507,10 +507,10 @@ class XD_Mixture(GaussianMixture):
             T = Yerr + np.einsum('...ij,...jk,...lk->...il', P, V, P)
             delta = Y - np.einsum('...ik,...k->...i', P, mu)
         tmp = np.empty(Y.shape[0])
-        result = np.empty(self.n_components, Y.shape[0])
+        result = np.empty((Y.shape[0], self.n_components))
         for c in range(self.n_components):
             log_likelihoods(delta[:, c, :], T[:, c, :, :], tmp)
-            result[c, :] = tmp - (n_y_features * np.log(2.0*np.pi) / 2.0)
+            result[:, c] = tmp - (n_y_features * np.log(2.0*np.pi) / 2.0)
         return result
 
     def score_samples(self, Y, Yerr, projection=None):
