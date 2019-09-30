@@ -1106,7 +1106,7 @@ class ExtinctionCatalogue(table.Table):
             If not specified, all components are merged.
         """
         # TODO: Add the other parts
-        if self.n_components == 1:
+        if self.meta['n_components'] == 1:
             return self
         if merged_components is None:
             merged_components = np.arange(self.meta['n_components'])
@@ -1125,14 +1125,14 @@ class ExtinctionCatalogue(table.Table):
         ws = np.delete(self['log_weights'], merged_components[1:], axis=-1)
         bs = np.delete(self['means_A'], merged_components[1:], axis=-1)
         Vs = np.delete(self['variances_A'], merged_components[1:], axis=-1)
-        n_components = self.n_components - len(merged_components) + 1
+        n_components = self.meta['n_components'] - len(merged_components) + 1
         ws[..., merged_components[0]] = np.log(w)
         bs[..., merged_components[0]] = b
         Vs[..., merged_components[0]] = V
         self['log_weights'] = ws
         self['means_A'] = bs
         self['variances_A'] = Vs
-        self.n_components = n_components
+        self.meta['n_components'] = n_components
         return self
 
     def score_samples_components(self, X, Xerr):
