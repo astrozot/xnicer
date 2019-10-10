@@ -62,7 +62,7 @@ def xdeconv(ydata, ycovar, xamp, xmean, xcovar,
     ycovar: array-like, shape (n, dy, dy)
         Array of covariances of the observational data ydata.
     
-    xamp: array-like, shape (k)
+    xamp: array-like, shape (k) or (k, c)
         Array with the statistical weight of each Gaussian. Updated at the
         exit with the new weights.
         
@@ -86,8 +86,8 @@ def xdeconv(ydata, ycovar, xamp, xmean, xcovar,
     weights: array-like, shape (n,) 
         Log-weights for each observation, or None
         
-    classes: array-like, shape (n, k) 
-        Log-probabilities that each observation belong to a given cluster.
+    classes: array-like, shape (n, c) 
+        Log-probabilities that each observation belong to a given class.
         
     fixpars: integer or int array-like, shape (k,)
         Array of bitmasks with the FIX_AMP, FIX_MEAN, and FIX_AMP 
@@ -116,8 +116,14 @@ def xdeconv(ydata, ycovar, xamp, xmean, xcovar,
     else:
         S = np.asfortranarray(ycovar.T, dtype=np.float64)
 
-    kdim, = check_numpy_array("xamp", xamp, (-1,))
-    alpha = np.asfortranarray(xamp.T, dtype=np.float64)
+    tmp = check_numpy_array("xamp", xamp, [(-1,), (-1, -1)])
+    if len(tmp) == 1:
+        kdim = tmp[0]
+        cdim = 1
+        alpha = np.asfortranarray(xamp[:, np.newaxis].T, dtype=np.float64)
+    else:
+        kdim, cdim = tmp
+        alpha = np.asfortranarray(xamp.T, dtype=np.float64)
 
     _, xdim = check_numpy_array("xmean", xmean, (kdim, -1))
     m = np.asfortranarray(xmean.T, dtype=np.float64)
@@ -135,13 +141,14 @@ def xdeconv(ydata, ycovar, xamp, xmean, xcovar,
         check_numpy_array("weight", weight, (nobjs,))
         wgh = np.asfortranarray(weight.T, dtype=np.float64)
     else:
-        wgh = None
+        wgh = np.zeros(nobjs, dtype=np.float64, order='F')
 
     if classes is not None:
-        check_numpy_array("classes", classes, (nobjs, kdim))
+        check_numpy_array("classes", classes, (nobjs, cdim))
         clss = np.asfortranarray(classes.T, dtype=np.float64)
     else:
-        clss = None
+        clss = np.zeros((cdim, nobjs), dtype=np.float64, order='F') - \
+            np.log(cdim)
 
     if fixpars is not None:
         if isinstance(fixpars, int):
@@ -152,13 +159,13 @@ def xdeconv(ydata, ycovar, xamp, xmean, xcovar,
         fix = None
 
     with np.errstate(divide='ignore'):
-        oldloglike = em_step(w, S, alpha, m, V, Rt=Rt, logweights=wgh,
-                             classes=clss, fixpars=fix, regularization=regular)
+        oldloglike = em_step(w, S, alpha, m, V, wgh, clss, 
+                             Rt=Rt, fixpars=fix, regularization=regular)
     decreased = False
     for iter in range(1, maxiter):
         with np.errstate(divide='ignore'):
-            loglike = em_step(w, S, alpha, m, V, Rt=Rt, logweights=wgh,
-                              classes=clss, fixpars=fix, regularization=regular)
+            loglike = em_step(w, S, alpha, m, V, wgh, clss, 
+                              Rt=Rt, fixpars=fix, regularization=regular)
         diff = loglike - oldloglike
         if diff < 0:
             decreased = True
@@ -171,10 +178,12 @@ def xdeconv(ydata, ycovar, xamp, xmean, xcovar,
                           RuntimeWarning)
         if decreased:
             warnings.warn(
-                f"Log-likelihood decreased during the fitting procedure", RuntimeWarning)
+                f"Log-likelihood decreased during the fitting procedure", 
+                RuntimeWarning)
 
-        # Saves back all the data: sure this is necessary?
-        xamp[:] = alpha
+        # Saves back all the data: sure this is necessary? It is for sure for
+        # alpha
+        xamp[:] = alpha.T
         xmean[:, :] = m.T
         xcovar[:, :, :] = V.T
     return oldloglike
