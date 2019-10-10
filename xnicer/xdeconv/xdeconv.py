@@ -135,13 +135,14 @@ def xdeconv(ydata, ycovar, xamp, xmean, xcovar,
         check_numpy_array("weight", weight, (nobjs,))
         wgh = np.asfortranarray(weight.T, dtype=np.float64)
     else:
-        wgh = None
+        wgh = np.zeros(nobjs, dtype=np.float64, order='F')
 
     if classes is not None:
         check_numpy_array("classes", classes, (nobjs, kdim))
         clss = np.asfortranarray(classes.T, dtype=np.float64)
     else:
-        clss = None
+        clss = np.zeros((kdim, nobjs), dtype=np.float64, order='F') - \
+            np.log(kdim)
 
     if fixpars is not None:
         if isinstance(fixpars, int):
@@ -152,13 +153,13 @@ def xdeconv(ydata, ycovar, xamp, xmean, xcovar,
         fix = None
 
     with np.errstate(divide='ignore'):
-        oldloglike = em_step(w, S, alpha, m, V, Rt=Rt, logweights=wgh,
-                             classes=clss, fixpars=fix, regularization=regular)
+        oldloglike = em_step(w, S, alpha, m, V, wgh, clss,
+                             Rt=Rt, fixpars=fix, regularization=regular)
     decreased = False
     for iter in range(1, maxiter):
         with np.errstate(divide='ignore'):
-            loglike = em_step(w, S, alpha, m, V, Rt=Rt, logweights=wgh,
-                              classes=clss, fixpars=fix, regularization=regular)
+            loglike = em_step(w, S, alpha, m, V, wgh, clss, 
+                              Rt=Rt, fixpars=fix, regularization=regular)
         diff = loglike - oldloglike
         if diff < 0:
             decreased = True
@@ -171,10 +172,11 @@ def xdeconv(ydata, ycovar, xamp, xmean, xcovar,
                           RuntimeWarning)
         if decreased:
             warnings.warn(
-                f"Log-likelihood decreased during the fitting procedure", RuntimeWarning)
+                f"Log-likelihood decreased during the fitting procedure",
+                RuntimeWarning)
 
         # Saves back all the data: sure this is necessary?
-        xamp[:] = alpha
+        xamp[:] = alpha.T
         xmean[:, :] = m.T
         xcovar[:, :, :] = V.T
     return oldloglike

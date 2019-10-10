@@ -9,6 +9,7 @@ from libc.stdlib cimport malloc, calloc, free
 from libc.math cimport exp, log
 import numpy as np
 from numpy cimport float64_t, uint8_t
+from numpy.math cimport INFINITY
 from scipy.linalg.cython_lapack cimport dpotrf, dtrtri
 from scipy.linalg.cython_blas cimport dtrmv, dtrmm, ddot, dgemv, dgemm, dsyrk, dsymm
 
@@ -30,6 +31,10 @@ FIX_ALL = _FIX_ALL
 
 cdef double logsumexp(double *x, int n) nogil:
     """Computes the log of the sum of the exponentials."""
+    if n == 0:
+        return -INFINITY
+    elif n == 1:
+        return x[0]
     cdef int i
     cdef double result = 0.0
     cdef double xmax = x[0]
@@ -306,9 +311,10 @@ cdef int e_single_step(double[::1] w, double[::1,:] Rt, double[::1,:] S,
     
 @cython.binding(True)
 cpdef double em_step(double[::1,:] w, double[::1,:,:] S, 
-                     double[::1] alpha, double[::1,:] m, double[::1,:,:] V,
+                     double[::1] alpha, double[::1,:] m, 
+                     double[::1,:,:] V,
+                     double[::1] logweights, double[::1,:] logclasses,
                      double[::1,:,:] Rt=None, 
-                     double[::1] logweights=None, double[::1,:] classes=None,
                      uint8_t[::1] fixpars=None, double regularization=0.0):
     """Perform a single E-M step for the extreme deconvolution.
     
@@ -335,6 +341,14 @@ cpdef double em_step(double[::1,:] w, double[::1,:,:] S,
         Array of covariance matrices of the multivariate Gaussians, updated 
         at the exit with the new covariance matrices.
     
+    logweights: array-like, shape (n,) 
+        Log-weights for each observation, or None. Use logweights = np.zeros(n)
+        to prevent the use of weights.
+        
+    logclasses: array-like, shape (k, n) 
+        Log-probabilities that each observation belong to a given cluster. Use
+        logclasses = np.zeros((k,n)) - np.log(k) to prevent the use of classes.
+        
     Optional Parameters
     -------------------
     Rt: array-like, shape (d, r, n)
@@ -344,13 +358,7 @@ cpdef double em_step(double[::1,:] w, double[::1,:,:] S,
         and that no project is performed (equivalently: R is an array if 
         identity matrices).
         
-    logweights: array-like, shape (n,) 
-        Log-weights for each observation, or None
-        
-    classes: array-like, shape (n, k) 
-        Log-probabilities that each observation belong to a given cluster.
-        
-    fixpars: array-like, shape (k)
+    fixpars: array-like, shape (k,)
         Array of bitmasks with the FIX_AMP, FIX_MEAN, and FIX_AMP combinations.
     
     regularization: double, default=0
@@ -362,7 +370,7 @@ cpdef double em_step(double[::1,:] w, double[::1,:,:] S,
     # VRt: (d, r), product VRt = V*Rt
     #
     # Results of the E-step
-    # q: (k)
+    # q: (k,)
     # b: (d, k)
     # B: (d, d, k)
     #
@@ -389,16 +397,11 @@ cpdef double em_step(double[::1,:] w, double[::1,:,:] S,
     cdef double *m2
     
     # Set the weight variables
-    if logweights is None:
-        noweights = 1
-        logweights = np.zeros(n)
-        weightsum = n
-    else:
-        # TODO: perhaps move the computation of weightsum to the main function
-        weightsum = 0.0
-        for i in prange(n, nogil=True):
-            weightsum += exp(logweights[i])
-    
+    # TODO: perhaps move the computation of weightsum to the main function
+    weightsum = 0.0
+    for i in prange(n, nogil=True):
+        weightsum += exp(logweights[i])
+
     # Set the fixed alpha variables
     sumfreealpha = 1.0
     numfixalpha = 0
@@ -410,7 +413,7 @@ cpdef double em_step(double[::1,:] w, double[::1,:,:] S,
     m0 = <double *>calloc(k, sizeof(double))
     m1 = <double *>calloc(k*d, sizeof(double))
     m2 = <double *>calloc(k*d*d, sizeof(double))
-    with nogil, parallel(num_threads=10):
+    with nogil, parallel():
         # Allocates the block-local variables
         x = <double *>malloc(r*sizeof(double))
         T = <double *>malloc(r*r*sizeof(double))
@@ -437,9 +440,7 @@ cpdef double em_step(double[::1,:] w, double[::1,:,:] S,
                                   m[:,j], V[:,:,j], 
                                   x, T, VRt,
                                   &q[j], &b[j*d], &B[j*d*d])
-                q[j] += logalpha[j]
-                if classes is not None:
-                    q[j] += classes[j, i]
+                q[j] += logalpha[j] + logclasses[j, i]
             qsum = logsumexp(q, k)
             loglike += qsum
             for j in range(k):
