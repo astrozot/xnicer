@@ -2,7 +2,7 @@ import numpy as np
 from scipy.special import logsumexp
 import warnings
 from .em_step import log_likelihoods, py_e_single_step, em_step
-from .em_step import FIX_NONE, FIX_AMP, FIX_MEAN, FIX_COVAR, FIX_ALL, em_step
+from .em_step import FIX_NONE, FIX_AMP, FIX_CLASS, FIX_MEAN, FIX_COVAR, FIX_ALL, em_step
 from . import xdeconv
 
 def py_log_likelihoods(deltas, covars, results=None):
@@ -260,7 +260,7 @@ def test_single_em_step():
   
 
 def generate_test_pyxc(xamp, xmean, xcovar, ycovar, npts=1000,
-                       use_weight=False, use_projection=False, 
+                       xclass=None, use_weight=False, use_projection=False, 
                        use_classes=False, fixpars=None, seed=1, 
                        confusion=0.01, silent=True, **kw):
     """Create a full test for the extreme deconvolution algorithm.
@@ -271,7 +271,7 @@ def generate_test_pyxc(xamp, xmean, xcovar, ycovar, npts=1000,
     
     Parameters
     ----------
-    xamp: array-like, shape (k,) or (k, c) 
+    xamp: array-like, shape (k,)
         Array with the statistical weight of each Gaussian.
         
     xmean: array-like, shape (k, dx)
@@ -293,6 +293,9 @@ def generate_test_pyxc(xamp, xmean, xcovar, ycovar, npts=1000,
 
     npts: int, default=1000
         Number of samples to generate.
+       
+    xclass: array-like, shape (k, c)
+        Array with the statistical weight of each Gaussian for each class.
         
     use_weight: string, default=False
         Can be False (do not user weights), 'uniform' (use the same value
@@ -337,9 +340,13 @@ def generate_test_pyxc(xamp, xmean, xcovar, ycovar, npts=1000,
     xmean = np.array(xmean)
     xcovar = np.array(xcovar)
     ycovar = np.array(ycovar)
-    if xamp.ndim == 1:
-        xamp = xamp[:,np.newaxis]
-    kdim, cdim = xamp.shape
+    kdim = xamp.shape[0]
+    if xclass is not None:
+        xclass = np.array(xclass)
+        cdim = xclass.shape[1]
+    else:
+        cdim = 1
+        xclass = np.ones((kdim, cdim))
     xdim = xmean.shape[1]
     if ycovar.ndim > 0:
         ydim = ycovar.shape[0]
@@ -375,8 +382,8 @@ def generate_test_pyxc(xamp, xmean, xcovar, ycovar, npts=1000,
             ycovar = np.tile(ycovar, (npts, 1, 1))
 
     sqrt_xcovar = np.linalg.cholesky(xcovar)
-    c, cc = divmod(np.searchsorted(np.cumsum(xamp), np.random.rand(npts)),
-                   cdim)
+    c, cc = divmod(np.searchsorted(np.cumsum(xamp * xclass), 
+                                   np.random.rand(npts)), cdim)
     xdata = np.random.randn(npts, xdim)
     xdata = np.einsum("...ij,...j->...i", sqrt_xcovar[c, :, :], xdata) + \
         xmean[c, :]
@@ -441,9 +448,14 @@ def generate_test_pyxc(xamp, xmean, xcovar, ycovar, npts=1000,
         xamp_t = xamp.copy()
         free = (fixpars & FIX_AMP == 0)
         if np.any(free):
-            xamp_t[free,:] += confusion * np.random.rand(np.sum(free), cdim)
-            xamp_t[free,:] *= (1.0 - np.sum(xamp_t[~free,:])) / \
-                np.sum(xamp_t[free,:])
+            xamp_t[free] += confusion * np.random.rand(np.sum(free))
+            xamp_t[free] *= (1.0 - np.sum(xamp_t[~free])) / \
+                np.sum(xamp_t[free])
+        xclass_t = xclass.copy()
+        free = (fixpars & FIX_CLASS == 0)
+        if np.any(free):
+            xclass_t[free, :] += confusion * np.random.rand(np.sum(free), cdim)
+            xclass_t[free, :] /= np.sum(xclass_t[free, :], axis=1)[:, np.newaxis]
         free = (fixpars & FIX_MEAN == 0)
         xmean_t = xmean.copy()
         if np.any(free):
@@ -454,8 +466,10 @@ def generate_test_pyxc(xamp, xmean, xcovar, ycovar, npts=1000,
         if np.any(free):
             xcovar_t[free, :, :] *= (1 + confusion * np.random.randn(np.sum(free), xdim, xdim))
     else:
-        xamp_t = xamp + confusion * np.random.rand(kdim, cdim)
+        xamp_t = xamp + confusion * np.random.rand(kdim)
         xamp_t /= np.sum(xamp_t)
+        xclass_t = xclass + confusion * np.random.rand(kdim, cdim)
+        xclass_t /= np.sum(xclass_t, axis=1)[:, np.newaxis]
         xmean_t = xmean + confusion * \
             np.diagonal(xcovar, axis1=1, axis2=2) * np.random.randn(kdim, xdim)
         xcovar_t = xcovar * (1 + confusion * np.random.randn(*xcovar.shape))
@@ -464,8 +478,9 @@ def generate_test_pyxc(xamp, xmean, xcovar, ycovar, npts=1000,
     with warnings.catch_warnings():
         if silent:
             warnings.simplefilter('ignore')
-        xdeconv(ydata, ycovar, xamp_t, xmean_t, xcovar_t, projection=projection, 
-                weight=weight, classes=classes, fixpars=fixpars, **kw)
+        xdeconv(ydata, ycovar, xamp_t, xmean_t, xcovar_t, xclass=xclass_t, 
+                projection=projection, weight=weight, classes=classes, 
+                fixpars=fixpars, **kw)
     # extreme_deconvolution(ydata, ycovar, xamp_t, xmean_t, xcovar_t, 
     # projection=projection, weight=weight)
 
@@ -486,17 +501,13 @@ def generate_test_pyxc(xamp, xmean, xcovar, ycovar, npts=1000,
     eps = 1e-8
     # From a Multinomial distribution...
     amp_err = np.sqrt(xamp*(1-xamp) / eff_npts) + eps
-    # Collapse all classes
-    yamp = np.sum(xamp, axis=1)
-    yamp_t = np.sum(xamp_t, axis=1)
-    amp_err = np.sqrt(yamp*(1-yamp) / eff_npts) + eps
     # From a Multivariate Normal distribution
     eff_var = np.diagonal(eff_covar, axis1=1, axis2=2)
-    mean_err = np.sqrt(eff_var / (eff_npts * yamp[:, np.newaxis])) + eps
+    mean_err = np.sqrt(eff_var / (eff_npts * xamp[:, np.newaxis])) + eps
     # From a Whishart distribution...
     cov_err = np.sqrt((eff_covar**2 + np.einsum('...i,...j->...ij', eff_var, eff_var)) /
-                      ((eff_npts - 1) * yamp[:, np.newaxis, np.newaxis])) + eps
-    return ((yamp_t, (yamp_t - yamp) / amp_err),
+                      ((eff_npts - 1) * xamp[:, np.newaxis, np.newaxis])) + eps
+    return ((xamp_t, (xamp_t - xamp) / amp_err),
             (xmean_t, (xmean_t - xmean) / mean_err),
             (xcovar_t, (xcovar_t - xcovar) / cov_err))
 
@@ -648,8 +659,8 @@ def test_pyxc_2d_classes():
         for iter in range(5):
             npts = [100, 300, 1000, 3000, 10000][iter]
             print(npts)
-            a, b, c = generate_test_pyxc([[0.49, 0.01], [0.01, 0.49]], [[3.0, 1.0], [-3.0, -1.0]], [1.0, 0.5], [1.0, 1.0],
-                                         use_projection=False, npts=npts, seed=iter, silent=True,
+            a, b, c = generate_test_pyxc([0.5, 0.5], [[3.0, 1.0], [-3.0, -1.0]], [1.0, 0.5], [1.0, 1.0],
+                                         xclass=np.identity(2), use_projection=False, npts=npts, seed=iter, silent=True,
                                          use_classes=use_classes)
             assert np.all(np.abs(a[1]) < 4), f"|a[1]| = {np.max(np.abs(a[1])):.2f} > 4"
             assert np.all(np.abs(b[1]) < 4), f"|b[1]| = {np.max(np.abs(b[1])):.2f} > 4"
@@ -658,7 +669,8 @@ def test_pyxc_2d_classes():
         for iter in range(5):
             npts = [100, 300, 1000, 3000, 10000][iter]
             print(npts)
-            a, b, c = generate_test_pyxc([[0.4, 0.1], [0.2, 0.3]], [[3.0, 1.0], [-3.0, -1.0]], [1.0, 0.5], [1.0, 1.0],
+            a, b, c = generate_test_pyxc([0.5, 0.5], [[3.0, 1.0], [-3.0, -1.0]], [1.0, 0.5], [1.0, 1.0],
+                                         xclass=[[0.8, 0.2], [0.4, 0.6]],
                                          use_projection=False, npts=npts, seed=iter, silent=True,
                                          use_classes=use_classes)
             assert np.all(
@@ -671,7 +683,8 @@ def test_pyxc_2d_classes():
         for iter in range(5):
             npts = [100, 300, 1000, 3000, 10000][iter]
             print(npts)
-            a, b, c = generate_test_pyxc([[0.49, 0.01], [0.01, 0.49]], [[3.0, 1.0], [-3.0, -1.0]], [1.0, 0.5], [1.0, 1.0],
+            a, b, c = generate_test_pyxc([0.5, 0.5], [[3.0, 1.0], [-3.0, -1.0]], [1.0, 0.5], [1.0, 1.0],
+                                         xclass=np.identity(2),
                                          use_projection='random', npts=npts, seed=iter, silent=True,
                                          use_classes=use_classes)
             assert np.all(np.abs(a[1]) < 3), f"|a[1]| = {np.max(np.abs(a[1])):.2f} > 3"
@@ -681,7 +694,8 @@ def test_pyxc_2d_classes():
         for iter in range(5):
             npts = [100, 300, 1000, 3000, 10000][iter]
             print(npts)
-            a, b, c = generate_test_pyxc([[0.24, 0.01], [0.01, 0.74]], [[3.0, 1.0], [-3.0, -1.0]], [1.0, 0.5], [1.0],
+            a, b, c = generate_test_pyxc([0.25, 0.75], [[3.0, 1.0], [-3.0, -1.0]], [1.0, 0.5], [1.0],
+                                         xclass=np.identity(2),
                                          use_projection='alternating', npts=npts, seed=iter, silent=True,
                                          use_classes=use_classes)
             assert np.all(np.abs(a[1]) < 3), f"|a[1]| = {np.max(np.abs(a[1])):.2f} > 3"
@@ -691,14 +705,15 @@ def test_pyxc_2d_classes():
         for iter in range(3):
             npts = [1000, 3000, 10000][iter]
             print(npts)
-            a, b, c = generate_test_pyxc([[0.23, 0.01, 0.01], [0.01, 0.23, 0.01], [0.01, 0.01, 0.48]],
+            a, b, c = generate_test_pyxc([0.25, 0.25, 0.50],
                                          [[0.0, 0.0], [4.0, 2.0], [-3.0, 1.0]], [0.8, 1.2, 1.0], 1,
+                                         xclass=np.identity(3),
                                          use_projection='identity', npts=npts, seed=1, silent=True,
                                          use_classes=use_classes)
             assert np.all(
                 np.abs(a[1]) < 5), f"|a[1]| = {np.max(np.abs(a[1])):.2f} > 5"
             assert np.all(np.abs(b[1]) < 5), f"|b[1]| = {np.max(np.abs(b[1])):.2f} > 5"
-            assert np.all(np.abs(c[1]) < 5), f"|c[1]| = {np.max(np.abs(c[1])):.2f} > 5"
+            assert np.all(np.abs(c[1]) < 6), f"|c[1]| = {np.max(np.abs(c[1])):.2f} > 6"
         print("Done")
 
 

@@ -49,7 +49,7 @@ def check_numpy_array(name, arr, shapes):
 
 
 def xdeconv(ydata, ycovar, xamp, xmean, xcovar,
-            projection=None, weight=None, classes=None,
+            xclass=None, projection=None, weight=None, classes=None,
             fixpars=None, tol=1.e-6, maxiter=int(1e9),
             regular=0.0):
     """Perform a full extreme deconvolution.
@@ -62,7 +62,7 @@ def xdeconv(ydata, ycovar, xamp, xmean, xcovar,
     ycovar: array-like, shape (n, dy, dy)
         Array of covariances of the observational data ydata.
     
-    xamp: array-like, shape (k) or (k, c)
+    xamp: array-like, shape (k)
         Array with the statistical weight of each Gaussian. Updated at the
         exit with the new weights.
         
@@ -76,6 +76,11 @@ def xdeconv(ydata, ycovar, xamp, xmean, xcovar,
     
     Optional Parameters
     -------------------
+    xclass: array-like, shape (k, c)
+        Array with the statistical weight of each Gaussian for each class.
+        Updated at the exit with the new weights. The sum of all classes for
+        a single cluster k is unity.
+    
     projection: array-like, shape (n, dy, dx)
         Array of projection matrices: for each datum (n), it is a matrix
         that transform the original d-dimensional vector into the observed
@@ -116,16 +121,15 @@ def xdeconv(ydata, ycovar, xamp, xmean, xcovar,
     else:
         S = np.asfortranarray(ycovar.T, dtype=np.float64)
 
-    tmp = check_numpy_array("xamp", xamp, [(-1,), (-1, -1)])
-    if len(tmp) == 1:
-        kdim = tmp[0]
-        cdim = 1
-        alpha = np.asfortranarray(xamp.T, dtype=np.float64)
-        alphaclass = np.ones((cdim, kdim), dtype=np.float64, order='F')
+    kdim, = check_numpy_array("xamp", xamp, (-1,))
+    alpha = np.asfortranarray(xamp.T, dtype=np.float64)
+    if xclass is not None:
+        kdim, cdim = check_numpy_array("xclass", xclass, (kdim, -1))
+        alphaclass = np.asfortranarray(xclass.T, dtype=np.float)
+        alphaclass /= np.sum(alphaclass, axis=1)[:, np.newaxis]
     else:
-        kdim, cdim = tmp
-        alpha = np.asfortranarray(np.sum(xamp, axis=1), dtype=np.float64)
-        alphaclass = np.asfortranarray(xamp.T / alpha, dtype=np.float)
+        cdim = 1
+        alphaclass = np.ones((cdim, kdim), dtype=np.float64, order='F')
 
     _, xdim = check_numpy_array("xmean", xmean, (kdim, -1))
     m = np.asfortranarray(xmean.T, dtype=np.float64)
@@ -184,7 +188,9 @@ def xdeconv(ydata, ycovar, xamp, xmean, xcovar,
 
         # Saves back all the data: sure this is necessary? It is for sure for
         # alpha
-        xamp[:] = (alpha * alphaclass).T
+        xamp[:] = alpha.T
+        if xclass is not None:
+            xclass[:, :] = alphaclass.T
         xmean[:, :] = m.T
         xcovar[:, :, :] = V.T
     return oldloglike
