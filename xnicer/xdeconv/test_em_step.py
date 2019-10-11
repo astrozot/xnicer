@@ -36,7 +36,7 @@ def test_log_likelihoods():
                 generate_test_log_likelihoods(n, r, seed=seed)
                 
 
-def py_em_step(w, S, alpha, m, V, logweights, logclasses, Rt=None,
+def py_em_step(w, S, alpha, alphaclass, m, V, logweights, logclasses, Rt=None,
                fixpars=None, regularization=0.0):
     """Perform an EM step using a pure Python code
     
@@ -51,10 +51,15 @@ def py_em_step(w, S, alpha, m, V, logweights, logclasses, Rt=None,
     S: array-like, shape (r, r, n)
         Array of covariances of the observational data w.
     
-    alpha: array-like, shape (c, k)
+    alpha: array-like, shape (k)
         Array with the statistical weight of each Gaussian. Updated at the
         exit with the new weights.
     
+    alphaclass: array-like, shape (c, k)
+        Array with the statistical weight per class of each Gaussian. Updated
+        at the exit with the new weights. Runs over the k clusters and the c
+        classes.
+
     m: array-like, shape (d, k)
         Centers of multivariate Gaussians, updated at the exit with the new
         centers.
@@ -89,11 +94,11 @@ def py_em_step(w, S, alpha, m, V, logweights, logclasses, Rt=None,
     n = w.shape[1]
     d = m.shape[0]
     k = m.shape[1]
-    c = alpha.shape[0]
+    c = alphaclass.shape[0]
     q = np.zeros(1)
     b = np.zeros(d)
     B = np.zeros((d, d))
-    qs = np.zeros((n, c, k), order='F')
+    qs = np.zeros((n, k), order='F')
     bs = np.zeros((n, k, d), order='F')
     Bs = np.zeros((n, k, d, d), order='F')
     for i in range(n):
@@ -104,17 +109,19 @@ def py_em_step(w, S, alpha, m, V, logweights, logclasses, Rt=None,
         for j in range(k):
             py_e_single_step(w[:, i], np.ascontiguousarray(Ri), S[:, :, i].T, m[:, j], V[:, :, j].T,
                              q, b, B)
-            for l in range(c):
-                qs[i, l, j] = np.log(alpha[l, j]) + logclasses[l, i] + q[0]
+            qs[i, j] = np.sum(alphaclass[:,j] * np.exp(logclasses[:,i])) * \
+                alpha[j] * np.exp(q[0]) 
             bs[i, j, :] = m[:, j] + b
             Bs[i, j, :] = B
     # Normalize qs
-    qs = np.exp(qs)
-    qs /= np.sum(qs, axis=(1,2))[:, np.newaxis, np.newaxis]
+    # qs = np.exp(qs)
+    qs /= np.sum(qs, axis=1)[:, np.newaxis]
     # M-step
-    alpha[:, :] = np.sum(qs, axis=0) / n
+    alphaclass[:, :] = np.sum(qs[:, np.newaxis, :] * 
+                              np.exp(logclasses.T[:, :, np.newaxis]), axis=0) / n
+    alpha[:] = np.sum(alphaclass, axis=0) 
+    alphaclass /= alpha[np.newaxis, :]
     # Now collapse all class coordinates
-    qs = np.sum(qs, axis=1)
     qj = np.sum(qs, axis=0)
     m[:, :] = (np.sum(qs[:, :, np.newaxis]*bs, axis=0) / qj[:, np.newaxis]).T
     V[:, :, :] = np.sum(qs[:, :, np.newaxis, np.newaxis] *
@@ -210,8 +217,10 @@ def generate_test_single_em_step(d, r, n, k, c, seed=1):
     m = np.asfortranarray(np.random.rand(d, k))
     V = np.random.rand(d, d, k)
     V = np.asfortranarray(np.einsum('ij...,kj...->ik...', V, V))
-    alpha = np.asfortranarray(np.random.rand(c, k))
+    alpha = np.random.rand(k)
     alpha /= np.sum(alpha)
+    alphaclass = np.asfortranarray(np.random.rand(c, k))
+    alphaclass /= np.sum(alphaclass, axis=0)[np.newaxis, :]
     if c > 1:
         classes = np.asfortranarray(np.random.rand(c, n))
         classes /= np.sum(classes, axis=0)[np.newaxis, :]
@@ -221,17 +230,20 @@ def generate_test_single_em_step(d, r, n, k, c, seed=1):
     weights = np.zeros(n, dtype=np.float64, order='F')
 
     alpha1 = alpha.copy('A')
+    alphaclass1 = alphaclass.copy('A')
     m1 = m.copy('A')
     V1 = V.copy('A')
     alpha2 = alpha.copy('A')
+    alphaclass2 = alphaclass.copy('A')
     m2 = m.copy('A')
     V2 = V.copy('A')
     weights = np.zeros(n, order='F')
 
-    em_step(w, S, alpha1, m1, V1, weights, classes, Rt=Rt)
-    py_em_step(w, S, alpha2, m2, V2, weights, classes, Rt=Rt)
+    em_step(w, S, alpha1, alphaclass1, m1, V1, weights, classes, Rt=Rt)
+    py_em_step(w, S, alpha2, alphaclass2, m2, V2, weights, classes, Rt=Rt)
 
     assert np.allclose(alpha1, alpha2)
+    assert np.allclose(alphaclass1, alphaclass2)
     assert np.allclose(m1, m2)
     assert np.allclose(V1, V2)
 
@@ -402,8 +414,11 @@ def generate_test_pyxc(xamp, xmean, xcovar, ycovar, npts=1000,
         if use_classes == 'exact':
             classes[np.arange(npts), cc] = 1
         elif use_classes == 'approximate':
-            classes[:, :] = 0.25 / (cdim - 1)
-            classes[np.arange(npts), cc] = 0.75
+            success = 0.75
+            classes[:, :] = (1.0 - success) / (cdim - 1)
+            goods = np.random.rand(npts) < success
+            classes[np.arange(npts)[goods], cc[goods]] = success
+            classes[np.arange(npts)[~goods], (cc[~goods]+1) % cdim] = success
         elif use_classes == 'random':
             classes = np.random.rand(npts, cdim)
             classes /= np.sum(classes, axis=1)[:, np.newaxis]
@@ -472,7 +487,6 @@ def generate_test_pyxc(xamp, xmean, xcovar, ycovar, npts=1000,
     # From a Multinomial distribution...
     amp_err = np.sqrt(xamp*(1-xamp) / eff_npts) + eps
     # Collapse all classes
-    print(xamp_t)
     yamp = np.sum(xamp, axis=1)
     yamp_t = np.sum(xamp_t, axis=1)
     amp_err = np.sqrt(yamp*(1-yamp) / eff_npts) + eps
@@ -482,7 +496,7 @@ def generate_test_pyxc(xamp, xmean, xcovar, ycovar, npts=1000,
     # From a Whishart distribution...
     cov_err = np.sqrt((eff_covar**2 + np.einsum('...i,...j->...ij', eff_var, eff_var)) /
                       ((eff_npts - 1) * yamp[:, np.newaxis, np.newaxis])) + eps
-    return ((xamp_t, (xamp_t - xamp) / amp_err),
+    return ((yamp_t, (yamp_t - yamp) / amp_err),
             (xmean_t, (xmean_t - xmean) / mean_err),
             (xcovar_t, (xcovar_t - xcovar) / cov_err))
 
@@ -629,60 +643,58 @@ def test_pyxc_2d_projection():
 
 def test_pyxc_2d_classes():
     """Test using 2D data w/ classes and projections"""
-    for use_classes in ['exact', 'approximate', 'random', 'uniform']:
-        use_classes = 'approximate'
+    for use_classes in ['exact', 'random', 'uniform', 'approximate']:
         print(use_classes)
-        for iter in range(0*5):
+        for iter in range(5):
             npts = [100, 300, 1000, 3000, 10000][iter]
             print(npts)
             a, b, c = generate_test_pyxc([[0.49, 0.01], [0.01, 0.49]], [[3.0, 1.0], [-3.0, -1.0]], [1.0, 0.5], [1.0, 1.0],
                                          use_projection=False, npts=npts, seed=iter, silent=True,
                                          use_classes=use_classes)
             assert np.all(np.abs(a[1]) < 4), f"|a[1]| = {np.max(np.abs(a[1])):.2f} > 4"
-            assert np.all(np.abs(b[1]) < 4), f"|b[1]| = {np.max(np.abs(b[1])):.2f} > 3"
-            assert np.all(np.abs(c[1]) < 3), f"|c[1]| = {np.max(np.abs(c[1])):.2f} > 3"
+            assert np.all(np.abs(b[1]) < 4), f"|b[1]| = {np.max(np.abs(b[1])):.2f} > 4"
+            assert np.all(np.abs(c[1]) < 4), f"|c[1]| = {np.max(np.abs(c[1])):.2f} > 4"
 
-        for iter in range(0*5):
+        for iter in range(5):
             npts = [100, 300, 1000, 3000, 10000][iter]
+            print(npts)
             a, b, c = generate_test_pyxc([[0.4, 0.1], [0.2, 0.3]], [[3.0, 1.0], [-3.0, -1.0]], [1.0, 0.5], [1.0, 1.0],
                                          use_projection=False, npts=npts, seed=iter, silent=True,
                                          use_classes=use_classes)
             assert np.all(
                 np.abs(a[1]) < 4), f"|a[1]| = {np.max(np.abs(a[1])):.2f} > 4"
             assert np.all(
-                np.abs(b[1]) < 4), f"|b[1]| = {np.max(np.abs(b[1])):.2f} > 3"
+                np.abs(b[1]) < 4), f"|b[1]| = {np.max(np.abs(b[1])):.2f} > 4"
             assert np.all(
-                np.abs(c[1]) < 3), f"|c[1]| = {np.max(np.abs(c[1])):.2f} > 3"
+                np.abs(c[1]) < 4), f"|c[1]| = {np.max(np.abs(c[1])):.2f} > 4"
 
-        for iter in range(0*5):
+        for iter in range(5):
             npts = [100, 300, 1000, 3000, 10000][iter]
+            print(npts)
             a, b, c = generate_test_pyxc([[0.49, 0.01], [0.01, 0.49]], [[3.0, 1.0], [-3.0, -1.0]], [1.0, 0.5], [1.0, 1.0],
                                          use_projection='random', npts=npts, seed=iter, silent=True,
                                          use_classes=use_classes)
-            assert np.all(np.abs(a[1]) < 4), f"|a[1]| = {np.max(np.abs(a[1])):.2f} > 4"
-            assert np.all(np.abs(b[1]) < 4), f"|b[1]| = {np.max(np.abs(b[1])):.2f} > 4"
-            assert np.all(np.abs(c[1]) < 4), f"|c[1]| = {np.max(np.abs(c[1])):.2f} > 4"
+            assert np.all(np.abs(a[1]) < 3), f"|a[1]| = {np.max(np.abs(a[1])):.2f} > 3"
+            assert np.all(np.abs(b[1]) < 3), f"|b[1]| = {np.max(np.abs(b[1])):.2f} > 3"
+            assert np.all(np.abs(c[1]) < 3), f"|c[1]| = {np.max(np.abs(c[1])):.2f} > 3"
 
-        for iter in range(0*5):
+        for iter in range(5):
             npts = [100, 300, 1000, 3000, 10000][iter]
-            a, b, c = generate_test_pyxc([[0.39, 0.01], [0.01, 0.59]], [[3.0, 1.0], [-3.0, -1.0]], [1.0, 0.5], [1.0],
+            print(npts)
+            a, b, c = generate_test_pyxc([[0.24, 0.01], [0.01, 0.74]], [[3.0, 1.0], [-3.0, -1.0]], [1.0, 0.5], [1.0],
                                          use_projection='alternating', npts=npts, seed=iter, silent=True,
                                          use_classes=use_classes)
-            assert np.all(np.abs(a[1]) < 6), f"|a[1]| = {np.max(np.abs(a[1])):.2f} > 6"
-            assert np.all(np.abs(b[1]) < 9), f"|b[1]| = {np.max(np.abs(b[1])):.2f} > 12"
-            assert np.all(np.abs(c[1]) < 12), f"|c[1]| = {np.max(np.abs(c[1])):.2f} > 12"
+            assert np.all(np.abs(a[1]) < 3), f"|a[1]| = {np.max(np.abs(a[1])):.2f} > 3"
+            assert np.all(np.abs(b[1]) < 3), f"|b[1]| = {np.max(np.abs(b[1])):.2f} > 3"
+            assert np.all(np.abs(c[1]) < 6), f"|c[1]| = {np.max(np.abs(c[1])):.2f} > 6"
 
         for iter in range(3):
             npts = [1000, 3000, 10000][iter]
-            npts = 100000
-            a, b, c = generate_test_pyxc([[0.23, 0.01, 0.01], [0.01, 0.23, 0.01], [0.01, 0.01, 0.48]], 
-                                         [[0.0, 0.0], [4.0, 2.0], [-3.0, 1.0]], [0.8, 1.2, 1.0], 1,
-                                         use_projection='identity', npts=npts, seed=1, silent=True,
-                                         use_classes=use_classes)
+            print(npts)
             a, b, c = generate_test_pyxc([[0.23, 0.01, 0.01], [0.01, 0.23, 0.01], [0.01, 0.01, 0.48]],
                                          [[0.0, 0.0], [4.0, 2.0], [-3.0, 1.0]], [0.8, 1.2, 1.0], 1,
                                          use_projection='identity', npts=npts, seed=1, silent=True,
-                                         use_classes=False)
+                                         use_classes=use_classes)
             assert np.all(
                 np.abs(a[1]) < 5), f"|a[1]| = {np.max(np.abs(a[1])):.2f} > 5"
             assert np.all(np.abs(b[1]) < 5), f"|b[1]| = {np.max(np.abs(b[1])):.2f} > 5"

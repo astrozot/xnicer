@@ -6,7 +6,7 @@ import cython
 from cython.parallel import prange, parallel
 
 from libc.stdlib cimport malloc, calloc, free
-from libc.math cimport exp, log
+from libc.math cimport exp, log, isinf
 import numpy as np
 from numpy cimport float64_t, uint8_t
 from numpy.math cimport INFINITY
@@ -20,12 +20,16 @@ cdef int _FIX_NONE = 0
 cdef int _FIX_AMP = 1
 cdef int _FIX_MEAN = 2
 cdef int _FIX_COVAR = 4
-cdef int _FIX_ALL = _FIX_AMP + _FIX_MEAN + _FIX_COVAR
+cdef int _FIX_CLASS = 8
+cdef int _FIX_AMPCLASS = _FIX_AMP + _FIX_CLASS
+cdef int _FIX_ALL = _FIX_AMP + _FIX_MEAN + _FIX_COVAR + _FIX_CLASS
 
 FIX_NONE = _FIX_NONE
 FIX_AMP = _FIX_AMP
 FIX_MEAN = _FIX_MEAN
 FIX_COVAR = _FIX_COVAR
+FIX_CLASS = _FIX_CLASS
+FIX_AMPCLASS = _FIX_AMPCLASS
 FIX_ALL = _FIX_ALL
 
 
@@ -41,6 +45,8 @@ cdef double logsumexp(double *x, int n) nogil:
     for i in range(1, n):
         if x[i] > xmax:
             xmax = x[i]
+    if isinf(xmax):
+        return xmax
     for i in range(n):
         result += exp(x[i] - xmax) 
     return xmax + log(result)
@@ -311,8 +317,8 @@ cdef int e_single_step(double[::1] w, double[::1,:] Rt, double[::1,:] S,
     
 @cython.binding(True)
 cpdef double em_step(double[::1,:] w, double[::1,:,:] S, 
-                     double[::1,:] alpha, double[::1,:] m, 
-                     double[::1,:,:] V, 
+                     double[::1] alpha, double[::1,:] alphaclass,
+                     double[::1,:] m, double[::1,:,:] V, 
                      double[::1] logweights, double[::1,:] logclasses,
                      double[::1,:,:] Rt=None, 
                      uint8_t[::1] fixpars=None, double regularization=0.0):
@@ -329,11 +335,14 @@ cpdef double em_step(double[::1,:] w, double[::1,:,:] S,
     S: array-like, shape (r, r, n)
         Array of covariances of the observational data w.
     
-    alpha: array-like, shape (c, k)
-        Array with the statistical weight of each Gaussian. Updated at the
-        exit with the new weights. Runs over the k clusters and the c
-        classes.
+    alpha: array-like, shape (k,)
+        Array with the statistical weight of each Gaussian.
         
+    alphaclass: array-like, shape (c, k)
+        Array with the statistical weight per class of each Gaussian. Updated
+        at the exit with the new weights. Runs over the k clusters and the c
+        classes.
+
     m: array-like, shape (d, k)
         Centers of multivariate Gaussians, updated at the exit with the new
         centers.
@@ -382,16 +391,17 @@ cpdef double em_step(double[::1,:] w, double[::1,:,:] S,
     # m1: (d, k), equivalent to the new m
     # m2: (d, d, k), equivalent to the new V
     cdef int r=w.shape[0], n=w.shape[1], d=m.shape[0], k=m.shape[1]
-    cdef int c=alpha.shape[0]
-    cdef int i, j, l, n1, n2, j_, l_, n1_, n2_, noweights, numfreealpha
-    cdef double qsum, weightsum, loglike=0, exp_q, sumfreealpha
-    cdef double[::1,:] logalpha = np.log(alpha)
+    cdef int c=alphaclass.shape[0]
+    cdef int i, j, l, n1, n2, j_, l_, n1_, n2_, noweights, numfixalpha
+    cdef double qsum, weightsum, loglike=0, exp_q, sumalpha, sumfreealpha
+    cdef double[::1] logalpha = np.log(alpha)
+    cdef double[::1,:] logalphaclass = np.log(alphaclass)
     # All these are local variables
     cdef double *x
     cdef double *T
     cdef double *VRt
     cdef double *q
-    cdef double *p
+    cdef double *qclass
     cdef double *b
     cdef double *B
     cdef double *M0_local
@@ -415,8 +425,7 @@ cpdef double em_step(double[::1,:] w, double[::1,:,:] S,
     for j in range(k):
         if fixpars is not None and fixpars[j] & _FIX_AMP:
             numfixalpha += 1
-            for l in range(c):
-                sumfreealpha -= alpha[l, j]
+            sumfreealpha -= alpha[j]
     M0 = <double *>calloc(k, sizeof(double))
     m0 = <double *>calloc(k*c, sizeof(double))
     m1 = <double *>calloc(k*d, sizeof(double))
@@ -427,7 +436,7 @@ cpdef double em_step(double[::1,:] w, double[::1,:,:] S,
         T = <double *>malloc(r*r*sizeof(double))
         VRt = <double *>malloc(r*d*sizeof(double))
         q = <double *>malloc(k*sizeof(double))
-        p = <double *>malloc(k*c*sizeof(double))
+        qclass = <double *>malloc(c*sizeof(double))
         b = <double *>malloc(k*d*sizeof(double))
         B = <double *>malloc(k*d*d*sizeof(double))
         # Allocate the arrays for the moments
@@ -451,16 +460,12 @@ cpdef double em_step(double[::1,:] w, double[::1,:,:] S,
                                   x, T, VRt,
                                   &q[j], &b[j*d], &B[j*d*d])
                 for l in range(c):
-                    p[j*c+l] = q[j] + logalpha[l, j] + logclasses[l, i]
-                q[j] = logsumexp(&p[j*c], c)
+                    qclass[l] = logalphaclass[l, j] + logclasses[l, i]
+                q[j] = q[j] + logsumexp(qclass, c) + log(alpha[j])
             qsum = logsumexp(q, k)
             loglike += qsum
             for j in range(k):
                 q[j] += logweights[i] - qsum
-                for l in range(c):
-                    p[j*c+l] += logweights[i] - qsum
-                    # FIXME 
-                    p[j*c+l] = q[j] + logclasses[l, i]
             # done! Now we can proceed with the M-step, which operates
             # a sum over all objects. We compute the moments, using the inplace
             # += operator which forces the use of a reductions for m0, m1, and m2.
@@ -471,7 +476,7 @@ cpdef double em_step(double[::1,:] w, double[::1,:,:] S,
                 # m0 is similar to M0, but includes an index for the class; it is
                 # more directly related to alpha
                 for l in range(c):
-                    m0_local[j*c+l] += exp(p[j*c+l])
+                    m0_local[j*c+l] += exp(q[j] + logclasses[l,i])
                 for n1 in range(d):
                     # m1 is the sum of q_ij (b_ij - m_j) over i, so related to m_j - m_j(old)
                     m1_local[j*d+n1] += exp_q*b[j*d+n1]
@@ -494,7 +499,7 @@ cpdef double em_step(double[::1,:] w, double[::1,:,:] S,
         free(T)
         free(VRt)
         free(q)
-        free(p)
+        free(qclass)
         free(b)
         free(B)
         free(M0_local)
@@ -529,8 +534,10 @@ cpdef double em_step(double[::1,:] w, double[::1,:,:] S,
     # Done, save the results back
     for j in range(k):
         if fixpars is None or not fixpars[j] & _FIX_AMP:
+            alpha[j] = M0[j] / weightsum
+        if fixpars is None or not fixpars[j] & _FIX_CLASS:
             for l in range(c):
-                alpha[l, j] = m0[j*c+l] / weightsum
+                alphaclass[l, j] = m0[j*c+l] / M0[j]
         for n1 in range(d):
             # The += sign here is due to the use of an E-step w/o the m_j term in b_ij
             m[n1, j] += m1[j*d+n1]
@@ -542,12 +549,10 @@ cpdef double em_step(double[::1,:] w, double[::1,:,:] S,
         sumalpha = 0.0
         for j in range(k):
             if not fixpars[j] & _FIX_AMP:
-                for l in range(c):
-                    sumalpha += alpha[l, j]
+                sumalpha += alpha[j]
         for j in range(k):
             if not fixpars[j] & _FIX_AMP:
-                for l in range(c):
-                    alpha[l, j] *= sumfreealpha / sumalpha
+                alpha[j] *= sumfreealpha / sumalpha
                 
     # Finally free the memory
     free(M0)

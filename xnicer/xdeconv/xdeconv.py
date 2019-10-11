@@ -120,10 +120,12 @@ def xdeconv(ydata, ycovar, xamp, xmean, xcovar,
     if len(tmp) == 1:
         kdim = tmp[0]
         cdim = 1
-        alpha = np.asfortranarray(xamp[:, np.newaxis].T, dtype=np.float64)
+        alpha = np.asfortranarray(xamp.T, dtype=np.float64)
+        alphaclass = np.ones((cdim, kdim), dtype=np.float64, order='F')
     else:
         kdim, cdim = tmp
-        alpha = np.asfortranarray(xamp.T, dtype=np.float64)
+        alpha = np.asfortranarray(np.sum(xamp, axis=1), dtype=np.float64)
+        alphaclass = np.asfortranarray(xamp.T / alpha, dtype=np.float)
 
     _, xdim = check_numpy_array("xmean", xmean, (kdim, -1))
     m = np.asfortranarray(xmean.T, dtype=np.float64)
@@ -159,19 +161,18 @@ def xdeconv(ydata, ycovar, xamp, xmean, xcovar,
         fix = None
 
     with np.errstate(divide='ignore'):
-        oldloglike = em_step(w, S, alpha, m, V, wgh, clss, 
+        oldloglike = em_step(w, S, alpha, alphaclass, m, V, wgh, clss, 
                              Rt=Rt, fixpars=fix, regularization=regular)
-    decreased = False
-    for iter in range(1, maxiter):
-        with np.errstate(divide='ignore'):
-            loglike = em_step(w, S, alpha, m, V, wgh, clss, 
+        decreased = False
+        for iter in range(1, maxiter):
+            loglike = em_step(w, S, alpha, alphaclass, m, V, wgh, clss, 
                               Rt=Rt, fixpars=fix, regularization=regular)
-        diff = loglike - oldloglike
-        if diff < 0:
-            decreased = True
-        if abs(diff) < tol:
-            break
-        oldloglike = loglike
+            diff = loglike - oldloglike
+            if diff < 0:
+                decreased = True
+            if abs(diff) < tol:
+                break
+            oldloglike = loglike
     if maxiter > 1:
         if iter == maxiter-1:
             warnings.warn(f"xdeconv did not converge after {maxiter} iterations",
@@ -183,7 +184,7 @@ def xdeconv(ydata, ycovar, xamp, xmean, xcovar,
 
         # Saves back all the data: sure this is necessary? It is for sure for
         # alpha
-        xamp[:] = alpha.T
+        xamp[:] = (alpha * alphaclass).T
         xmean[:, :] = m.T
         xcovar[:, :, :] = V.T
     return oldloglike
