@@ -4,7 +4,8 @@ from scipy.special import ndtri, logsumexp
 from sklearn.utils import check_array, check_random_state
 from sklearn.mixture import GaussianMixture
 # from extreme_deconvolution import extreme_deconvolution
-from . import xdeconv, FIX_AMP, FIX_MEAN, FIX_COVAR, log_likelihoods
+from . import FIX_NONE, FIX_AMP, FIX_CLASS, FIX_MEAN, FIX_COVAR, FIX_ALL, \
+    xdeconv, log_likelihoods
 
 
 class XD_Mixture(GaussianMixture):
