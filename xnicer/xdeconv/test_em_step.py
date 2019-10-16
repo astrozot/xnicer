@@ -1,8 +1,8 @@
 import numpy as np
 from scipy.special import logsumexp
 import warnings
-from .em_step import log_likelihoods, py_e_single_step, em_step
-from .em_step import FIX_NONE, FIX_AMP, FIX_CLASS, FIX_MEAN, FIX_COVAR, FIX_ALL, em_step
+from .em_step import log_likelihoods, py_e_single_step, em_step  # pylint: disable=no-name-in-module
+from .em_step import FIX_NONE, FIX_AMP, FIX_CLASS, FIX_MEAN, FIX_COVAR, FIX_ALL # pylint: disable=no-name-in-module
 from . import xdeconv
 
 def py_log_likelihoods(deltas, covars, results=None):
@@ -12,8 +12,9 @@ def py_log_likelihoods(deltas, covars, results=None):
     for n in range(nobjs):
         C = covars[n,:,:]
         C_1 = np.linalg.inv(C)
-        results[n] = -0.5 * np.log(np.linalg.det(C)) - 0.5 * np.dot(np.dot(C_1, deltas[n]), deltas[n])
-    return logsumexp(results)
+        results[n] = -0.5 * np.log(np.linalg.det(C)) - \
+            0.5 * np.dot(np.dot(C_1, deltas[n]), deltas[n]) - \
+            0.5 * deltas.shape[1] * np.log(2.0*np.pi)
 
 
 def generate_test_log_likelihoods(n, r, seed=1):
@@ -23,10 +24,9 @@ def generate_test_log_likelihoods(n, r, seed=1):
     covars = np.einsum('...ij,...ik->...jk', C, C)
     results1 = np.zeros(n)
     results2 = np.zeros(n)
-    result1 = log_likelihoods(deltas, covars, results1)
-    result2 = py_log_likelihoods(deltas, covars, results2)
+    log_likelihoods(deltas, covars, results1)
+    py_log_likelihoods(deltas, covars, results2)
     assert np.allclose(results1, results2)
-    assert np.allclose([result1], [result2])
 
 
 def test_log_likelihoods():
@@ -84,17 +84,14 @@ def py_em_step(w, S, alpha, alphaclass, m, V, logweights, logclasses, Rt=None,
         identity matrices).
                 
     fixpars: array-like, shape (k)
-        Array of bitmasks with the FIX_AMP, FIX_MEAN, and FIX_AMP combinations.
-        Currently ignored.
+        Array of bitmasks with the FIX_* combinations. Currently ignored.
     
     regularization: double, default=0
         Regularization parameter (use 0 to prevent the regularization).
     """
-    r = w.shape[0]
     n = w.shape[1]
     d = m.shape[0]
     k = m.shape[1]
-    c = alphaclass.shape[0]
     q = np.zeros(1)
     b = np.zeros(d)
     B = np.zeros((d, d))
@@ -181,6 +178,52 @@ def test_single_e_step():
             for iter in range(10):
                 generate_test_single_e_step(r, d, seed=iter)
                 
+
+def generate_test_single_e_step_proj(d, seed=1):
+    """Generate a random E-step test.
+    
+    This procedure generate a single random point, and runs an E-step on it
+    using the Cython codes with and without projection. It then compares the
+    results.
+    
+    Parameters
+    ----------
+    d: int
+        Dimensionality of the data
+        
+    seed: int, default=1
+        Seed for the random number generator.
+    """
+    np.random.seed(seed)
+    w = np.random.rand(d)
+    R = np.identity(d)
+    S = np.random.rand(d, d)
+    S = np.dot(S.T, S)
+    m = np.random.rand(d)
+    V = np.random.rand(d, d)
+    V = np.dot(V.T, V)
+
+    q1 = np.zeros(1)
+    b1 = np.zeros(d)
+    B1 = np.zeros((d, d))
+    py_e_single_step(w, R, S, m, V, q1, b1, B1)
+
+    q2 = np.zeros(1)
+    b2 = np.zeros(d)
+    B2 = np.zeros((d, d))
+    py_e_single_step(w, None, S, m, V, q2, b2, B2)
+
+    assert np.allclose(q1, q2)
+    assert np.allclose(b1, b2)
+    assert np.allclose(B1, B2)
+
+
+def test_single_e_step_proj():
+    """Make sure that the standard/projection e-steps are compatible.""" 
+    for d in range(1, 8):
+        for iter in range(10):
+            generate_test_single_e_step_proj(d, seed=iter)
+
                 
 def generate_test_single_em_step(d, r, n, k, c, seed=1):
     """Generate a random EM-step test.
@@ -257,83 +300,134 @@ def test_single_em_step():
                     for n in (5, 10, 20):
                         for iter in range(10):
                             generate_test_single_em_step(d, r, n, k, c, seed=iter)
-  
 
-def generate_test_pyxc(xamp, xmean, xcovar, ycovar, npts=1000,
-                       xclass=None, use_weight=False, use_projection=False, 
-                       use_classes=False, fixpars=None, seed=1, 
-                       confusion=0.01, silent=True, **kw):
-    """Create a full test for the extreme deconvolution algorithm.
-    
-    This procedure works by creating an artificial set of random samples 
-    following a Gaussian mixture model (GMM), then checking that the extreme
-    deconvolution is able to recover the original parameters.
+
+def generate_test_em_likelihood(d, n, k, c, seed=1):
+    """Generate a test to check the likelihood calculation
+
+    This procedure generate a set of random points, and runs an EM-step on 
+    them using the Cython code, and check if the likelihood returned is
+    identical to the one computed directly.
+
+    Parameters
+    ----------
+    d: int
+        Dimensionality of the data and parameters.
+
+    n: int
+        Number of points to generate
+        
+    k: int
+        Number of Gaussian components to have
+        
+    c: int
+        Number of classes to have; currently only works with c=1.
+        
+    seed: int, default=1
+        Seed for the random number generator.
+    """
+    np.random.seed(seed)
+    w = np.asfortranarray(np.random.rand(d, n))
+    S = np.random.rand(d, d, n)
+    S = np.asfortranarray(np.einsum('ij...,kj...->ik...', S, S))
+    m = np.asfortranarray(np.random.rand(d, k))
+    V = np.random.rand(d, d, k)
+    V = np.asfortranarray(np.einsum('ij...,kj...->ik...', V, V))
+    alpha = np.random.rand(k)
+    alpha /= np.sum(alpha)
+    alphaclass = np.asfortranarray(np.random.rand(c, k))
+    alphaclass /= np.sum(alphaclass, axis=0)[np.newaxis, :]
+    if c > 1:
+        classes = np.asfortranarray(np.random.rand(c, n))
+        classes /= np.sum(classes, axis=0)[np.newaxis, :]
+        classes = np.log(classes)
+    else:
+        classes = np.zeros((c, n), dtype=np.float64, order='F') - np.log(c)
+    weights = np.zeros(n, dtype=np.float64, order='F')
+
+    results = np.zeros((k, n))
+    for c in range(k):
+        log_likelihoods(w.T - m[:,c], S.T + V[:,:,c], results[c,:])
+
+    lnlike1 = np.sum(logsumexp(results + np.log(alpha[:, np.newaxis]), axis=0))
+    lnlike2 = em_step(w, S, alpha, alphaclass, m, V, weights, classes)
+
+    assert np.allclose([lnlike1 / n], [lnlike2])
+
+
+def test_em_likelihood():
+    """Run a series of tests using `generate_test_single_em_step`."""
+    for d in range(1, 5):
+        for k in range(1, 5):
+            for n in (1, 5, 10, 20):
+                for iter in range(10):
+                    generate_test_em_likelihood(d, n, k, 1, seed=iter)
+
+
+def generate_data(xamp, xmean, xcovar, ycovar, npts=1000,
+                  xclass=None, use_weight=False, use_projection=False,
+                  use_classes=False, fixpars=None, seed=1,
+                  confusion=0.01):
+    """Generate a set of points for XD tests
     
     Parameters
     ----------
     xamp: array-like, shape (k,)
         Array with the statistical weight of each Gaussian.
-        
+
     xmean: array-like, shape (k, dx)
         Centers of multivariate Gaussians.
-    
+
     xcovar: array-like, shape (k, dx, dx)
         Array of covariance matrices of the multivariate Gaussians.
         If a simple scalar is provided, it is understood as the diagonal term
-        of all gaussians; if a 1D vector is provided, it is taken to contain 
+        of all gaussians; if a 1D vector is provided, it is taken to contain
         the diagonal value of each component; if a 2D vector is provided, it
         is taken to be the identical covariance matrix of all compoments.
-        
+
     ycovar: array-like, shape (npts, dy, dy)
         Array of covariance matrices for the data points.
         If a simple scalar is provided, it is understood as the diagonal term
-        of all gaussians; if a 1D vector is provided, it is taken to contain 
+        of all gaussians; if a 1D vector is provided, it is taken to contain
         the diagonal value of each point; if a 2D vector is provided, it
         is taken to be the identical covariance matrix of all points.
 
     npts: int, default=1000
         Number of samples to generate.
-       
+
     xclass: array-like, shape (k, c)
         Array with the statistical weight of each Gaussian for each class.
-        
+
     use_weight: string, default=False
         Can be False (do not user weights), 'uniform' (use the same value
         for all weights), 'random' (use random distributed weights).
-        
+
     use_projection: string, default=False
-        Can be False (do not use any projection), 'identity' (use the 
+        Can be False (do not use any projection), 'identity' (use the
         identity matrix), 'random' (use a random matrix as projection),
         'alternating' (alternate between the coordinates; only if y has
         dimension 1).
-    
+
     use_classes: string, default=False
-        Indicate if additional information on the classification of the 
+        Indicate if additional information on the classification of the
         various objects should be given. Can be False (do not provide any
         additional information), 'exact' (associate each object with its
         true cluster), 'approximate' (associate each object with its true
         cluster with a 75% probability), 'random' (randomly assign class
         probabilities), 'uniform' (use uniform probabilities for all class
         associtaions).
-        
+
     fixpars: array-like, shape (k,) or None
-        Array of bitmasks with the FIX_AMP, FIX_MEAN, and FIX_AMP 
-        combinations.
-    
+        Array of bitmasks with the FIX_* combinations.
+
     seed: integer, default=1
         The seed to use for the random number generator
-        
+
     confusion: float, default=0.01
         A single parameter used to initialize the clusters with respect to the
         true parameters.  Confusion 0 indicate that the starting parameters
         are the true ones.
-        
-    silent: bool, default=True
-        If True, will not print warning messages.
-        
-    All extra keyword parameters are directly passed to xdeconv.
     """
-
     np.random.seed(seed)
     xamp = np.array(xamp)
     xamp /= np.sum(xamp)
@@ -348,7 +442,7 @@ def generate_test_pyxc(xamp, xmean, xcovar, ycovar, npts=1000,
         cdim = 1
         xclass = np.ones((kdim, cdim))
     xdim = xmean.shape[1]
-    if ycovar.ndim > 0:
+    if ycovar.ndim >= 1:
         ydim = ycovar.shape[0]
     else:
         ydim = xdim
@@ -393,6 +487,8 @@ def generate_test_pyxc(xamp, xmean, xcovar, ycovar, npts=1000,
             projection = np.tile(np.identity(xdim), (npts, 1, 1))
         elif use_projection == 'random':
             projection = np.random.randn(npts, ydim, xdim)
+            if xdim == ydim:
+                projection[np.random.rand(npts) < 0.1, :, :] = np.identity(xdim)
         elif use_projection == 'alternating':
             assert ydim == 1
             projection = np.zeros((npts, ydim, xdim))
@@ -475,12 +571,103 @@ def generate_test_pyxc(xamp, xmean, xcovar, ycovar, npts=1000,
         xcovar_t = xcovar * (1 + confusion * np.random.randn(*xcovar.shape))
 
     # Data are now ready, proceed with the real test
+    return {
+        'ydata': ydata, 'ycovar': ycovar, 'xcovar_orig': xcovar,
+        'xamp': xamp_t, 'xmean': xmean_t, 'xcovar': xcovar_t, 
+        'xclass': xclass_t, 'projection': projection, 'weight': weight,
+        'classes': classes, 'fixpars': fixpars
+    }
+
+
+def generate_test_pyxc(xamp, xmean, xcovar, ycovar, npts=1000,
+                       xclass=None, use_weight=False, use_projection=False, 
+                       use_classes=False, fixpars=None, seed=1, 
+                       confusion=0.01, silent=True, **kw):
+    """Create a full test for the extreme deconvolution algorithm.
+    
+    This procedure works by creating an artificial set of random samples 
+    following a Gaussian mixture model (GMM), then checking that the extreme
+    deconvolution is able to recover the original parameters.
+    
+    Parameters
+    ----------
+    xamp: array-like, shape (k,)
+        Array with the statistical weight of each Gaussian.
+        
+    xmean: array-like, shape (k, dx)
+        Centers of multivariate Gaussians.
+    
+    xcovar: array-like, shape (k, dx, dx)
+        Array of covariance matrices of the multivariate Gaussians.
+        If a simple scalar is provided, it is understood as the diagonal term
+        of all gaussians; if a 1D vector is provided, it is taken to contain 
+        the diagonal value of each component; if a 2D vector is provided, it
+        is taken to be the identical covariance matrix of all compoments.
+        
+    ycovar: array-like, shape (npts, dy, dy)
+        Array of covariance matrices for the data points.
+        If a simple scalar is provided, it is understood as the diagonal term
+        of all gaussians; if a 1D vector is provided, it is taken to contain 
+        the diagonal value of each point; if a 2D vector is provided, it
+        is taken to be the identical covariance matrix of all points.
+
+    npts: int, default=1000
+        Number of samples to generate.
+       
+    xclass: array-like, shape (k, c)
+        Array with the statistical weight of each Gaussian for each class.
+        
+    use_weight: string, default=False
+        Can be False (do not user weights), 'uniform' (use the same value
+        for all weights), 'random' (use random distributed weights).
+        
+    use_projection: string, default=False
+        Can be False (do not use any projection), 'identity' (use the 
+        identity matrix), 'random' (use a random matrix as projection),
+        'alternating' (alternate between the coordinates; only if y has
+        dimension 1).
+    
+    use_classes: string, default=False
+        Indicate if additional information on the classification of the 
+        various objects should be given. Can be False (do not provide any
+        additional information), 'exact' (associate each object with its
+        true cluster), 'approximate' (associate each object with its true
+        cluster with a 75% probability), 'random' (randomly assign class
+        probabilities), 'uniform' (use uniform probabilities for all class
+        associtaions).
+        
+    fixpars: array-like, shape (k,) or None
+        Array of bitmasks with the FIX_* combinations.
+    
+    seed: integer, default=1
+        The seed to use for the random number generator
+        
+    confusion: float, default=0.01
+        A single parameter used to initialize the clusters with respect to the
+        true parameters.  Confusion 0 indicate that the starting parameters
+        are the true ones.
+        
+    silent: bool, default=True
+        If True, will not print warning messages.
+        
+    All extra keyword parameters are directly passed to xdeconv.
+    """
+    data = generate_data(xamp, xmean, xcovar, ycovar, npts=npts,
+                         xclass=xclass, use_weight=use_weight, 
+                         use_projection=use_projection, 
+                         use_classes=use_classes, fixpars=fixpars, 
+                         seed=seed, confusion=confusion)
+    # Fix the input arrays
+    xamp = np.array(xamp)
+    xmean = np.array(xmean)
+    xcovar = data.pop('xcovar_orig')
+    # Updata the argument of xdeconv
+    data.update(kw)
+    # Data are now ready, proceed with the real test
     with warnings.catch_warnings():
         if silent:
             warnings.simplefilter('ignore')
-        xdeconv(ydata, ycovar, xamp_t, xmean_t, xcovar_t, xclass=xclass_t, 
-                projection=projection, weight=weight, classes=classes, 
-                fixpars=fixpars, **kw)
+        xdeconv(**data) # pylint: disable=unexpected-keyword-arg
     # extreme_deconvolution(ydata, ycovar, xamp_t, xmean_t, xcovar_t, 
     # projection=projection, weight=weight)
 
@@ -489,12 +676,12 @@ def generate_test_pyxc(xamp, xmean, xcovar, ycovar, npts=1000,
     eff_covar = xcovar.copy()
     if use_projection == 'random':
         eff_npts /= 2
-        eff_covar += np.mean(ycovar, axis=0)
+        eff_covar += np.mean(data['ycovar'], axis=0)
     elif use_projection == 'alternating':
-        eff_npts /= kdim
-        eff_covar += np.mean(ycovar, axis=0)
+        eff_npts /= xamp.shape[0]
+        eff_covar += np.mean(data['ycovar'], axis=0)
     else:
-        eff_covar += np.mean(ycovar, axis=0)
+        eff_covar += np.mean(data['ycovar'], axis=0)
     if use_weight == 'random':
         eff_npts /= 0.75
     # We add a numerical stability term to all error estimates
@@ -507,9 +694,9 @@ def generate_test_pyxc(xamp, xmean, xcovar, ycovar, npts=1000,
     # From a Whishart distribution...
     cov_err = np.sqrt((eff_covar**2 + np.einsum('...i,...j->...ij', eff_var, eff_var)) /
                       ((eff_npts - 1) * xamp[:, np.newaxis, np.newaxis])) + eps
-    return ((xamp_t, (xamp_t - xamp) / amp_err),
-            (xmean_t, (xmean_t - xmean) / mean_err),
-            (xcovar_t, (xcovar_t - xcovar) / cov_err))
+    return ((data['xamp'], (data['xamp'] - xamp) / amp_err),
+            (data['xmean'], (data['xmean'] - xmean) / mean_err),
+            (data['xcovar'], (data['xcovar'] - xcovar) / cov_err))
 
 
 def test_pyxc_1d():

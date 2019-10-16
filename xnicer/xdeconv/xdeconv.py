@@ -1,5 +1,5 @@
 import numpy as np
-from .em_step import FIX_NONE, FIX_AMP, FIX_MEAN, FIX_COVAR, FIX_ALL, em_step
+from .em_step import FIX_NONE, FIX_AMP, FIX_MEAN, FIX_COVAR, FIX_ALL, em_step  # pylint: disable=no-name-in-module
 import warnings
 
 
