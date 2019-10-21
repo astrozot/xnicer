@@ -1,6 +1,6 @@
 import numpy as np
-from .em_step import FIX_NONE, FIX_AMP, FIX_CLASS, FIX_MEAN, FIX_COVAR, \
-    FIX_ALL, em_step  # pylint: disable=no-name-in-module
+from .em_step import FIX_NONE, FIX_AMP, FIX_CLASS  # pylint: disable=no-name-in-module
+from .em_step import FIX_MEAN, FIX_COVAR, FIX_ALL, em_step  # pylint: disable=no-name-in-module
 import warnings
 
 
@@ -127,10 +127,10 @@ def xdeconv(ydata, ycovar, xamp, xmean, xcovar,
     if xclass is not None:
         kdim, cdim = check_numpy_array("xclass", xclass, (kdim, -1))
         alphaclass = np.asfortranarray(xclass.T, dtype=np.float)
-        alphaclass /= np.sum(alphaclass, axis=1)[:, np.newaxis]
+        alphaclass /= np.sum(alphaclass, axis=0)
     else:
         cdim = 1
-        alphaclass = np.ones((cdim, kdim), dtype=np.float64, order='F')
+        alphaclass = np.ones((cdim, kdim), dtype=np.float64, order='F') / cdim
 
     _, xdim = check_numpy_array("xmean", xmean, (kdim, -1))
     m = np.asfortranarray(xmean.T, dtype=np.float64)

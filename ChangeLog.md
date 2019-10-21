@@ -23,3 +23,4 @@ Initial release.
 - Using warnings for warnings :-)
 - Classes of different objects can now be used to improve the XD
 - Using children of Table for all catalogs
+- Implemented fuzzy class in xdeconv and xnicer

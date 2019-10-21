@@ -333,7 +333,7 @@ class XD_Mixture(GaussianMixture):
                     xclass = np.zeros((self.n_components, self.n_classes)) - \
                         np.log(self.n_classes)
                 self.means_ = tmp_gmm.means_
-                self.xclass_ = xclass
+                self.classes_ = xclass
                 self.weights_ = tmp_gmm.weights_ 
                 self.covariances_ = tmp_gmm.covariances_
             # Renormalize the weights
@@ -374,14 +374,13 @@ class XD_Mixture(GaussianMixture):
             self.bic_test(Y, Yerr, self.n_components, projection=projection, log_weight=log_weight)
             return self
         
-        if self.n_classes > 1:
-            if log_class_prob is not None:
-                if log_class_prob.shape[0] != Y.shape[0]:
-                    raise ValueError(
-                        "log_class_prob and Y do not have the same number of points")
-                if log_class_prob.shape[1] != self.n_classes:
-                    raise ValueError(
-                        "log_class_prob has a number of probabilities different from n_classes")
+        if self.n_classes > 1 and log_class_prob is not None:
+            if log_class_prob.shape[0] != Y.shape[0]:
+                raise ValueError(
+                    "log_class_prob and Y do not have the same number of points")
+            if log_class_prob.shape[1] != self.n_classes:
+                raise ValueError(
+                    "log_class_prob has a number of probabilities different from n_classes")
         else:
             # Just in case it has been passed, ignore it!
             log_class_prob = None
@@ -419,7 +418,8 @@ class XD_Mixture(GaussianMixture):
             self.lower_bound_ = xdeconv(Y, Yerr, self.weights_, self.means_, self.covariances_,
                                         tol=self.tol, maxiter=self.max_iter,
                                         regular=self.reg_covar, # FIXME splitnmerge=self.splitnmerge,
-                                        weight=log_weight, projection=projection,
+                                        weight=log_weight, xclass=self.classes_,
+                                        projection=projection,
                                         fixpars=fixpars, classes=log_class_prob)
             if self.lower_bound_ > max_lower_bound:
                 max_lower_bound = self.lower_bound_
