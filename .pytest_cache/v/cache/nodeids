@@ -1,10 +1,16 @@
 [
+  "xnicer/test_xnicer.py::test_xnicer",
   "xnicer/xdeconv/test_em_step.py::test_log_likelihoods",
   "xnicer/xdeconv/test_em_step.py::test_single_e_step",
+  "xnicer/xdeconv/test_em_step.py::test_single_e_step_proj",
   "xnicer/xdeconv/test_em_step.py::test_single_em_step",
+  "xnicer/xdeconv/test_em_step.py::test_em_likelihood",
   "xnicer/xdeconv/test_em_step.py::test_pyxc_1d",
   "xnicer/xdeconv/test_em_step.py::test_pyxc_1d_fixed",
   "xnicer/xdeconv/test_em_step.py::test_pyxc_2d",
   "xnicer/xdeconv/test_em_step.py::test_pyxc_2d_projection",
-  "xnicer/xdeconv/test_em_step.py::test_pyxc_2d_fixed"
+  "xnicer/xdeconv/test_em_step.py::test_pyxc_2d_classes",
+  "xnicer/xdeconv/test_em_step.py::test_pyxc_2d_fixed",
+  "xnicer/xdeconv/test_xd_mixture.py::test_xdmix_1d",
+  "xnicer/xdeconv/test_xd_mixture.py::test_xdmix_2d_projection"
 ]

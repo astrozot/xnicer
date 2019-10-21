@@ -10,7 +10,7 @@ import warnings
 import numpy as np
 import copy
 from scipy.optimize import minimize
-from scipy.special import log_ndtr, logsumexp
+from scipy.special import log_ndtr, logsumexp # pylint: disable=no-name-in-module
 from astropy import table
 from astropy.io import votable
 from astropy.coordinates import SkyCoord
@@ -437,6 +437,7 @@ class PhotometricCatalogue(table.Table):
             if not log_probs:
                 with np.errstate(divide='ignore'):
                     probs = np.log(probs)
+                    probs[np.ma.getmaskarray(probs)] = -np.inf
             if isinstance(probs, np.ma.MaskedArray):
                 probs = probs.filled(-np.inf)
             cat.add_column(table.Column(
@@ -469,6 +470,7 @@ class PhotometricCatalogue(table.Table):
             if not log_class_probs:
                 with np.errstate(divide='ignore'):
                     class_probs = np.log(class_probs)
+                    class_probs[np.ma.getmaskarray(class_probs)] = -np.inf
             cat.add_column(table.Column(
                 class_probs, name='log_class_probs',
                 description='log-probabilities of class belonging',
@@ -1001,6 +1003,10 @@ class ExtinctionCatalogue(table.Table):
 
     log_weights : array-like, shape (n_objs, n_components)
         The log of the weight of each component for each object.
+        
+    log_class_probs : array-like, shape (n_objs, n_classes)
+        Only present if the catalogue has classes. The log-probability of
+        each object to belong to a given class.
 
     means_A : array-like, shape (n_objs, n_components)
         The centers of the Gaussian profiles for each extinction component 

@@ -1,5 +1,6 @@
 import numpy as np
-from .em_step import FIX_NONE, FIX_AMP, FIX_MEAN, FIX_COVAR, FIX_ALL, em_step
+from .em_step import FIX_NONE, FIX_AMP, FIX_CLASS  # pylint: disable=no-name-in-module
+from .em_step import FIX_MEAN, FIX_COVAR, FIX_ALL, em_step  # pylint: disable=no-name-in-module
 import warnings
 
 
@@ -49,7 +50,7 @@ def check_numpy_array(name, arr, shapes):
 
 
 def xdeconv(ydata, ycovar, xamp, xmean, xcovar,
-            projection=None, weight=None, classes=None,
+            xclass=None, projection=None, weight=None, classes=None,
             fixpars=None, tol=1.e-6, maxiter=int(1e9),
             regular=0.0):
     """Perform a full extreme deconvolution.
@@ -76,6 +77,11 @@ def xdeconv(ydata, ycovar, xamp, xmean, xcovar,
     
     Optional Parameters
     -------------------
+    xclass: array-like, shape (k, c)
+        Array with the statistical weight of each Gaussian for each class.
+        Updated at the exit with the new weights. The sum of all classes for
+        a single cluster k is unity.
+    
     projection: array-like, shape (n, dy, dx)
         Array of projection matrices: for each datum (n), it is a matrix
         that transform the original d-dimensional vector into the observed
@@ -86,8 +92,8 @@ def xdeconv(ydata, ycovar, xamp, xmean, xcovar,
     weights: array-like, shape (n,) 
         Log-weights for each observation, or None
         
-    classes: array-like, shape (n, k) 
-        Log-probabilities that each observation belong to a given cluster.
+    classes: array-like, shape (n, c) 
+        Log-probabilities that each observation belong to a given class.
         
     fixpars: integer or int array-like, shape (k,)
         Array of bitmasks with the FIX_AMP, FIX_MEAN, and FIX_AMP 
@@ -118,6 +124,13 @@ def xdeconv(ydata, ycovar, xamp, xmean, xcovar,
 
     kdim, = check_numpy_array("xamp", xamp, (-1,))
     alpha = np.asfortranarray(xamp.T, dtype=np.float64)
+    if xclass is not None:
+        kdim, cdim = check_numpy_array("xclass", xclass, (kdim, -1))
+        alphaclass = np.asfortranarray(xclass.T, dtype=np.float)
+        alphaclass /= np.sum(alphaclass, axis=0)
+    else:
+        cdim = 1
+        alphaclass = np.ones((cdim, kdim), dtype=np.float64, order='F') / cdim
 
     _, xdim = check_numpy_array("xmean", xmean, (kdim, -1))
     m = np.asfortranarray(xmean.T, dtype=np.float64)
@@ -138,11 +151,11 @@ def xdeconv(ydata, ycovar, xamp, xmean, xcovar,
         wgh = np.zeros(nobjs, dtype=np.float64, order='F')
 
     if classes is not None:
-        check_numpy_array("classes", classes, (nobjs, kdim))
+        check_numpy_array("classes", classes, (nobjs, cdim))
         clss = np.asfortranarray(classes.T, dtype=np.float64)
     else:
-        clss = np.zeros((kdim, nobjs), dtype=np.float64, order='F') - \
-            np.log(kdim)
+        clss = np.zeros((cdim, nobjs), dtype=np.float64, order='F') - \
+            np.log(cdim)
 
     if fixpars is not None:
         if isinstance(fixpars, int):
@@ -153,30 +166,32 @@ def xdeconv(ydata, ycovar, xamp, xmean, xcovar,
         fix = None
 
     with np.errstate(divide='ignore'):
-        oldloglike = em_step(w, S, alpha, m, V, wgh, clss,
+        oldloglike = em_step(w, S, alpha, alphaclass, m, V, wgh, clss, 
                              Rt=Rt, fixpars=fix, regularization=regular)
-    decreased = False
-    for iter in range(1, maxiter):
-        with np.errstate(divide='ignore'):
-            loglike = em_step(w, S, alpha, m, V, wgh, clss, 
+        decreased = False
+        for iter in range(1, maxiter):
+            loglike = em_step(w, S, alpha, alphaclass, m, V, wgh, clss, 
                               Rt=Rt, fixpars=fix, regularization=regular)
-        diff = loglike - oldloglike
-        if diff < 0:
-            decreased = True
-        if abs(diff) < tol:
-            break
-        oldloglike = loglike
+            diff = loglike - oldloglike
+            if diff < 0:
+                decreased = True
+            if abs(diff) < tol:
+                break
+            oldloglike = loglike
     if maxiter > 1:
         if iter == maxiter-1:
             warnings.warn(f"xdeconv did not converge after {maxiter} iterations",
                           RuntimeWarning)
         if decreased:
             warnings.warn(
-                f"Log-likelihood decreased during the fitting procedure",
+                f"Log-likelihood decreased during the fitting procedure", 
                 RuntimeWarning)
 
-        # Saves back all the data: sure this is necessary?
+        # Saves back all the data: sure this is necessary? It is for sure for
+        # alpha
         xamp[:] = alpha.T
+        if xclass is not None:
+            xclass[:, :] = alphaclass.T
         xmean[:, :] = m.T
         xcovar[:, :, :] = V.T
     return oldloglike

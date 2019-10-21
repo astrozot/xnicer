@@ -6,7 +6,7 @@ import cython
 from cython.parallel import prange, parallel
 
 from libc.stdlib cimport malloc, calloc, free
-from libc.math cimport exp, log
+from libc.math cimport exp, log, isinf
 import numpy as np
 from numpy cimport float64_t, uint8_t
 from numpy.math cimport INFINITY
@@ -20,12 +20,16 @@ cdef int _FIX_NONE = 0
 cdef int _FIX_AMP = 1
 cdef int _FIX_MEAN = 2
 cdef int _FIX_COVAR = 4
-cdef int _FIX_ALL = _FIX_AMP + _FIX_MEAN + _FIX_COVAR
+cdef int _FIX_CLASS = 8
+cdef int _FIX_AMPCLASS = _FIX_AMP + _FIX_CLASS
+cdef int _FIX_ALL = _FIX_AMP + _FIX_MEAN + _FIX_COVAR + _FIX_CLASS
 
 FIX_NONE = _FIX_NONE
 FIX_AMP = _FIX_AMP
 FIX_MEAN = _FIX_MEAN
 FIX_COVAR = _FIX_COVAR
+FIX_CLASS = _FIX_CLASS
+FIX_AMPCLASS = _FIX_AMPCLASS
 FIX_ALL = _FIX_ALL
 
 
@@ -41,24 +45,45 @@ cdef double logsumexp(double *x, int n) nogil:
     for i in range(1, n):
         if x[i] > xmax:
             xmax = x[i]
+    if isinf(xmax):
+        return xmax
     for i in range(n):
         result += exp(x[i] - xmax) 
     return xmax + log(result)
 
 
 cpdef double log_likelihoods(double[:,:] deltas, double[:,:,:] covars, double[::1] results=None):
-    cdef int n, i, j, info, alloc_results=0
+    """Compute the log-likelihood for a set of data.
+    
+    Parameters
+    ----------
+    deltas : array-like, shape(n, r)
+        The differences between the means of the normal distributions and 
+        the datapoints.
+
+    covars : array-like, shape(n, r, r)
+        The covariances of the normal distributions.
+
+    Output Parameters
+    -----------------
+    results : array-like, shape(n)
+        The computed log-likelihoods for each multivariate normal
+        distribution. If set to None, no value is returned.
+    """
+    cdef int n, i, j, info
     cdef int nobjs=deltas.shape[0]
     cdef int r=covars.shape[2]
     cdef int inc=1
     cdef double* C
     cdef double* d
-    cdef double result=0
+    cdef double* res=NULL
+    cdef double result=0, norm=-r * np.log(2.0*np.pi) / 2.0
 
-    if results is None:
-        results = np.empty(nobjs)
     C = <double *>malloc(r*r*sizeof(DOUBLE))
     d = <double *>malloc(r*sizeof(DOUBLE))
+    if results is None:
+        res = <double *>malloc(nobjs*sizeof(DOUBLE))
+        results = <double[:nobjs]> res
     for n in range(nobjs):
         # Copy of deltas and covars
         for i in range(r):
@@ -72,13 +97,15 @@ cpdef double log_likelihoods(double[:,:] deltas, double[:,:,:] covars, double[::
         # Computes x := C^T*delta
         dtrmv("U", "T", "N", &r, C, &r, d, &inc)
         # Computes the log of the determinant of Tnew
-        result = 0.0
+        result = norm
         for i in range(r):
             result += log(C[i*r + i])
         # Computes log(det C) - x^T*x / 2
         results[n] = result - 0.5*ddot(&r, d, &inc, d, &inc)
     free(C)
-    return logsumexp(&results[0], nobjs)
+    free(d)
+    if res != NULL:
+        free(res)
 
 
 cdef int e_single_step_noproj(double[::1] w, double[::1,:] S, 
@@ -121,20 +148,20 @@ cdef int e_single_step_noproj(double[::1] w, double[::1,:] S,
     cdef int incb=1
     cdef int info, inc=1, n1, n2
     cdef double zero=0.0, one=1.0, _one=-1.0, a
-    # Computes T := V + S
+    # Computes T <- V + S
     for n1 in range(r):
         for n2 in range(r):
             T[n1*r+n2] = V[n2,n1] + S[n2,n1]
-    # Computes x := w - m
+    # Computes x <- w - m
     for n1 in range(r):
         x[n1] = w[n1] - m[n1]
     # Chowlesky decomposition of T, i.e. Tnew such that Tnew^T*Tnew = Told
     dpotrf("U", &r, T, &ldT, &info)
     # Inverse of the upper triangular T (or, better, Tnew)
     dtrtri("U", "N", &r, T, &ldT, &info)
-    # Computes x := Tnew^T*x
+    # Computes x <- Tnew^T*x
     dtrmv("U", "T", "N", &r, T, &ldT, x, &incx)
-    # Computes VRt := V*Tnew
+    # Computes VRt <- V*Tnew
     for n1 in range(r):
         for n2 in range(r):
             VRt[n1*r+n2] = V[n2,n1]
@@ -143,14 +170,14 @@ cdef int e_single_step_noproj(double[::1] w, double[::1,:] S,
     a = 0.0
     for n1 in range(r):
         a += log(T[n1*r+n1])
-    # Computes q := log(det Tnew) - x^T*x / 2)
+    # Computes q <- log(det Tnew) - x^T*x / 2)
     q[0] = a - 0.5*ddot(&r, x, &incx, &x[0], &incx)
-    # Computes b := VRt*x (the +m term has been dropped)
+    # Computes b <- VRt*x (the +m term has been dropped)
     for n1 in range(r):
         # b[n1] = m[n1]
         b[n1] = 0.0
     dgemv("N", &r, &r, &one, VRt, &ldVRt, x, &incx, &one, b, &incb)
-    # Computes B := V - RV^T*RV
+    # Computes B <- V - RV^T*RV
     for n1 in range(r):
         for n2 in range(r):
             B[n1*r+n2] = V[n2,n1]
@@ -206,7 +233,10 @@ cpdef int py_e_single_step(double[::1] w, double[:,::1] R, double[:,::1] S,
     cdef double *T
     cdef double *VRt
     w_f = np.asfortranarray(w)
-    Rt_f = np.asfortranarray(R.T)
+    if R is not None:
+        Rt_f = np.asfortranarray(R.T)
+    else:
+        Rt_f = None
     S_f = np.asfortranarray(S)
     m_f = np.asfortranarray(m)
     V_f = np.asfortranarray(V)
@@ -223,7 +253,11 @@ cpdef int py_e_single_step(double[::1] w, double[:,::1] R, double[:,::1] S,
     x = <double *>malloc(r*sizeof(DOUBLE))
     T = <double *>malloc(r*r*sizeof(DOUBLE))
     VRt = <double *>malloc(d*r*sizeof(DOUBLE))
-    e_single_step(w_f, Rt_f, S_f, m_f, V_f, x, T, VRt, &q[0], &b[0], &B[0,0])
+    if R is not None:
+        e_single_step(w_f, Rt_f, S_f, m_f, V_f, x, T, VRt, &q[0], &b[0], &B[0,0])
+    else:
+        e_single_step_noproj(w_f, S_f, m_f, V_f, x, T, VRt, &q[0], &b[0], &B[0,0])
+
     free(x)
     free(T)
     free(VRt)
@@ -268,14 +302,14 @@ cdef int e_single_step(double[::1] w, double[::1,:] Rt, double[::1,:] S,
     cdef int incb=1
     cdef int info, inc=1, n1, n2
     cdef double zero=0.0, one=1.0, _one=-1.0, a
-    # Computes VRt := VRt
+    # Computes VRt <- VRt
     dsymm("L", "U", &d, &r, &one, &V[0,0], &ldV, &Rt[0,0], &ldRt, &zero, VRt, &ldVRt)
-    # Computes T := R*V*Rt + S
+    # Computes T <- R*V*Rt + S
     for n1 in range(r):
         for n2 in range(r):
             T[n1*r+n2] = S[n2,n1]
     dgemm("T", "N", &r, &r, &d, &one, &Rt[0,0], &ldRt, VRt, &ldVRt, &one, T, &ldT)
-    # Computes x := w - R*m
+    # Computes x <- w - R*m
     for n1 in range(r):
         x[n1] = w[n1]
     dgemv("T", &d, &r, &_one, &Rt[0,0], &ldRt, &m[0], &incm, &one, x, &incx)
@@ -283,22 +317,22 @@ cdef int e_single_step(double[::1] w, double[::1,:] Rt, double[::1,:] S,
     dpotrf("U", &r, T, &ldT, &info)
     # Inverse of the upper triangular T (or, better, Tnew)
     dtrtri("U", "N", &r, T, &ldT, &info)
-    # Computes x := Tnew^T*x
+    # Computes x <- Tnew^T*x
     dtrmv("U", "T", "N", &r, T, &ldT, x, &incx)
-    # Computes VRt := VRt*Tnew = V*Rt*Tnew
+    # Computes VRt <- VRt*Tnew = V*Rt*Tnew
     dtrmm("R", "U", "N", "N", &d, &r, &one, T, &ldT, VRt, &ldVRt)
     # Computes the log of the determinant of Tnew
     a = 0.0
     for n1 in range(r):
         a += log(T[n1*r+n1])
-    # Computes q := log(det Tnew) - x^T*x / 2
+    # Computes q <- log(det Tnew) - x^T*x / 2
     q[0] = a - 0.5*ddot(&r, x, &incx, x, &incx)
-    # Computes b := VRt*x (the +m term has been dropped)
+    # Computes b <- VRt*x (the +m term has been dropped)
     for n1 in range(d):
         # b[n1] = m[n1]
         b[n1] = 0.0
     dgemv("N", &d, &r, &one, VRt, &ldVRt, x, &incx, &one, b, &incb)
-    # Computes B := V - (VRt)*(VRt)^T
+    # Computes B <- V - (VRt)*(VRt)^T
     for n1 in range(d):
         for n2 in range(d):
             B[n1*d+n2] = V[n2,n1]
@@ -311,8 +345,8 @@ cdef int e_single_step(double[::1] w, double[::1,:] Rt, double[::1,:] S,
     
 @cython.binding(True)
 cpdef double em_step(double[::1,:] w, double[::1,:,:] S, 
-                     double[::1] alpha, double[::1,:] m, 
-                     double[::1,:,:] V,
+                     double[::1] alpha, double[::1,:] alphaclass,
+                     double[::1,:] m, double[::1,:,:] V, 
                      double[::1] logweights, double[::1,:] logclasses,
                      double[::1,:,:] Rt=None, 
                      uint8_t[::1] fixpars=None, double regularization=0.0):
@@ -325,14 +359,18 @@ cpdef double em_step(double[::1,:] w, double[::1,:,:] S,
     
     w: array-like, shape (r, n)
         Set of observations involving n data, each having r dimensions
-        
+    
     S: array-like, shape (r, r, n)
         Array of covariances of the observational data w.
     
-    alpha: array-like, shape (k)
-        Array with the statistical weight of each Gaussian. Updated at the
-        exit with the new weights.
+    alpha: array-like, shape (k,)
+        Array with the statistical weight of each Gaussian.
         
+    alphaclass: array-like, shape (c, k)
+        Array with the statistical weight per class of each Gaussian. Updated
+        at the exit with the new weights. Runs over the k clusters and the c
+        classes.
+
     m: array-like, shape (d, k)
         Centers of multivariate Gaussians, updated at the exit with the new
         centers.
@@ -344,11 +382,11 @@ cpdef double em_step(double[::1,:] w, double[::1,:,:] S,
     logweights: array-like, shape (n,) 
         Log-weights for each observation, or None. Use logweights = np.zeros(n)
         to prevent the use of weights.
-        
-    logclasses: array-like, shape (k, n) 
-        Log-probabilities that each observation belong to a given cluster. Use
-        logclasses = np.zeros((k,n)) - np.log(k) to prevent the use of classes.
-        
+
+    logclasses: array-like, shape (c, n) 
+        Log-probabilities that each observation belong to a given class. Use
+        logglasses = np.zeros((1,n)) to prevent the use of classes.
+
     Optional Parameters
     -------------------
     Rt: array-like, shape (d, r, n)
@@ -371,27 +409,35 @@ cpdef double em_step(double[::1,:] w, double[::1,:,:] S,
     #
     # Results of the E-step
     # q: (k,)
+    # p: (c, k)
     # b: (d, k)
     # B: (d, d, k)
     #
     # Results of the M-step
-    # m0: (k), equivalent to the new alpha
+    # M0: (k,), equivalent to the new alpha over all classes
+    # m0: (c, k), equivalent to the new alpha
     # m1: (d, k), equivalent to the new m
     # m2: (d, d, k), equivalent to the new V
     cdef int r=w.shape[0], n=w.shape[1], d=m.shape[0], k=m.shape[1]
-    cdef int i, j, n1, n2, j_, n1_, n2_, noweights, numfreealpha
-    cdef double qsum, weightsum, loglike=0, exp_q, sumfreealpha
+    cdef int c=alphaclass.shape[0]
+    cdef int i, j, l, n1, n2, j_, l_, n1_, n2_, noweights, numfixalpha
+    cdef double qsum, weightsum, loglike=0, exp_q, sumalpha, sumfreealpha
+    cdef double norm = r * log(2 * np.pi) / 2.0
     cdef double[::1] logalpha = np.log(alpha)
+    cdef double[::1,:] logalphaclass = np.log(alphaclass)
     # All these are local variables
     cdef double *x
     cdef double *T
     cdef double *VRt
     cdef double *q
+    cdef double *qclass
     cdef double *b
     cdef double *B
+    cdef double *M0_local
     cdef double *m0_local
     cdef double *m1_local
     cdef double *m2_local
+    cdef double *M0
     cdef double *m0
     cdef double *m1
     cdef double *m2
@@ -409,8 +455,8 @@ cpdef double em_step(double[::1,:] w, double[::1,:,:] S,
         if fixpars is not None and fixpars[j] & _FIX_AMP:
             numfixalpha += 1
             sumfreealpha -= alpha[j]
-        
-    m0 = <double *>calloc(k, sizeof(double))
+    M0 = <double *>calloc(k, sizeof(double))
+    m0 = <double *>calloc(k*c, sizeof(double))
     m1 = <double *>calloc(k*d, sizeof(double))
     m2 = <double *>calloc(k*d*d, sizeof(double))
     with nogil, parallel():
@@ -419,10 +465,12 @@ cpdef double em_step(double[::1,:] w, double[::1,:,:] S,
         T = <double *>malloc(r*r*sizeof(double))
         VRt = <double *>malloc(r*d*sizeof(double))
         q = <double *>malloc(k*sizeof(double))
+        qclass = <double *>malloc(c*sizeof(double))
         b = <double *>malloc(k*d*sizeof(double))
         B = <double *>malloc(k*d*d*sizeof(double))
         # Allocate the arrays for the moments
-        m0_local = <double *>calloc(k, sizeof(double))
+        M0_local = <double *>calloc(k, sizeof(double))
+        m0_local = <double *>calloc(k*c, sizeof(double))
         m1_local = <double *>calloc(k*d, sizeof(double))
         m2_local = <double *>calloc(k*d*d, sizeof(double))
         for i in prange(n):
@@ -434,15 +482,17 @@ cpdef double em_step(double[::1,:] w, double[::1,:,:] S,
                     e_single_step_noproj(w[:,i], S[:,:,i], 
                                          m[:,j], V[:,:,j], 
                                          x, T, VRt,
-                                         &q[j], &b[j*d], &B[j*d*d])                    
+                                         &q[j], &b[j*d], &B[j*d*d])
                 else:
                     e_single_step(w[:,i], Rt[:,:,i], S[:,:,i], 
                                   m[:,j], V[:,:,j], 
                                   x, T, VRt,
                                   &q[j], &b[j*d], &B[j*d*d])
-                q[j] += logalpha[j] + logclasses[j, i]
+                for l in range(c):
+                    qclass[l] = logalphaclass[l, j] + logclasses[l, i]
+                q[j] = q[j] + logsumexp(qclass, c) + log(alpha[j])
             qsum = logsumexp(q, k)
-            loglike += qsum
+            loglike += qsum - norm
             for j in range(k):
                 q[j] += logweights[i] - qsum
             # done! Now we can proceed with the M-step, which operates
@@ -450,8 +500,12 @@ cpdef double em_step(double[::1,:] w, double[::1,:,:] S,
             # += operator which forces the use of a reductions for m0, m1, and m2.
             for j in range(k):
                 exp_q = exp(q[j])
-                # m0 is the sum of all q_ij over i, so related to alpha
-                m0_local[j] += exp_q
+                # M0 is the sum of all q_ij over i, so related to alpha
+                M0_local[j] += exp_q
+                # m0 is similar to M0, but includes an index for the class; it is
+                # more directly related to alpha
+                for l in range(c):
+                    m0_local[j*c+l] += exp(q[j] + logclasses[l,i])
                 for n1 in range(d):
                     # m1 is the sum of q_ij (b_ij - m_j) over i, so related to m_j - m_j(old)
                     m1_local[j*d+n1] += exp_q*b[j*d+n1]
@@ -462,7 +516,9 @@ cpdef double em_step(double[::1,:] w, double[::1,:,:] S,
         # Collect all the reduction variables of the various threads
         with gil:
             for j_ in range(k):
-                m0[j_] += m0_local[j_]
+                M0[j_] += M0_local[j_]
+                for l_ in range(c):
+                    m0[j_*c+l_] += m0_local[j_*c+l_]
                 for n1_ in range(d):
                     m1[j_*d+n1_] += m1_local[j_*d+n1_]
                     for n2_ in range(n1_, d):
@@ -472,8 +528,10 @@ cpdef double em_step(double[::1,:] w, double[::1,:,:] S,
         free(T)
         free(VRt)
         free(q)
+        free(qclass)
         free(b)
         free(B)
+        free(M0_local)
         free(m0_local)
         free(m1_local)
         free(m2_local)
@@ -486,26 +544,29 @@ cpdef double em_step(double[::1,:] w, double[::1,:,:] S,
                 m1[j*d+n1] = 0
         else:
             for n1 in range(d):
-                m1[j*d+n1] /= m0[j]
+                m1[j*d+n1] /= M0[j]
     # Cannot do directly m2, because it depends on the correct computation of m1: therefore
     # we need to repeat the loop
     if regularization > 0:
         for j in range(k):
             for n1 in range(d):
-                m2[(j*d+n1)*d+n1] = (m2[(j*d+n1)*d+n1] - m1[j*d+n1]*m1[j*d+n1] * m0[j] + regularization) \
-                    / (m0[j] + 1.0)
+                m2[(j*d+n1)*d+n1] = (m2[(j*d+n1)*d+n1] - m1[j*d+n1]*m1[j*d+n1] * M0[j] + regularization) \
+                    / (M0[j] + 1.0)
                 for n2 in range(n1 + 1, d):
-                    m2[(j*d+n1)*d+n2] = m2[(j*d+n2)*d+n1] = (m2[(j*d+n1)*d+n2] - m1[j*d+n1]*m1[j*d+n2] * m0[j]) \
-                      / (m0[j] + 1.0)
+                    m2[(j*d+n1)*d+n2] = m2[(j*d+n2)*d+n1] = (m2[(j*d+n1)*d+n2] - m1[j*d+n1]*m1[j*d+n2] * M0[j]) \
+                      / (M0[j] + 1.0)
     else:
         for j in range(k):
             for n1 in range(d):
                 for n2 in range(n1, d):
-                    m2[(j*d+n1)*d+n2] = m2[(j*d+n2)*d+n1] = (m2[(j*d+n1)*d+n2] / m0[j] - m1[j*d+n1]*m1[j*d+n2])
+                    m2[(j*d+n1)*d+n2] = m2[(j*d+n2)*d+n1] = (m2[(j*d+n1)*d+n2] / M0[j] - m1[j*d+n1]*m1[j*d+n2])
     # Done, save the results back
     for j in range(k):
         if fixpars is None or not fixpars[j] & _FIX_AMP:
-            alpha[j] = m0[j] / weightsum
+            alpha[j] = M0[j] / weightsum
+        if fixpars is None or not fixpars[j] & _FIX_CLASS:
+            for l in range(c):
+                alphaclass[l, j] = m0[j*c+l] / M0[j]
         for n1 in range(d):
             # The += sign here is due to the use of an E-step w/o the m_j term in b_ij
             m[n1, j] += m1[j*d+n1]
@@ -523,6 +584,7 @@ cpdef double em_step(double[::1,:] w, double[::1,:,:] S,
                 alpha[j] *= sumfreealpha / sumalpha
                 
     # Finally free the memory
+    free(M0)
     free(m0)
     free(m1)
     free(m2)

@@ -4,7 +4,8 @@ from scipy.special import ndtri, logsumexp
 from sklearn.utils import check_array, check_random_state
 from sklearn.mixture import GaussianMixture
 # from extreme_deconvolution import extreme_deconvolution
-from . import xdeconv, FIX_AMP, FIX_MEAN, FIX_COVAR, log_likelihoods
+from . import FIX_NONE, FIX_AMP, FIX_CLASS, FIX_MEAN, FIX_COVAR, FIX_ALL, \
+    xdeconv, log_likelihoods
 
 
 class XD_Mixture(GaussianMixture):
@@ -150,8 +151,9 @@ class XD_Mixture(GaussianMixture):
     GaussianMixture : Gaussian mixture model.
     """
 
-    def __init__(self, n_components=1, covariance_type='full', tol=1e-5,
-                 reg_covar=1e-06, max_iter=int(1e9), n_init=1, init_params='gmm',
+    def __init__(self, n_components=1, n_classes=1, covariance_type='full', 
+                 tol=1e-5, reg_covar=1e-06, max_iter=int(1e9), 
+                 n_init=1, init_params='gmm', 
                  weights_init=None, means_init=None, precisions_init=None,
                  splitnmerge=0, random_state=None, warm_start=False,
                  regularization=0.0, verbose=0, verbose_interval=10):
@@ -162,8 +164,9 @@ class XD_Mixture(GaussianMixture):
             means_init=means_init, precisions_init=precisions_init,
             random_state=random_state, warm_start=warm_start,
             verbose=verbose, verbose_interval=verbose_interval)
+        self.n_classes = n_classes
         self.splitnmerge = splitnmerge
-        self.weights_ = self.means_ = self.covariances_ = None
+        self.weights_ = self.classes_ = self.means_ = self.covariances_ = None
         self.converged_ = False
         self.lower_bound_ = -np.infty
         self.regularization = regularization
@@ -289,13 +292,9 @@ class XD_Mixture(GaussianMixture):
             self._set_parameters(parameters)
         else:
             init_params = self.init_params
-            if isinstance(self.n_components, tuple):
-                self.sum_components = sum(self.n_components)
-            else:
-                self.sum_components = self.n_components
             if projection is not None:
                 identity = np.zeros(shape=projection.shape[1:])
-                j = range(max(identity.shape))
+                j = range(min(identity.shape))
                 identity[j, j] = 1
                 mask = np.all(projection == identity, axis=(1, 2))
                 n_x_features = projection.shape[2]
@@ -307,44 +306,36 @@ class XD_Mixture(GaussianMixture):
                 mask &= np.log(np.random.rand(log_weight.shape[0])) < log_weight
             if init_params == 'gmm':
                 init_params = 'kmeans'
-            if not isinstance(self.n_components, tuple):
-                n_class_components = (self.n_components,)
-            else:
-                n_class_components = self.n_components
             if log_class_prob is None:
-                log_class_prob = np.zeros((n_points, len(n_class_components)))
+                log_class_prob = np.zeros((n_points, self.n_classes))
             # OK, now everything is just the same: we have classes and class probabilities
-            self.weights_ = np.empty(self.sum_components)
-            self.means_ = np.empty((self.sum_components, n_x_features))
-            self.covariances_ = np.empty((self.sum_components, n_x_features, n_x_features))
-            cum_c = 0
-            for e, c in enumerate(n_class_components):
-                with warnings.catch_warnings():
-                    warnings.simplefilter('ignore')
-                    tmp_gmm = GaussianMixture(c, max_iter=30, covariance_type='full',
-                                            init_params=init_params, random_state=self.random_state)
-                cmask = mask & (log_class_prob[:, e] > np.log(0.9))
-                if init_params == 'random' or np.sum(cmask) < 2 * n_x_features ** 2:
-                    if np.sum(cmask) < c:
-                        raise ValueError('Number of valid points smaller than number of components.')
-                    if init_params != 'random':
-                        warnings.warn(
-                            'Not enough sample datapoints. Using random values for the initial values.',
-                            RuntimeWarning)
-                    p = np.where(cmask)[0][np.random.permutation(np.sum(cmask))[:c]]
-                    tmp_gmm.means_ = Y[p]
-                    tmp_gmm.covariances_ = np.cov(Y[cmask], rowvar=False)[np.newaxis,...]
-                    tmp_gmm.weights_ = 1/c
+            self.weights_ = np.empty(self.n_components)
+            self.classes_ = np.empty((self.n_components, self.n_classes))
+            self.means_ = np.empty((self.n_components, n_x_features))
+            self.covariances_ = np.empty((self.n_components, n_x_features, n_x_features))
+            with warnings.catch_warnings():
+                warnings.simplefilter('ignore')
+                tmp_gmm = GaussianMixture(
+                    self.n_components, max_iter=30, covariance_type='full',
+                    init_params=init_params, random_state=self.random_state)
+                if init_params != 'random':
+                    if np.sum(mask) < self.n_components:
+                        raise ValueError(
+                            'Number of valid points smaller than number of components.')
+                    tmp_gmm.fit(Y[mask])
+                    resp = tmp_gmm.predict_proba(Y[mask])[:, :, np.newaxis] * \
+                        np.exp(log_class_prob)[mask, np.newaxis, :]
+                    xclass = np.sum(resp, axis=0)
+                    xclass /= np.sum(xclass, axis=1)[:, np.newaxis] 
                 else:
-                    if self.init_params == 'gmm':
-                        tmp_gmm.fit(Y[cmask])
-                    else:
-                        tmp_gmm._initialize_parameters(
-                            Y[cmask], tmp_gmm.random_state)
-                self.means_[cum_c:cum_c+c, :] = tmp_gmm.means_
-                self.weights_[cum_c:cum_c+c] = tmp_gmm.weights_ * np.sum(cmask) 
-                self.covariances_[cum_c:cum_c+c, :, :] = tmp_gmm.covariances_
-                cum_c += c
+                    tmp_gmm._initialize_parameters(
+                        Y[mask], tmp_gmm.random_state)
+                    xclass = np.zeros((self.n_components, self.n_classes)) - \
+                        np.log(self.n_classes)
+                self.means_ = tmp_gmm.means_
+                self.classes_ = xclass
+                self.weights_ = tmp_gmm.weights_ 
+                self.covariances_ = tmp_gmm.covariances_
             # Renormalize the weights
             self.weights_ /= np.sum(self.weights_)
             self.n_features_ = n_x_features
@@ -369,12 +360,12 @@ class XD_Mixture(GaussianMixture):
             
         log_class_prob : array_lile, shape (n_samples, n_classes)
             The log probability for each point to belong to one of the classes. Only used
-            if self.n_components is a tuple (or a list of tuples).
+            if self.n_classes is larger than unity.
 
         fixpars : None, int, or int array_like, shape (self.n_components,)
-            A combination of FIX_AMP, FIX_MEAN, FIX_COVAR that indicate the
-            parameters to keep fixed for each component.  If a scalar, the
-            same value is used for all components.
+            A combination of FIX_AMP, FIX_CLASS, FIX_MEAN, FIX_COVAR that 
+            indicates the parameters to keep fixed for each component.  If a 
+            scalar, the same value is used for all components.
 
         The best fit parameters are directly saved in the object.
         """
@@ -383,28 +374,14 @@ class XD_Mixture(GaussianMixture):
             self.bic_test(Y, Yerr, self.n_components, projection=projection, log_weight=log_weight)
             return self
         
-        # If n_components is a tuple, use classes
-        full_class_prob = None
-        n_components = self.n_components
-        if isinstance(self.n_components, tuple):
-            n_classes = len(self.n_components)
-            self.n_components = self.sum_components = sum(self.n_components)
-            if log_class_prob is not None:
-                if log_class_prob.shape[0] != Y.shape[0]:
-                    raise ValueError(
-                        "log_class_prob and Y do not have the same number of points")
-                if log_class_prob.shape[1] != n_classes:
-                    raise ValueError(
-                        "log_class_prob has a number of probabilities different from n_classes")
-                # Distribute equally the class probabilities among the class members
-                full_class_prob = np.empty((Y.shape[0], self.n_components))
-                cum_c = 0
-                for e, c in enumerate(n_components):
-                    full_class_prob[:, cum_c:cum_c +
-                                    c] = (log_class_prob[:, e] - np.log(c))[:, np.newaxis]
-                    cum_c += c
+        if self.n_classes > 1 and log_class_prob is not None:
+            if log_class_prob.shape[0] != Y.shape[0]:
+                raise ValueError(
+                    "log_class_prob and Y do not have the same number of points")
+            if log_class_prob.shape[1] != self.n_classes:
+                raise ValueError(
+                    "log_class_prob has a number of probabilities different from n_classes")
         else:
-            self.sum_components = self.n_components
             # Just in case it has been passed, ignore it!
             log_class_prob = None
         
@@ -413,7 +390,6 @@ class XD_Mixture(GaussianMixture):
         Y, Yerr, projection, log_weight = self._check_Y_Yerr(
             Y, Yerr, projection, log_weight)
         self._check_initial_parameters(Y)
-        self.n_components = n_components
 
         # if we enable warm_start, we will have a unique initialisation
         do_init = not ((self.warm_start or fixpars is not None)
@@ -442,8 +418,9 @@ class XD_Mixture(GaussianMixture):
             self.lower_bound_ = xdeconv(Y, Yerr, self.weights_, self.means_, self.covariances_,
                                         tol=self.tol, maxiter=self.max_iter,
                                         regular=self.reg_covar, # FIXME splitnmerge=self.splitnmerge,
-                                        weight=log_weight, projection=projection,
-                                        fixpars=fixpars, classes=full_class_prob)
+                                        weight=log_weight, xclass=self.classes_,
+                                        projection=projection,
+                                        fixpars=fixpars, classes=log_class_prob)
             if self.lower_bound_ > max_lower_bound:
                 max_lower_bound = self.lower_bound_
                 best_params = self._get_parameters()
@@ -452,9 +429,9 @@ class XD_Mixture(GaussianMixture):
         self._set_parameters(best_params)
         # Computes the BIC
         ndim = self.means_.shape[1]
-        cov_params = self.sum_components * ndim * (ndim + 1) / 2.0
-        mean_params = ndim * self.sum_components
-        n_params = int(cov_params + mean_params + self.sum_components - 1)
+        cov_params = self.n_components * ndim * (ndim + 1) / 2.0
+        mean_params = ndim * self.n_components
+        n_params = int(cov_params + mean_params + self.n_components - 1)
         self.bic_ = -2 * np.sum(self.lower_bound_) + \
             n_params * np.log(self.n_eff_samples_)
         return self

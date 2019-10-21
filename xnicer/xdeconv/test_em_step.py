@@ -1,8 +1,8 @@
 import numpy as np
 from scipy.special import logsumexp
 import warnings
-from .em_step import log_likelihoods, py_e_single_step, em_step
-from .em_step import FIX_NONE, FIX_AMP, FIX_MEAN, FIX_COVAR, FIX_ALL, em_step
+from .em_step import log_likelihoods, py_e_single_step, em_step  # pylint: disable=no-name-in-module
+from .em_step import FIX_NONE, FIX_AMP, FIX_CLASS, FIX_MEAN, FIX_COVAR, FIX_ALL # pylint: disable=no-name-in-module
 from . import xdeconv
 
 def py_log_likelihoods(deltas, covars, results=None):
@@ -12,8 +12,9 @@ def py_log_likelihoods(deltas, covars, results=None):
     for n in range(nobjs):
         C = covars[n,:,:]
         C_1 = np.linalg.inv(C)
-        results[n] = -0.5 * np.log(np.linalg.det(C)) - 0.5 * np.dot(np.dot(C_1, deltas[n]), deltas[n])
-    return logsumexp(results)
+        results[n] = -0.5 * np.log(np.linalg.det(C)) - \
+            0.5 * np.dot(np.dot(C_1, deltas[n]), deltas[n]) - \
+            0.5 * deltas.shape[1] * np.log(2.0*np.pi)
 
 
 def generate_test_log_likelihoods(n, r, seed=1):
@@ -23,10 +24,9 @@ def generate_test_log_likelihoods(n, r, seed=1):
     covars = np.einsum('...ij,...ik->...jk', C, C)
     results1 = np.zeros(n)
     results2 = np.zeros(n)
-    result1 = log_likelihoods(deltas, covars, results1)
-    result2 = py_log_likelihoods(deltas, covars, results2)
+    log_likelihoods(deltas, covars, results1)
+    py_log_likelihoods(deltas, covars, results2)
     assert np.allclose(results1, results2)
-    assert np.allclose([result1], [result2])
 
 
 def test_log_likelihoods():
@@ -36,7 +36,7 @@ def test_log_likelihoods():
                 generate_test_log_likelihoods(n, r, seed=seed)
                 
 
-def py_em_step(w, S, alpha, m, V, logweights, logclasses, Rt=None,
+def py_em_step(w, S, alpha, alphaclass, m, V, logweights, logclasses, Rt=None,
                fixpars=None, regularization=0.0):
     """Perform an EM step using a pure Python code
     
@@ -55,6 +55,11 @@ def py_em_step(w, S, alpha, m, V, logweights, logclasses, Rt=None,
         Array with the statistical weight of each Gaussian. Updated at the
         exit with the new weights.
     
+    alphaclass: array-like, shape (c, k)
+        Array with the statistical weight per class of each Gaussian. Updated
+        at the exit with the new weights. Runs over the k clusters and the c
+        classes.
+
     m: array-like, shape (d, k)
         Centers of multivariate Gaussians, updated at the exit with the new
         centers.
@@ -62,11 +67,11 @@ def py_em_step(w, S, alpha, m, V, logweights, logclasses, Rt=None,
     V: array-like, shape (d, d, k)
         Array of covariance matrices of the multivariate Gaussians, updated 
         at the exit with the new covariance matrices.
-    
+        
     logweights: array-like, shape (n,) 
         Log-weights for each observation, or None
         
-    logclasses: array-like, shape (k, n) 
+    logclasses: array-like, shape (c, n) 
         Log-probabilities that each observation belong to a given cluster.
         
     Optional Parameters
@@ -77,15 +82,13 @@ def py_em_step(w, S, alpha, m, V, logweights, logclasses, Rt=None,
         the observed r-dimensional vector. If None, it is assumed that r=d 
         and that no project is performed (equivalently: R is an array if 
         identity matrices).
-        
+                
     fixpars: array-like, shape (k)
-        Array of bitmasks with the FIX_AMP, FIX_MEAN, and FIX_AMP combinations.
-        Currently ignored.
+        Array of bitmasks with the FIX_* combinations. Currently ignored.
     
     regularization: double, default=0
         Regularization parameter (use 0 to prevent the regularization).
     """
-    r = w.shape[0]
     n = w.shape[1]
     d = m.shape[0]
     k = m.shape[1]
@@ -103,15 +106,20 @@ def py_em_step(w, S, alpha, m, V, logweights, logclasses, Rt=None,
         for j in range(k):
             py_e_single_step(w[:, i], np.ascontiguousarray(Ri), S[:, :, i].T, m[:, j], V[:, :, j].T,
                              q, b, B)
-            qs[i, j] = np.log(alpha[j]) + logclasses[j, i] + q[0]
+            qs[i, j] = np.sum(alphaclass[:,j] * np.exp(logclasses[:,i])) * \
+                alpha[j] * np.exp(q[0]) 
             bs[i, j, :] = m[:, j] + b
             Bs[i, j, :] = B
     # Normalize qs
-    qs = np.exp(qs)
+    # qs = np.exp(qs)
     qs /= np.sum(qs, axis=1)[:, np.newaxis]
     # M-step
+    alphaclass[:, :] = np.sum(qs[:, np.newaxis, :] * 
+                              np.exp(logclasses.T[:, :, np.newaxis]), axis=0) / n
+    alpha[:] = np.sum(alphaclass, axis=0) 
+    alphaclass /= alpha[np.newaxis, :]
+    # Now collapse all class coordinates
     qj = np.sum(qs, axis=0)
-    alpha[:] = qj / n
     m[:, :] = (np.sum(qs[:, :, np.newaxis]*bs, axis=0) / qj[:, np.newaxis]).T
     V[:, :, :] = np.sum(qs[:, :, np.newaxis, np.newaxis] *
                         (np.einsum('...i,...j->...ij', m.T - bs, m.T - bs) + Bs), axis=0).T / \
@@ -170,6 +178,52 @@ def test_single_e_step():
             for iter in range(10):
                 generate_test_single_e_step(r, d, seed=iter)
                 
+
+def generate_test_single_e_step_proj(d, seed=1):
+    """Generate a random E-step test.
+    
+    This procedure generate a single random point, and runs an E-step on it
+    using the Cython codes with and without projection. It then compares the
+    results.
+    
+    Parameters
+    ----------
+    d: int
+        Dimensionality of the data
+        
+    seed: int, default=1
+        Seed for the random number generator.
+    """
+    np.random.seed(seed)
+    w = np.random.rand(d)
+    R = np.identity(d)
+    S = np.random.rand(d, d)
+    S = np.dot(S.T, S)
+    m = np.random.rand(d)
+    V = np.random.rand(d, d)
+    V = np.dot(V.T, V)
+
+    q1 = np.zeros(1)
+    b1 = np.zeros(d)
+    B1 = np.zeros((d, d))
+    py_e_single_step(w, R, S, m, V, q1, b1, B1)
+
+    q2 = np.zeros(1)
+    b2 = np.zeros(d)
+    B2 = np.zeros((d, d))
+    py_e_single_step(w, None, S, m, V, q2, b2, B2)
+
+    assert np.allclose(q1, q2)
+    assert np.allclose(b1, b2)
+    assert np.allclose(B1, B2)
+
+
+def test_single_e_step_proj():
+    """Make sure that the standard/projection e-steps are compatible.""" 
+    for d in range(1, 8):
+        for iter in range(10):
+            generate_test_single_e_step_proj(d, seed=iter)
+
                 
 def generate_test_single_em_step(d, r, n, k, c, seed=1):
     """Generate a random EM-step test.
@@ -208,26 +262,31 @@ def generate_test_single_em_step(d, r, n, k, c, seed=1):
     V = np.asfortranarray(np.einsum('ij...,kj...->ik...', V, V))
     alpha = np.random.rand(k)
     alpha /= np.sum(alpha)
+    alphaclass = np.asfortranarray(np.random.rand(c, k))
+    alphaclass /= np.sum(alphaclass, axis=0)[np.newaxis, :]
     if c > 1:
-        classes = np.asfortranarray(np.random.rand(k, n))
+        classes = np.asfortranarray(np.random.rand(c, n))
         classes /= np.sum(classes, axis=0)[np.newaxis, :]
         classes = np.log(classes)
     else:
-        classes = np.zeros((k, n), dtype=np.float64, order='F') - np.log(k)
+        classes = np.zeros((c, n), dtype=np.float64, order='F') - np.log(c)
     weights = np.zeros(n, dtype=np.float64, order='F')
 
     alpha1 = alpha.copy('A')
+    alphaclass1 = alphaclass.copy('A')
     m1 = m.copy('A')
     V1 = V.copy('A')
     alpha2 = alpha.copy('A')
+    alphaclass2 = alphaclass.copy('A')
     m2 = m.copy('A')
     V2 = V.copy('A')
     weights = np.zeros(n, order='F')
 
-    em_step(w, S, alpha1, m1, V1, weights, classes, Rt=Rt)
-    py_em_step(w, S, alpha2, m2, V2, weights, classes, Rt=Rt)
+    em_step(w, S, alpha1, alphaclass1, m1, V1, weights, classes, Rt=Rt)
+    py_em_step(w, S, alpha2, alphaclass2, m2, V2, weights, classes, Rt=Rt)
 
     assert np.allclose(alpha1, alpha2)
+    assert np.allclose(alphaclass1, alphaclass2)
     assert np.allclose(m1, m2)
     assert np.allclose(V1, V2)
 
@@ -241,80 +300,134 @@ def test_single_em_step():
                     for n in (5, 10, 20):
                         for iter in range(10):
                             generate_test_single_em_step(d, r, n, k, c, seed=iter)
-  
 
-def generate_test_pyxc(xamp, xmean, xcovar, ycovar, npts=1000,
-                       use_weight=False, use_projection=False, 
-                       use_classes=False, fixpars=None, seed=1, 
-                       confusion=0.01, silent=True, **kw):
-    """Create a full test for the extreme deconvolution algorithm.
-    
-    This procedure works by creating an artificial set of random samples 
-    following a Gaussian mixture model (GMM), then checking that the extreme
-    deconvolution is able to recover the original parameters.
+
+def generate_test_em_likelihood(d, n, k, c, seed=1):
+    """Generate a test to check the likelihood calculation
+
+    This procedure generate a set of random points, and runs an EM-step on 
+    them using the Cython code, and check if the likelihood returned is
+    identical to the one computed directly.
+
+    Parameters
+    ----------
+    d: int
+        Dimensionality of the data and parameters.
+
+    n: int
+        Number of points to generate
+        
+    k: int
+        Number of Gaussian components to have
+        
+    c: int
+        Number of classes to have; currently only works with c=1.
+        
+    seed: int, default=1
+        Seed for the random number generator.
+    """
+    np.random.seed(seed)
+    w = np.asfortranarray(np.random.rand(d, n))
+    S = np.random.rand(d, d, n)
+    S = np.asfortranarray(np.einsum('ij...,kj...->ik...', S, S))
+    m = np.asfortranarray(np.random.rand(d, k))
+    V = np.random.rand(d, d, k)
+    V = np.asfortranarray(np.einsum('ij...,kj...->ik...', V, V))
+    alpha = np.random.rand(k)
+    alpha /= np.sum(alpha)
+    alphaclass = np.asfortranarray(np.random.rand(c, k))
+    alphaclass /= np.sum(alphaclass, axis=0)[np.newaxis, :]
+    if c > 1:
+        classes = np.asfortranarray(np.random.rand(c, n))
+        classes /= np.sum(classes, axis=0)[np.newaxis, :]
+        classes = np.log(classes)
+    else:
+        classes = np.zeros((c, n), dtype=np.float64, order='F') - np.log(c)
+    weights = np.zeros(n, dtype=np.float64, order='F')
+
+    results = np.zeros((k, n))
+    for c in range(k):
+        log_likelihoods(w.T - m[:,c], S.T + V[:,:,c], results[c,:])
+
+    lnlike1 = np.sum(logsumexp(results + np.log(alpha[:, np.newaxis]), axis=0))
+    lnlike2 = em_step(w, S, alpha, alphaclass, m, V, weights, classes)
+
+    assert np.allclose([lnlike1 / n], [lnlike2])
+
+
+def test_em_likelihood():
+    """Run a series of tests using `generate_test_single_em_step`."""
+    for d in range(1, 5):
+        for k in range(1, 5):
+            for n in (1, 5, 10, 20):
+                for iter in range(10):
+                    generate_test_em_likelihood(d, n, k, 1, seed=iter)
+
+
+def generate_data(xamp, xmean, xcovar, ycovar, npts=1000,
+                  xclass=None, use_weight=False, use_projection=False,
+                  use_classes=False, fixpars=None, seed=1,
+                  confusion=0.01):
+    """Generate a set of points for XD tests
     
     Parameters
     ----------
     xamp: array-like, shape (k,)
         Array with the statistical weight of each Gaussian.
-        
+
     xmean: array-like, shape (k, dx)
         Centers of multivariate Gaussians.
-    
+
     xcovar: array-like, shape (k, dx, dx)
         Array of covariance matrices of the multivariate Gaussians.
         If a simple scalar is provided, it is understood as the diagonal term
-        of all gaussians; if a 1D vector is provided, it is taken to contain 
+        of all gaussians; if a 1D vector is provided, it is taken to contain
         the diagonal value of each component; if a 2D vector is provided, it
         is taken to be the identical covariance matrix of all compoments.
-        
+
     ycovar: array-like, shape (npts, dy, dy)
         Array of covariance matrices for the data points.
         If a simple scalar is provided, it is understood as the diagonal term
-        of all gaussians; if a 1D vector is provided, it is taken to contain 
+        of all gaussians; if a 1D vector is provided, it is taken to contain
         the diagonal value of each point; if a 2D vector is provided, it
         is taken to be the identical covariance matrix of all points.
 
     npts: int, default=1000
         Number of samples to generate.
-        
+
+    xclass: array-like, shape (k, c)
+        Array with the statistical weight of each Gaussian for each class.
+
     use_weight: string, default=False
         Can be False (do not user weights), 'uniform' (use the same value
         for all weights), 'random' (use random distributed weights).
-        
+
     use_projection: string, default=False
-        Can be False (do not use any projection), 'identity' (use the 
+        Can be False (do not use any projection), 'identity' (use the
         identity matrix), 'random' (use a random matrix as projection),
         'alternating' (alternate between the coordinates; only if y has
         dimension 1).
-    
+
     use_classes: string, default=False
-        Indicate if additional information on the classification of the 
+        Indicate if additional information on the classification of the
         various objects should be given. Can be False (do not provide any
         additional information), 'exact' (associate each object with its
         true cluster), 'approximate' (associate each object with its true
         cluster with a 75% probability), 'random' (randomly assign class
         probabilities), 'uniform' (use uniform probabilities for all class
         associtaions).
-        
+
     fixpars: array-like, shape (k,) or None
-        Array of bitmasks with the FIX_AMP, FIX_MEAN, and FIX_AMP 
-        combinations.
-    
+        Array of bitmasks with the FIX_* combinations.
+
     seed: integer, default=1
         The seed to use for the random number generator
-        
+    
     confusion: float, default=0.01
         A single parameter used to initialize the clusters with respect to the
         true parameters.  Confusion 0 indicate that the starting parameters
         are the true ones.
-        
-    silent: bool, default=True
-        If True, will not print warning messages.
-        
-    All extra keyword parameters are directly passed to xdeconv.
     """
-
     np.random.seed(seed)
     xamp = np.array(xamp)
     xamp /= np.sum(xamp)
@@ -322,8 +435,14 @@ def generate_test_pyxc(xamp, xmean, xcovar, ycovar, npts=1000,
     xcovar = np.array(xcovar)
     ycovar = np.array(ycovar)
     kdim = xamp.shape[0]
+    if xclass is not None:
+        xclass = np.array(xclass)
+        cdim = xclass.shape[1]
+    else:
+        cdim = 1
+        xclass = np.ones((kdim, cdim))
     xdim = xmean.shape[1]
-    if ycovar.ndim > 0:
+    if ycovar.ndim >= 1:
         ydim = ycovar.shape[0]
     else:
         ydim = xdim
@@ -357,7 +476,8 @@ def generate_test_pyxc(xamp, xmean, xcovar, ycovar, npts=1000,
             ycovar = np.tile(ycovar, (npts, 1, 1))
 
     sqrt_xcovar = np.linalg.cholesky(xcovar)
-    c = np.searchsorted(np.cumsum(xamp), np.random.rand(npts))
+    c, cc = divmod(np.searchsorted(np.cumsum(xamp * xclass), 
+                                   np.random.rand(npts)), cdim)
     xdata = np.random.randn(npts, xdim)
     xdata = np.einsum("...ij,...j->...i", sqrt_xcovar[c, :, :], xdata) + \
         xmean[c, :]
@@ -367,6 +487,8 @@ def generate_test_pyxc(xamp, xmean, xcovar, ycovar, npts=1000,
             projection = np.tile(np.identity(xdim), (npts, 1, 1))
         elif use_projection == 'random':
             projection = np.random.randn(npts, ydim, xdim)
+            if xdim == ydim:
+                projection[np.random.rand(npts) < 0.1, :, :] = np.identity(xdim)
         elif use_projection == 'alternating':
             assert ydim == 1
             projection = np.zeros((npts, ydim, xdim))
@@ -391,19 +513,22 @@ def generate_test_pyxc(xamp, xmean, xcovar, ycovar, npts=1000,
         weight = None
 
     if use_classes:
-        classes = np.zeros((npts, kdim))
+        classes = np.zeros((npts, cdim))
         if use_classes == 'exact':
-            classes[np.arange(npts), c] = 1
+            classes[np.arange(npts), cc] = 1
         elif use_classes == 'approximate':
-            classes[:, :] = 0.25 / (kdim - 1)
-            classes[np.arange(npts), c] = 0.75
+            success = 0.75
+            classes[:, :] = (1.0 - success) / (cdim - 1)
+            goods = np.random.rand(npts) < success
+            classes[np.arange(npts)[goods], cc[goods]] = success
+            classes[np.arange(npts)[~goods], (cc[~goods]+1) % cdim] = success
         elif use_classes == 'random':
-            classes = np.random.rand(npts, kdim)
+            classes = np.random.rand(npts, cdim)
             classes /= np.sum(classes, axis=1)[:, np.newaxis]
         elif use_classes == 'uniform':
-            classes[:, :] = 1 / kdim
+            classes[:, :] = 1 / cdim
         else:
-            raise ValueError("Unkwnon use_classes value")
+            raise ValueError("Unknown use_classes value")
         with np.errstate(divide='ignore'):
             classes = np.log(classes)
     else:
@@ -420,7 +545,13 @@ def generate_test_pyxc(xamp, xmean, xcovar, ycovar, npts=1000,
         free = (fixpars & FIX_AMP == 0)
         if np.any(free):
             xamp_t[free] += confusion * np.random.rand(np.sum(free))
-            xamp_t[free] *= (1.0 - np.sum(xamp_t[~free])) / np.sum(xamp_t[free])
+            xamp_t[free] *= (1.0 - np.sum(xamp_t[~free])) / \
+                np.sum(xamp_t[free])
+        xclass_t = xclass.copy()
+        free = (fixpars & FIX_CLASS == 0)
+        if np.any(free):
+            xclass_t[free, :] += confusion * np.random.rand(np.sum(free), cdim)
+            xclass_t[free, :] /= np.sum(xclass_t[free, :], axis=1)[:, np.newaxis]
         free = (fixpars & FIX_MEAN == 0)
         xmean_t = xmean.copy()
         if np.any(free):
@@ -433,42 +564,139 @@ def generate_test_pyxc(xamp, xmean, xcovar, ycovar, npts=1000,
     else:
         xamp_t = xamp + confusion * np.random.rand(kdim)
         xamp_t /= np.sum(xamp_t)
+        xclass_t = xclass + confusion * np.random.rand(kdim, cdim)
+        xclass_t /= np.sum(xclass_t, axis=1)[:, np.newaxis]
         xmean_t = xmean + confusion * \
             np.diagonal(xcovar, axis1=1, axis2=2) * np.random.randn(kdim, xdim)
         xcovar_t = xcovar * (1 + confusion * np.random.randn(*xcovar.shape))
 
     # Data are now ready, proceed with the real test
+    return {
+        'ydata': ydata, 'ycovar': ycovar, 'xcovar_orig': xcovar,
+        'xamp': xamp_t, 'xmean': xmean_t, 'xcovar': xcovar_t, 
+        'xclass': xclass_t, 'projection': projection, 'weight': weight,
+        'classes': classes, 'fixpars': fixpars
+    }
+
+
+def generate_test_pyxc(xamp, xmean, xcovar, ycovar, npts=1000,
+                       xclass=None, use_weight=False, use_projection=False, 
+                       use_classes=False, fixpars=None, seed=1, 
+                       confusion=0.01, silent=True, **kw):
+    """Create a full test for the extreme deconvolution algorithm.
+    
+    This procedure works by creating an artificial set of random samples 
+    following a Gaussian mixture model (GMM), then checking that the extreme
+    deconvolution is able to recover the original parameters.
+    
+    Parameters
+    ----------
+    xamp: array-like, shape (k,)
+        Array with the statistical weight of each Gaussian.
+        
+    xmean: array-like, shape (k, dx)
+        Centers of multivariate Gaussians.
+    
+    xcovar: array-like, shape (k, dx, dx)
+        Array of covariance matrices of the multivariate Gaussians.
+        If a simple scalar is provided, it is understood as the diagonal term
+        of all gaussians; if a 1D vector is provided, it is taken to contain 
+        the diagonal value of each component; if a 2D vector is provided, it
+        is taken to be the identical covariance matrix of all compoments.
+        
+    ycovar: array-like, shape (npts, dy, dy)
+        Array of covariance matrices for the data points.
+        If a simple scalar is provided, it is understood as the diagonal term
+        of all gaussians; if a 1D vector is provided, it is taken to contain 
+        the diagonal value of each point; if a 2D vector is provided, it
+        is taken to be the identical covariance matrix of all points.
+
+    npts: int, default=1000
+        Number of samples to generate.
+       
+    xclass: array-like, shape (k, c)
+        Array with the statistical weight of each Gaussian for each class.
+        
+    use_weight: string, default=False
+        Can be False (do not user weights), 'uniform' (use the same value
+        for all weights), 'random' (use random distributed weights).
+        
+    use_projection: string, default=False
+        Can be False (do not use any projection), 'identity' (use the 
+        identity matrix), 'random' (use a random matrix as projection),
+        'alternating' (alternate between the coordinates; only if y has
+        dimension 1).
+    
+    use_classes: string, default=False
+        Indicate if additional information on the classification of the 
+        various objects should be given. Can be False (do not provide any
+        additional information), 'exact' (associate each object with its
+        true cluster), 'approximate' (associate each object with its true
+        cluster with a 75% probability), 'random' (randomly assign class
+        probabilities), 'uniform' (use uniform probabilities for all class
+        associtaions).
+        
+    fixpars: array-like, shape (k,) or None
+        Array of bitmasks with the FIX_* combinations.
+    
+    seed: integer, default=1
+        The seed to use for the random number generator
+        
+    confusion: float, default=0.01
+        A single parameter used to initialize the clusters with respect to the
+        true parameters.  Confusion 0 indicate that the starting parameters
+        are the true ones.
+        
+    silent: bool, default=True
+        If True, will not print warning messages.
+        
+    All extra keyword parameters are directly passed to xdeconv.
+    """
+    data = generate_data(xamp, xmean, xcovar, ycovar, npts=npts,
+                         xclass=xclass, use_weight=use_weight, 
+                         use_projection=use_projection, 
+                         use_classes=use_classes, fixpars=fixpars, 
+                         seed=seed, confusion=confusion)
+    # Fix the input arrays
+    xamp = np.array(xamp)
+    xmean = np.array(xmean)
+    xcovar = data.pop('xcovar_orig')
+    # Updata the argument of xdeconv
+    data.update(kw)
+    # Data are now ready, proceed with the real test
     with warnings.catch_warnings():
         if silent:
             warnings.simplefilter('ignore')
-        xdeconv(ydata, ycovar, xamp_t, xmean_t, xcovar_t, projection=projection, weight=weight,
-                classes=classes, fixpars=fixpars, **kw)
-    # extreme_deconvolution(ydata, ycovar, xamp_t, xmean_t, xcovar_t, projection=projection, weight=weight)
+        xdeconv(**data) # pylint: disable=unexpected-keyword-arg
+    # extreme_deconvolution(ydata, ycovar, xamp_t, xmean_t, xcovar_t, 
+    # projection=projection, weight=weight)
 
     # Estimate the expected errors
     eff_npts = npts
     eff_covar = xcovar.copy()
     if use_projection == 'random':
         eff_npts /= 2
-        eff_covar += np.mean(ycovar, axis=0)
+        eff_covar += np.mean(data['ycovar'], axis=0)
     elif use_projection == 'alternating':
-        eff_npts /= kdim
-        eff_covar += np.mean(ycovar, axis=0)
+        eff_npts /= xamp.shape[0]
+        eff_covar += np.mean(data['ycovar'], axis=0)
     else:
-        eff_covar += np.mean(ycovar, axis=0)
+        eff_covar += np.mean(data['ycovar'], axis=0)
     if use_weight == 'random':
         eff_npts /= 0.75
+    # We add a numerical stability term to all error estimates
+    eps = 1e-8
     # From a Multinomial distribution...
-    amp_err = np.sqrt(xamp*(1-xamp) / eff_npts)
+    amp_err = np.sqrt(xamp*(1-xamp) / eff_npts) + eps
     # From a Multivariate Normal distribution
     eff_var = np.diagonal(eff_covar, axis1=1, axis2=2)
-    mean_err = np.sqrt(eff_var / (eff_npts * xamp[:, np.newaxis]))
+    mean_err = np.sqrt(eff_var / (eff_npts * xamp[:, np.newaxis])) + eps
     # From a Whishart distribution...
     cov_err = np.sqrt((eff_covar**2 + np.einsum('...i,...j->...ij', eff_var, eff_var)) /
-                      ((eff_npts - 1) * xamp[:, np.newaxis, np.newaxis]))
-    return ((xamp_t, (xamp_t - xamp) / amp_err),
-            (xmean_t, (xmean_t - xmean) / mean_err),
-            (xcovar_t, (xcovar_t - xcovar) / cov_err))
+                      ((eff_npts - 1) * xamp[:, np.newaxis, np.newaxis])) + eps
+    return ((data['xamp'], (data['xamp'] - xamp) / amp_err),
+            (data['xmean'], (data['xmean'] - xmean) / mean_err),
+            (data['xcovar'], (data['xcovar'] - xcovar) / cov_err))
 
 
 def test_pyxc_1d():
@@ -613,47 +841,67 @@ def test_pyxc_2d_projection():
 
 def test_pyxc_2d_classes():
     """Test using 2D data w/ classes and projections"""
-    for use_classes in ['exact', 'approximate', 'random', 'uniform']:
+    for use_classes in ['exact', 'random', 'uniform', 'approximate']:
         print(use_classes)
         for iter in range(5):
             npts = [100, 300, 1000, 3000, 10000][iter]
+            print(npts)
             a, b, c = generate_test_pyxc([0.5, 0.5], [[3.0, 1.0], [-3.0, -1.0]], [1.0, 0.5], [1.0, 1.0],
-                                         use_projection=False, npts=npts, seed=iter, silent=True,
+                                         xclass=np.identity(2), use_projection=False, npts=npts, seed=iter, silent=True,
                                          use_classes=use_classes)
-            print(npts, a[1], b[1], c[1])
-            assert np.all(np.abs(a[1]) < 3), f"|a[1]| = {np.max(np.abs(a[1])):.2f} > 3"
-            assert np.all(np.abs(b[1]) < 3), f"|b[1]| = {np.max(np.abs(b[1])):.2f} > 3"
-            assert np.all(np.abs(c[1]) < 3), f"|c[1]| = {np.max(np.abs(c[1])):.2f} > 3"
-
-        for iter in range(5):
-            npts = [100, 300, 1000, 3000, 10000][iter]
-            a, b, c = generate_test_pyxc([0.5, 0.5], [[3.0, 1.0], [-3.0, -1.0]], [1.0, 0.5], [1.0, 1.0],
-                                         use_projection='random', npts=npts, seed=iter, silent=True,
-                                         use_classes=use_classes)
-            print(npts, a[1], b[1], c[1])
             assert np.all(np.abs(a[1]) < 4), f"|a[1]| = {np.max(np.abs(a[1])):.2f} > 4"
             assert np.all(np.abs(b[1]) < 4), f"|b[1]| = {np.max(np.abs(b[1])):.2f} > 4"
             assert np.all(np.abs(c[1]) < 4), f"|c[1]| = {np.max(np.abs(c[1])):.2f} > 4"
 
         for iter in range(5):
             npts = [100, 300, 1000, 3000, 10000][iter]
+            print(npts)
+            a, b, c = generate_test_pyxc([0.5, 0.5], [[3.0, 1.0], [-3.0, -1.0]], [1.0, 0.5], [1.0, 1.0],
+                                         xclass=[[0.8, 0.2], [0.4, 0.6]],
+                                         use_projection=False, npts=npts, seed=iter, silent=True,
+                                         use_classes=use_classes)
+            assert np.all(
+                np.abs(a[1]) < 4), f"|a[1]| = {np.max(np.abs(a[1])):.2f} > 4"
+            assert np.all(
+                np.abs(b[1]) < 4), f"|b[1]| = {np.max(np.abs(b[1])):.2f} > 4"
+            assert np.all(
+                np.abs(c[1]) < 4), f"|c[1]| = {np.max(np.abs(c[1])):.2f} > 4"
+
+        for iter in range(5):
+            npts = [100, 300, 1000, 3000, 10000][iter]
+            print(npts)
+            a, b, c = generate_test_pyxc([0.5, 0.5], [[3.0, 1.0], [-3.0, -1.0]], [1.0, 0.5], [1.0, 1.0],
+                                         xclass=np.identity(2),
+                                         use_projection='random', npts=npts, seed=iter, silent=True,
+                                         use_classes=use_classes)
+            assert np.all(np.abs(a[1]) < 3), f"|a[1]| = {np.max(np.abs(a[1])):.2f} > 3"
+            assert np.all(np.abs(b[1]) < 3), f"|b[1]| = {np.max(np.abs(b[1])):.2f} > 3"
+            assert np.all(np.abs(c[1]) < 3), f"|c[1]| = {np.max(np.abs(c[1])):.2f} > 3"
+
+        for iter in range(5):
+            npts = [100, 300, 1000, 3000, 10000][iter]
+            print(npts)
             a, b, c = generate_test_pyxc([0.25, 0.75], [[3.0, 1.0], [-3.0, -1.0]], [1.0, 0.5], [1.0],
+                                         xclass=np.identity(2),
                                          use_projection='alternating', npts=npts, seed=iter, silent=True,
                                          use_classes=use_classes)
-            print(npts, a[1], b[1], c[1])
-            assert np.all(np.abs(a[1]) < 6), f"|a[1]| = {np.max(np.abs(a[1])):.2f} > 6"
-            assert np.all(np.abs(b[1]) < 9), f"|b[1]| = {np.max(np.abs(b[1])):.2f} > 9"
-            assert np.all(np.abs(c[1]) < 12), f"|c[1]| = {np.max(np.abs(c[1])):.2f} > 12"
+            assert np.all(np.abs(a[1]) < 3), f"|a[1]| = {np.max(np.abs(a[1])):.2f} > 3"
+            assert np.all(np.abs(b[1]) < 3), f"|b[1]| = {np.max(np.abs(b[1])):.2f} > 3"
+            assert np.all(np.abs(c[1]) < 6), f"|c[1]| = {np.max(np.abs(c[1])):.2f} > 6"
 
         for iter in range(3):
             npts = [1000, 3000, 10000][iter]
-            a, b, c = generate_test_pyxc([0.25, 0.25, 0.5], [[0.0, 0.0], [4.0, 2.0], [-3.0, 1.0]], [0.8, 1.2, 1.0], 1,
+            print(npts)
+            a, b, c = generate_test_pyxc([0.25, 0.25, 0.50],
+                                         [[0.0, 0.0], [4.0, 2.0], [-3.0, 1.0]], [0.8, 1.2, 1.0], 1,
+                                         xclass=np.identity(3),
                                          use_projection='identity', npts=npts, seed=1, silent=True,
                                          use_classes=use_classes)
-            print(npts, a[1], b[1], c[1])
-            assert np.all(np.abs(a[1]) < 5), f"|a[1]| = {np.max(np.abs(a[1])):.2f} > 5"
+            assert np.all(
+                np.abs(a[1]) < 5), f"|a[1]| = {np.max(np.abs(a[1])):.2f} > 5"
             assert np.all(np.abs(b[1]) < 5), f"|b[1]| = {np.max(np.abs(b[1])):.2f} > 5"
-            assert np.all(np.abs(c[1]) < 5), f"|c[1]| = {np.max(np.abs(c[1])):.2f} > 5"
+            assert np.all(np.abs(c[1]) < 6), f"|c[1]| = {np.max(np.abs(c[1])):.2f} > 6"
+        print("Done")
 
 
 def test_pyxc_2d_fixed():

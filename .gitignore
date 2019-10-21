@@ -16,6 +16,7 @@
 
 # Other stuff
 .pytest_cache
+.ipynb_checkpoints
 .mypy_cache
 .vscode
 .eggs
