@@ -319,14 +319,14 @@ cdef int e_single_step(double[::1] w, double[::1,:] Rt, double[::1,:] S,
     dtrtri("U", "N", &r, T, &ldT, &info)
     # Computes x <- Tnew^T*x
     dtrmv("U", "T", "N", &r, T, &ldT, x, &incx)
-    # Computes VRt <- VRt*Tnew = V*Rt*Tnew
-    dtrmm("R", "U", "N", "N", &d, &r, &one, T, &ldT, VRt, &ldVRt)
     # Computes the log of the determinant of Tnew
     a = 0.0
     for n1 in range(r):
         a += log(T[n1*r+n1])
     # Computes q <- log(det Tnew) - x^T*x / 2
     q[0] = a - 0.5*ddot(&r, x, &incx, x, &incx)
+    # Computes VRt <- VRt*Tnew = V*Rt*Tnew
+    dtrmm("R", "U", "N", "N", &d, &r, &one, T, &ldT, VRt, &ldVRt)
     # Computes b <- VRt*x (the +m term has been dropped)
     for n1 in range(d):
         # b[n1] = m[n1]
@@ -341,8 +341,117 @@ cdef int e_single_step(double[::1] w, double[::1,:] Rt, double[::1,:] S,
         for n2 in range(n1):
             B[n2*d+n1] = B[n1*d+n2]
     return 0
+
+
+@cython.binding(True)
+cpdef double _scores(double[::1,:] w, double[::1,:,:] S, 
+                     double[::1,:] alphaclass,
+                     double[::1,:] m, double[::1,:,:] V, 
+                     double[::1,:] logclasses, double [::1, :] q,
+                     double[::1,:,:] Rt=None):
+    """Compute the score (log-likelihood) for each sample & component.
     
+    Parameters
+    ----------
+    Note: all array parameters are expected to be provided as Fortran
+    contiguous arrays.
     
+    w: array-like, shape (r, n)
+        Set of observations involving n data, each having r dimensions
+    
+    S: array-like, shape (r, r, n)
+        Array of covariances of the observational data w.
+    
+    alphaclass: array-like, shape (c, k)
+        Array with the statistical weight per class of each Gaussian. Runs 
+        over the k clusters and the c classes.
+
+    m: array-like, shape (d, k)
+        Centers of multivariate Gaussians.
+    
+    V: array-like, shape (d, d, k)
+        Array of covariance matrices of the multivariate Gaussians.
+    
+    logclasses: array-like, shape (c, n) 
+        Log-probabilities that each observation belong to a given class. Use
+        logclasses = np.zeros((1,n)) to prevent the use of classes.
+
+    Output Parameters
+    -----------------
+    q: array-like, shape (k, n)
+        The computed score (log-likelihood) for each component and each point.
+        Note that the computed log-likelihood does *not* include the term due
+        to the scaling of eeach cluster (alpha), but only the one associated
+        to the class probability (alphaclass).
+
+    Optional Parameters
+    -------------------
+    Rt: array-like, shape (d, r, n)
+        Array of projection matrices: for each datum (n), it is the transpose
+        of the matrix that transforms the original d-dimensional vector into 
+        the observed r-dimensional vector. If None, it is assumed that r=d 
+        and that no project is performed (equivalently: R is an array if 
+        identity matrices).
+    """
+    # Temporary data for the E-step
+    # x: (r,), difference = w - R*m
+    # T: (r, r), combined projected covariance = R*V*R^T + S
+    # VRt: (d, r), product VRt = V*Rt
+    #
+    # Results of the E-step
+    # q: (k,)
+    # p: (c, k)
+    # b: (d, k)
+    # B: (d, d, k)
+    cdef int r=w.shape[0], n=w.shape[1], d=m.shape[0], k=m.shape[1]
+    cdef int c=alphaclass.shape[0]
+    cdef int i, j, l, n1, n2, j_, l_, n1_, n2_, noweights, numfixalpha
+    cdef double norm = r * log(2 * np.pi) / 2.0
+    cdef double[::1,:] logalphaclass = np.log(alphaclass)
+    # All these are local variables
+    cdef double *x
+    cdef double *T
+    cdef double *VRt
+    cdef double *qclass
+    cdef double *b
+    cdef double *B
+    
+    with nogil, parallel():
+        # Allocates the block-local variables
+        x = <double *>malloc(r*sizeof(double))
+        T = <double *>malloc(r*r*sizeof(double))
+        VRt = <double *>malloc(r*d*sizeof(double))
+        qclass = <double *>malloc(c*sizeof(double))
+        b = <double *>malloc(k*d*sizeof(double))
+        B = <double *>malloc(k*d*d*sizeof(double))
+        for i in prange(n, schedule='static'):
+            # E-step at i (object number) fixed
+            for j in range(k):
+                # Perform the E-step. Note that b return does not include
+                # the m term, so it is really b_ij - m_j
+                if Rt is None:
+                    e_single_step_noproj(w[:,i], S[:,:,i], 
+                                         m[:,j], V[:,:,j], 
+                                         x, T, VRt,
+                                         &q[j, i], &b[j*d], &B[j*d*d])
+                else:
+                    e_single_step(w[:,i], Rt[:,:,i], S[:,:,i], 
+                                  m[:,j], V[:,:,j], 
+                                  x, T, VRt,
+                                  &q[j, i], &b[j*d], &B[j*d*d])
+                for l in range(c):
+                    qclass[l] = logalphaclass[l, j] + logclasses[l, i]
+                q[j, i] += logsumexp(qclass, c) - norm
+        # Free the memory for block-local variables
+        free(x)
+        free(T)
+        free(VRt)
+        free(qclass)
+        free(b)
+        free(B)
+    return 0
+
+
 @cython.binding(True)
 cpdef double em_step(double[::1,:] w, double[::1,:,:] S, 
                      double[::1] alpha, double[::1,:] alphaclass,
@@ -364,7 +473,8 @@ cpdef double em_step(double[::1,:] w, double[::1,:,:] S,
         Array of covariances of the observational data w.
     
     alpha: array-like, shape (k,)
-        Array with the statistical weight of each Gaussian.
+        Array with the statistical weight of each Gaussian. Updated at
+        the exit with the new weights.
         
     alphaclass: array-like, shape (c, k)
         Array with the statistical weight per class of each Gaussian. Updated
@@ -385,7 +495,7 @@ cpdef double em_step(double[::1,:] w, double[::1,:,:] S,
 
     logclasses: array-like, shape (c, n) 
         Log-probabilities that each observation belong to a given class. Use
-        logglasses = np.zeros((1,n)) to prevent the use of classes.
+        logclasses = np.zeros((1,n)) to prevent the use of classes.
 
     Optional Parameters
     -------------------
