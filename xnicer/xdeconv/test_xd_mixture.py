@@ -93,7 +93,7 @@ def generate_test_xdmix(xamp, xmean, xcovar, ycovar, npts=1000,
     # Data are now ready, proceed with the real test
     xdm = XD_Mixture(xamp.shape[0])
     xdm.fit(data['ydata'], data['ycovar'], projection=data['projection'],
-            log_weight=data['weight'], log_class_prob=data['classes'],
+            log_weight=data['weight'], Yclass=data['classes'],
             fixpars=data['fixpars'])
     
     # Sort the results so that they are as similar as possible to the original

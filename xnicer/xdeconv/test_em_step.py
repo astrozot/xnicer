@@ -3,7 +3,7 @@ from scipy.special import logsumexp
 import warnings
 from .em_step import log_likelihoods, py_e_single_step, em_step  # pylint: disable=no-name-in-module
 from .em_step import FIX_NONE, FIX_AMP, FIX_CLASS, FIX_MEAN, FIX_COVAR, FIX_ALL # pylint: disable=no-name-in-module
-from . import xdeconv
+from . import xdeconv, scores
 
 def py_log_likelihoods(deltas, covars, results=None):
     nobjs = deltas.shape[0]
@@ -34,7 +34,7 @@ def test_log_likelihoods():
         for r in (1, 2, 3, 5, 10):
             for seed in range(1, 6):
                 generate_test_log_likelihoods(n, r, seed=seed)
-                
+
 
 def py_em_step(w, S, alpha, alphaclass, m, V, logweights, logclasses, Rt=None,
                fixpars=None, regularization=0.0):
@@ -104,8 +104,8 @@ def py_em_step(w, S, alpha, alphaclass, m, V, logweights, logclasses, Rt=None,
         else:
             Ri = Rt[:, :, i].T
         for j in range(k):
-            py_e_single_step(w[:, i], np.ascontiguousarray(Ri), S[:, :, i].T, m[:, j], V[:, :, j].T,
-                             q, b, B)
+            py_e_single_step(w[:, i], np.ascontiguousarray(Ri), S[:, :, i].T, 
+                             m[:, j], V[:, :, j].T, q, b, B)
             qs[i, j] = np.sum(alphaclass[:,j] * np.exp(logclasses[:,i])) * \
                 alpha[j] * np.exp(q[0]) 
             bs[i, j, :] = m[:, j] + b
@@ -129,7 +129,7 @@ def py_em_step(w, S, alpha, alphaclass, m, V, logweights, logclasses, Rt=None,
 def generate_test_single_e_step(r, d, seed=1):
     """Generate a random E-step test.
     
-    This procedure generate a single random point, and runs an E-step on it
+    This procedure generates a single random point, and runs an E-step on it
     using both the Cython code and a pure Python one. It then compares the
     results.
     
@@ -177,7 +177,7 @@ def test_single_e_step():
         for r in range(1, d+1):
             for iter in range(10):
                 generate_test_single_e_step(r, d, seed=iter)
-                
+
 
 def generate_test_single_e_step_proj(d, seed=1):
     """Generate a random E-step test.
@@ -224,7 +224,7 @@ def test_single_e_step_proj():
         for iter in range(10):
             generate_test_single_e_step_proj(d, seed=iter)
 
-                
+
 def generate_test_single_em_step(d, r, n, k, c, seed=1):
     """Generate a random EM-step test.
 
@@ -577,6 +577,149 @@ def generate_data(xamp, xmean, xcovar, ycovar, npts=1000,
         'xclass': xclass_t, 'projection': projection, 'weight': weight,
         'classes': classes, 'fixpars': fixpars
     }
+
+
+def generate_test_scores(xamp, xmean, xcovar, ycovar, npts=1000,
+                         xclass=None, use_weight=False, use_projection=False,
+                         use_classes=False, fixpars=None, seed=1,
+                         confusion=0.01, silent=True, **kw):
+    """Create a full test for the extreme deconvolution algorithm.
+    
+    This procedure works by creating an artificial set of random samples 
+    following a Gaussian mixture model (GMM), then checking that the extreme
+    deconvolution is able to recover the original parameters.
+    
+    Parameters
+    ----------
+    xamp: array-like, shape (k,)
+        Array with the statistical weight of each Gaussian.
+        
+    xmean: array-like, shape (k, dx)
+        Centers of multivariate Gaussians.
+    
+    xcovar: array-like, shape (k, dx, dx)
+        Array of covariance matrices of the multivariate Gaussians.
+        If a simple scalar is provided, it is understood as the diagonal term
+        of all gaussians; if a 1D vector is provided, it is taken to contain 
+        the diagonal value of each component; if a 2D vector is provided, it
+        is taken to be the identical covariance matrix of all compoments.
+        
+    ycovar: array-like, shape (npts, dy, dy)
+        Array of covariance matrices for the data points.
+        If a simple scalar is provided, it is understood as the diagonal term
+        of all gaussians; if a 1D vector is provided, it is taken to contain 
+        the diagonal value of each point; if a 2D vector is provided, it
+        is taken to be the identical covariance matrix of all points.
+
+    npts: int, default=1000
+        Number of samples to generate.
+       
+    xclass: array-like, shape (k, c)
+        Array with the statistical weight of each Gaussian for each class.
+        
+    use_weight: string, default=False
+        Can be False (do not user weights), 'uniform' (use the same value
+        for all weights), 'random' (use random distributed weights).
+        
+    use_projection: string, default=False
+        Can be False (do not use any projection), 'identity' (use the 
+        identity matrix), 'random' (use a random matrix as projection),
+        'alternating' (alternate between the coordinates; only if y has
+        dimension 1).
+    
+    use_classes: string, default=False
+        Indicate if additional information on the classification of the 
+        various objects should be given. Can be False (do not provide any
+        additional information), 'exact' (associate each object with its
+        true cluster), 'approximate' (associate each object with its true
+        cluster with a 75% probability), 'random' (randomly assign class
+        probabilities), 'uniform' (use uniform probabilities for all class
+        associtaions).
+        
+    fixpars: array-like, shape (k,) or None
+        Array of bitmasks with the FIX_* combinations.
+    
+    seed: integer, default=1
+        The seed to use for the random number generator
+        
+    confusion: float, default=0.01
+        A single parameter used to initialize the clusters with respect to the
+        true parameters.  Confusion 0 indicate that the starting parameters
+        are the true ones.
+        
+    silent: bool, default=True
+        If True, will not print warning messages.
+        
+    All extra keyword parameters are directly passed to xdeconv.
+    """
+    data = generate_data(xamp, xmean, xcovar, ycovar, npts=npts,
+                         xclass=xclass, use_weight=use_weight,
+                         use_projection=use_projection,
+                         use_classes=use_classes, fixpars=fixpars,
+                         seed=seed, confusion=confusion)
+    # Fix the input arrays
+    xamp = np.array(xamp)
+    xmean = np.array(xmean)
+    xcovar = data.pop('xcovar_orig')
+    # Updata the argument of xdeconv
+    data.update(kw)
+    data.pop('xamp')
+    data.pop('weight')
+    data.pop('fixpars')
+    # Data are now ready, proceed with the real test
+    with warnings.catch_warnings():
+        if silent:
+            warnings.simplefilter('ignore')
+        q = scores(**data)  # pylint: disable=unexpected-keyword-arg
+        
+    # Now the same with Python code
+    n_components = data['xmean'].shape[0]
+    Y = data['ydata'][:, np.newaxis, :]
+    Yerr = data['ycovar']
+    projection = data['projection']
+    Yerr = Yerr[:, np.newaxis, :, :]
+    if projection is None:
+        T = Yerr + data['xcovar']
+        delta = Y - data['xmean']
+    else:
+        P = projection[:, np.newaxis, :, :]
+        V = data['xcovar'][np.newaxis, :, :, :]
+        mu = data['xmean'][np.newaxis, :, :]
+        T = Yerr + np.einsum('...ij,...jk,...lk->...il', P, V, P)
+        delta = Y - np.einsum('...ik,...k->...i', P, mu)
+    tmp = np.empty(Y.shape[0])
+    result = np.empty((Y.shape[0], n_components))
+    for c in range(n_components):
+        log_likelihoods(delta[:, c, :], T[:, c, :, :], tmp)
+        result[:, c] = tmp 
+        if use_classes:
+            result[:, c] += logsumexp(np.log(data['xclass'][np.newaxis,c,:]) \
+                            + data['classes'], axis=1)
+    assert np.allclose(result, q)
+    
+
+def test_scores():
+    """Test the score calculations in various configurations"""
+    for iter in range(3):
+        npts = [100, 300, 1000][iter]
+        generate_test_scores([0.5, 0.5], [[3.0], [-3.0]], [[[1.0]], [[0.5]]], 1,
+                             npts=npts, seed=iter, silent=True)
+        generate_test_scores([0.25, 0.25, 0.5], [[0.0], [4.0], [-3.0]], 
+                             [[[0.8]], [[1.2]], [[1.0]]], 0.5,
+                             npts=npts, seed=1, silent=True)
+        generate_test_scores([0.25, 0.75], 
+                             [[3.0, 1.0], [-3.0, -1.0]], [1.0, 0.5], [1.0, 1.0],
+                             npts=npts, seed=iter, silent=True)
+        generate_test_scores([0.25, 0.25, 0.5], 
+                             [[0.0, 0.0], [4.0, 2.0], [-3.0, 1.0]], 
+                             [0.8, 1.2, 1.0], 1,
+                             use_projection='random', npts=npts, seed=iter, 
+                             silent=True)
+        generate_test_scores([0.5, 0.5], [[3.0, 1.0], [-3.0, -1.0]], 
+                             [1.0, 0.5], [1.0, 1.0],
+                             xclass=[[0.8, 0.2], [0.4, 0.6]],
+                             use_projection=False, npts=npts, seed=iter, 
+                             silent=True, use_classes='approximate')
 
 
 def generate_test_pyxc(xamp, xmean, xcovar, ycovar, npts=1000,
