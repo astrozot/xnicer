@@ -71,7 +71,7 @@ class XNicer(BaseEstimator):
             makes the whole procedure much faster.
         """
         n_exts = len(self.extinctions)
-        use_classes = cat['log_class_probs'] is not None
+        use_classes = 'log_class_probs' in cat.colnames
         for n, extinction in enumerate(self.extinctions):
             # If update is set, skip the first iteration: this makes the 
             # fitting procedure much faster
@@ -84,14 +84,14 @@ class XNicer(BaseEstimator):
             cols_A = cat_A.get_colors(use_projection=True)
             if n == 0:
                 self.xdmix.fit(cols_A['cols'].data, cols_A['col_covs'], 
-                               cols_A['projections'], 
+                               projection=cols_A['projections'], 
                                log_weight=cols_A['log_probs'], 
-                               log_class_prob=cols_A['log_class_probs'])
+                               Yclass=cols_A['log_class_probs'])
             else:
                 self.xdmix.fit(cols_A['cols'], cols_A['col_covs'], 
-                               cols_A['projections'],
+                               projection=cols_A['projections'],
                                log_weight=cols_A['log_probs'], 
-                               log_class_prob=cols_A['log_class_probs'],
+                               Yclass=cols_A['log_class_probs'],
                                fixpars=FIX_MEAN | FIX_COVAR)
             if self.log_weights_ is None:
                 # We could set this earlier in the __init__, but it does not
