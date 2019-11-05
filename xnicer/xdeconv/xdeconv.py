@@ -98,7 +98,7 @@ def xdeconv(ydata, ycovar, xamp, xmean, xcovar,
         Log-probabilities that each observation belong to a given class.
         
     fixpars: integer or int array-like, shape (k,)
-        Array of bitmasks with the FIX_AMP, FIX_MEAN, and FIX_AMP 
+        Array of bitmasks with the FIX_AMP, FIX_MEAN, FIX_AMP, and FIX_CLASS
         combinations. If a single value is passed, it is used for all
         components.
         
@@ -285,6 +285,8 @@ def xdeconv(ydata, ycovar, xamp, xmean, xcovar,
     # Final checks: show warnings if necessary
     if maxiter > 1:
         if iter == maxiter-1:
+            logger.warn(
+                f"xdeconv did not converge after {maxiter} iterations")
             warnings.warn(
                 f"xdeconv did not converge after {maxiter} iterations")
         if decreased:
@@ -383,11 +385,59 @@ def scores(ydata, ycovar, xmean, xcovar,
     return np.ascontiguousarray(qs.T)
 
 
-def splitnmerge_rank(ydata, ycovar, xamp, xmean, xcovar,
-                     xclass=None, projection=None, classes=None, fixpars=None):
+def splitnmerge_rank(ydata, ycovar, xamp, xmean, xcovar, xclass=None, 
+                     projection=None, classes=None, fixpars=None):
+    """Computes the order for the split and merge algorithm.
+    
+    ydata: array-like, shape (n, dy)
+        Set of observations involving n data, each having r dimensions
+        
+    ycovar: array-like, shape (n, dy, dy)
+        Array of covariances of the observational data ydata.
+    
+    xamp: array-like, shape (k,)
+        The amplitude of the Gaussians.
+        
+    xmean: array-like, shape (k, dx)
+        Centers of multivariate Gaussians.
+    
+    xcovar: array-like, shape (k, dx, dx)
+        Array of covariance matrices of the multivariate Gaussians.
+    
+    Optional Parameters
+    -------------------
+    xclass: array-like, shape (k, c)
+        Array with the statistical weight of each Gaussian for each class.
+        Updated at the exit with the new weights. The sum of all classes for
+        a single cluster k is unity.
+    
+    projection: array-like, shape (n, dy, dx)
+        Array of projection matrices: for each datum (n), it is a matrix
+        that transform the original d-dimensional vector into the observed
+        r-dimensional vector. If None, it is assumed that r=d and that no
+        project is performed (equivalently: R is an array if identity 
+        matrices).
+        
+    classes: array-like, shape (n, c) 
+        Log-probabilities that each observation belong to a given class.
+        
+    fixpars: array-like, shape (k,) or None
+        Array of bitmasks with the FIX_AMP, FIX_MEAN, FIX_AMP, and FIX_CLASS
+        combinations. If a single value is passed, it is used for all
+        components. All clusters with fixpars != FIX_NONE will not be used for 
+        spitting and merging.
+        
+    Returns
+    -------
+    A generator that, each time it is used, will return a triplet (i,j,k):
+    the i-th and j-th clusters are candidates for a merging, while the k-th
+    cluster is a candidate for a splitting.
+    """
     if fixpars is None:
         idx = np.arange(xamp.shape[0])
     else:
+        if isinstance(fixpars, int):
+            fixpars = np.repeat(fixpars, int)
         idx = np.where(fixpars == FIX_NONE)[0]
     # Compute j_merge = log(P P^T), where P is the probability that each point
     # belongs to a given cluster.

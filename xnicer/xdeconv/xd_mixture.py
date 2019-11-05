@@ -29,17 +29,6 @@ class XD_Mixture(GaussianMixture):
         the use of a singlee class (that is, classes are not taken into 
         account).
 
-    covariance_type : {'full', 'tied', 'diag', 'spherical'}, defaults to
-        'full'. String describing the type of covariance parameters to use.
-        Must be one of:
-
-            'full' (each component has its own general covariance matrix),
-            'tied' (all components share the same general covariance matrix),
-            'diag' (each component has its own diagonal covariance matrix),
-            'spherical' (each component has its own single variance).
-
-        Currently only 'full' is implemented.
-
     tol : float, defaults to 1e-5. The convergence threshold. EM iterations
         will stop when the lower bound average gain is below this threshold.
 
@@ -73,16 +62,6 @@ class XD_Mixture(GaussianMixture):
         user-provided initial means, defaults to None, If it None, means are
         initialized using the `init_params` method.
 
-    precisions_init : array-like, optional. The user-provided initial
-        precisions (inverse of the covariance matrices), defaults to None. If
-        it None, precisions are initialized using the 'init_params' method.
-        The shape depends on 'covariance_type':
-
-            (n_components,)                            if 'spherical',
-            (n_x_features, n_x_features)               if 'tied',
-            (n_components, n_x_features)               if 'diag',
-            (n_components, n_x_features, n_x_features) if 'full'
-
     splitnmerge : int, default to 0. The depth of the split and merge path
         (default=0, i.e. no split and merge is performed).
 
@@ -107,47 +86,18 @@ class XD_Mixture(GaussianMixture):
 
     Attributes
     ----------
-    weights_ : array-like, shape (n_components,) The weights of each mixture
-        components.
+    weights_ : array-like, shape (n_components,) 
+        The weights of each mixture components.
 
-    means_ : array-like, shape (n_components, n_x_features) The mean of each
-        mixture component.
+    means_ : array-like, shape (n_components, n_x_features) 
+        The mean of each mixture component.
 
-    covariances_ : array-like The covariance of each mixture component. The
-        shape depends on `covariance_type`:
-
-            (n_components,)                            if 'spherical',
-            (n_features, n_x_features)                 if 'tied',
-            (n_components, n_x_features)               if 'diag',
-            (n_components, n_x_features, n_x_features) if 'full'
-
-    precisions_ : array-like The precision matrices for each component in the
-        mixture. A precision matrix is the inverse of a covariance matrix. A
-        covariance matrix is symmetric positive definite so the mixture of
-        Gaussian can be equivalently parameterized by the precision matrices.
-        Storing the precision matrices instead of the covariance matrices
-        makes it more efficient to compute the log-likelihood of new samples
-        at test time. The shape depends on `covariance_type`:
-
-            (n_components,)                            if 'spherical',
-            (n_features, n_x_features)                 if 'tied',
-            (n_components, n_x_features)               if 'diag',
-            (n_components, n_x_features, n_x_features) if 'full'
-
-    precisions_cholesky_ : array-like 
-        The cholesky decomposition of the precision matrices of each mixture 
-        component. A precision matrix is the inverse of a covariance matrix. 
-        A covariance matrix is symmetric positive definite so the mixture of 
-        Gaussian can be equivalently parameterized by the precision matrices. 
-        Storing the precision matrices instead of the covariance matrices makes
-        it more efficient to compute the log-likelihood of new samples at test
-        time. The shape depends on `covariance_type`:
-
-            (n_components,)                            if 'spherical',
-            (n_features, n_x_features)                 if 'tied',
-            (n_components, n_x_features)               if 'diag',
-            (n_components, n_x_features, n_x_features) if 'full'
-
+    covariances_ : array-like, shape (n_components, n_x_features, n_x_features)
+        The covariance of each mixture component.
+        
+    classes_ : array-like, shape (n_components, n_classes)
+        The class probability for each component.
+        
     converged_ : bool 
         True when convergence was reached in fit(), False otherwise.
 
@@ -159,17 +109,15 @@ class XD_Mixture(GaussianMixture):
     GaussianMixture : Gaussian mixture model.
     """
 
-    def __init__(self, n_components=1, n_classes=None, covariance_type='full', 
-                 tol=1e-5, reg_covar=1e-06, max_iter=int(1e9), 
-                 n_init=1, init_params='gmm', 
-                 weights_init=None, means_init=None, precisions_init=None,
+    def __init__(self, n_components=1, n_classes=None, tol=1e-5, 
+                 reg_covar=1e-06, max_iter=int(1e9), n_init=1, 
+                 init_params='gmm', weights_init=None, means_init=None,
                  splitnmerge=0, random_state=None, warm_start=False,
                  regularization=0.0, verbose=0, verbose_interval=10):
         super(XD_Mixture, self).__init__(
-            n_components=n_components, covariance_type=covariance_type, tol=tol,
-            reg_covar=reg_covar, max_iter=max_iter, n_init=n_init,
-            init_params=init_params, weights_init=weights_init,
-            means_init=means_init, precisions_init=precisions_init,
+            n_components=n_components, tol=tol, reg_covar=reg_covar, 
+            max_iter=max_iter, n_init=n_init, init_params=init_params, 
+            weights_init=weights_init, means_init=means_init,
             random_state=random_state, warm_start=warm_start,
             verbose=verbose, verbose_interval=verbose_interval)
         self.n_classes = n_classes
@@ -454,11 +402,11 @@ class XD_Mixture(GaussianMixture):
         return self
 
     def _get_parameters(self):
-        return (self.weights_, self.means_, self.covariances_,
+        return (self.weights_, self.means_, self.covariances_, self.classes_,
                 self.lower_bound_)
 
     def _set_parameters(self, params):
-        (self.weights_, self.means_, self.covariances_,
+        (self.weights_, self.means_, self.covariances_, self.classes_,
          self.lower_bound_) = params
 
     def score_samples_components(self, Y, Yerr, Yclass=None, 

@@ -553,7 +553,6 @@ cpdef double em_step(double[::1,:] w, double[::1,:,:] S,
     cdef double *m2
     
     # Set the weight variables
-    # TODO: perhaps move the computation of weightsum to the main function
     weightsum = 0.0
     for i in prange(n, nogil=True):
         weightsum += exp(logweights[i])
