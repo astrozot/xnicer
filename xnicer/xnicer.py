@@ -215,8 +215,11 @@ class XNicer(BaseEstimator):
             PV = PVP = V
         else:
             P = cols['projections'][:, np.newaxis, :, :]
-            PV = np.einsum('...ij,...jk->...ik', P, V)
-            PVP = np.einsum('...ik, ...lk ->...il', PV, P)
+            # PV = np.einsum('...ij,...jk->...ik', P, V)
+            PV = np.matmul(P, V)
+            # PVP = np.einsum('...ik, ...lk ->...il', PV, P)
+            PVP = np.matmul(PV, np.moveaxis(P, -2, -1))
+            # Could not find an equivalent faster way of doing next lines
             mu = np.einsum('...ij,...j->...i', P,
                            self.xdmix.means_[np.newaxis,:,:])
             color_ext_vec = np.einsum('...ij,...j->...i',
