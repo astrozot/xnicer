@@ -1111,7 +1111,6 @@ class ExtinctionCatalogue(table.Table):
             The array containing the components that need to be merged together.
             If not specified, all components are merged.
         """
-        # TODO: Add the other parts
         if self.meta['n_components'] == 1:
             return self
         if merged_components is None:
