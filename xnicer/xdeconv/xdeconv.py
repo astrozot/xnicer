@@ -202,6 +202,7 @@ def xdeconv(ydata, ycovar, xamp, xmean, xcovar,
                                xclass, projection, classes)
         sm_iter = 0
         eps = 1.0
+        success = False
         for i, j, k in ijk:
             sm_iter += 1
             if sm_iter > splitnmerge:
@@ -271,13 +272,14 @@ def xdeconv(ydata, ycovar, xamp, xmean, xcovar,
                 V = V1
                 alphaclass = alphaclass1
                 # ...and try the split & merge again
+                success = True
                 break
             else:
                 logger.debug(f'Failure w/ split and merge: {ll} < {loglike}')
 
             # If we did not improve, we will try th next combination of
             # triplet for the split & merge.
-        if sm_iter > splitnmerge:
+        if not success:
             logger.debug(f'No more split and merge possibilities')
             # We have exhausted our possibilities for split and merge: exit
             break
