@@ -128,8 +128,6 @@ class XD_Mixture(GaussianMixture):
         self.regularization = regularization
 
         # Other model parameters
-        # FIXME: Check what to do here! These are never updated!
-        self.logL_ = None
         self.n_samples_ = self.n_eff_samples_ = None
         self.n_features_ = None
         self.BIC_ = None
@@ -439,30 +437,6 @@ class XD_Mixture(GaussianMixture):
         return scores(Y, Yerr, self.means_, self.covariances_, 
                       projection=projection, classes=Yclass,
                       xclass=self.classes_)
-        # FIXME: include classes, delete all the rest
-        n_y_features = Y.shape[1]
-        Y = Y[:, np.newaxis, :]
-        if Yerr.ndim == 2:
-            tmp = np.zeros((Yerr.shape[0], Yerr.shape[1], Yerr.shape[1]))
-            for k in range(Yerr.shape[1]):
-                tmp[:, k, k] = Yerr[:, k]
-            Yerr = tmp
-        Yerr = Yerr[:, np.newaxis, :, :]
-        if projection is None:
-            T = Yerr + self.covariances_
-            delta = Y - self.means_
-        else:
-            P = projection[:, np.newaxis, :, :]
-            V = self.covariances_[np.newaxis, :, :, :]
-            mu = self.means_[np.newaxis, :, :]
-            T = Yerr + np.einsum('...ij,...jk,...lk->...il', P, V, P)
-            delta = Y - np.einsum('...ik,...k->...i', P, mu)
-        tmp = np.empty(Y.shape[0])
-        result = np.empty((Y.shape[0], self.n_components))
-        for c in range(self.n_components):
-            log_likelihoods(delta[:, c, :], T[:, c, :, :], tmp)
-            result[:, c] = tmp - (n_y_features * np.log(2.0*np.pi) / 2.0)
-        return result
 
     def score_samples(self, Y, Yerr, Yclass=None, projection=None):
         """Compute the weighted log probabilities for each sample.
