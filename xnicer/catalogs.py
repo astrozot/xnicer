@@ -9,6 +9,7 @@ import collections
 import warnings
 import numpy as np
 import copy
+import logging
 from scipy.optimize import minimize
 from scipy.special import log_ndtr, logsumexp # pylint: disable=no-name-in-module
 from astropy import table
@@ -16,6 +17,7 @@ from astropy.io import votable
 from astropy.coordinates import SkyCoord
 from .utilities import log1mexp
 
+logger = logging.getLogger(__name__)
 
 # Table 3 from Rieke & Lebovsky (1985), ApJ 288, 618: ratio A_lambda / A_V.
 rieke_lebovsky_ucd = {
@@ -623,9 +625,117 @@ class PhotometricCatalogue(table.Table):
             s_c = m.x[1]
             d = m_c - np.mean(mags)
             beta = 2.0 / (d + np.sqrt(d * d + 4 * s_c * s_c))
+            logger.info(f'Number-count fit for band #{band}: ({beta:g}, '
+                        f'{m_c:g}, {np.abs(s_c):g})')
             nc_pars.append([beta, m_c, np.abs(s_c)])
         self.meta['nc_pars'] = np.array(nc_pars)
         return self.meta['nc_pars']
+
+    def fit_phot_uncertainties(self, start_alpha=1.0, start_beta=1.0,
+                               start_gamma=1.0, n_times=2, nc_cut=3.0,
+                               method='Nelder-Mead', indices=None):
+        """Perform a fit of the photometric uncertainties.
+
+        The model assumes that the noise e in luminosity for each source can
+        be written as
+
+        ..math: e = \\sqrt{\\alpha l t + \\beta t + \\gamma} 
+
+        where l is the source luminosity and t is the exposure time (expressed
+        in a suitable unit). This expression can correctly model the noise due
+        to photon counting (shot noise, \\alpha term), the dark current
+        (termal noise, \\beta term), the sky contribution (background noise,
+        also included in the \\beta term), and the readout noise (\\gamma
+        term). The model further assumes that all the greek-letter
+        coefficients are constants for each source, and that only the time t
+        changes (as a result, for example, of different coverage).
+
+        The conversion from magnitudes to luminosities is done using the
+        simple expression
+
+        ..math: m = m0 + 2.5 \\log_{10} l
+
+        The constant m0 is chosen so that \\alpha is approximately unity.
+
+        The fit proceeds using a limited set of possible exposure times t (by
+        default only two values), and then fits the other parameters.
+
+        The results of the best-fit (i.e., the three greek coefficients for
+        each band) together with the choice of m0 are saved in
+        self.meta['noise_pars'] and also returned.
+
+        Arguments
+        ---------
+        start_alpha : float, default = 1.0 
+            The initial guess for the alpha parameter.
+
+        start_beta : float, default = 1.0 
+            The initial guess for the beta parameter.
+
+        start_gamma : float, default = 1.0 
+            The initial guess for the gamma parameter.
+            
+        n_times : int, default = 2
+            The number of different time values to use in the fit. The initial
+            guesses are taken to be np.arange(1, n_times+1)
+
+        nc_cut : float, array, or None, default = 3.0
+            Cut to be carried out around the 50% completeness in units of the
+            completeness width. Use nc_cut=None to avoid any cut. If a sequence
+            is passed, it is used taken to be the nc_cut to use for each band.
+            
+        method : string, default = 'Nelder-Mead'
+            The optimization method to use (see `minimize`).
+
+        indices : list of indices, slice, or None
+            If provided, an index specification indicating the objects to use.
+
+        Return value
+        ------------
+        noise_pars : array like, shape (n_bands, 4) 
+            Array with the results of the fit (m0, \\alpha, \\beta, \\gamma)
+            for each band, also saved in self.meta['noise_pars'].
+        """
+        def phot_uncert_chisquare_(x, m0, mags, errs):
+            a, b, c = x[0:3]
+            ts = np.hstack(([1.0], x[3:]))
+            l = 10**(-0.4*(mags - m0))
+            e_l = np.sqrt(a*a*ts[:, np.newaxis]*l[np.newaxis, :] + 
+                          b*b*ts[:, np.newaxis] + c*c)
+            e_m = 2.5 / (l*np.log(10)) * e_l
+            delta = np.min((errs[np.newaxis, :] - e_m)**2, axis=0)
+            return np.sum(delta)
+
+        noise_pars = []
+        if indices is None:
+            indices = slice(None)
+        if nc_cut is not None:
+            # We want to perform a cut in magnitude for faint objects
+            if self.meta['nc_pars'] is None:
+                # We need the fit of the number counts
+                self.fit_number_counts(indices=indices)
+            mag_lims = self.meta['nc_pars'][:, 1] - \
+                self.meta['nc_pars'][:, 2]*np.array(nc_cut)
+        else:
+            mag_lims = np.repeat(np.inf, self.meta['n_bands'])
+        logger.debug(f'Magnitude limits: {mag_lims}')
+        for band in range(self.meta['n_bands']):
+            mags = self['mags'][indices, band]
+            errs = self['mag_errs'][indices, band]
+            w = np.where((errs < self.meta['null_err']) & 
+                         (mags < mag_lims[band]))[0]
+            mags = mags[w]
+            errs = errs[w]
+            m0 = np.median(mags - 5 * np.log10(errs))
+            p0 = np.array([start_alpha, start_beta, start_gamma])
+            p0 = np.hstack((p0, np.arange(n_times-1) + 2))
+            m = minimize(phot_uncert_chisquare_, p0,
+                         args=(m0, mags, errs), method=method)
+            logger.info(f'Noise fit for band #{band}: ({m0:g}, '
+                        f'{m.x[0]**2:g}, {m.x[1]**2:g}, {m.x[2]**2:g})')
+            noise_pars.append(np.hstack(([m0], m.x[:3]**2)))
+        self.meta['noise_pars'] = np.array(noise_pars)
+        return self.meta['noise_pars']
 
     def log_completeness(self, band, magnitudes):
         """Compute the log of the completeness function in a given band.
@@ -649,7 +759,7 @@ class PhotometricCatalogue(table.Table):
         return log_ndtr((m_c - magnitudes) / s_c)
 
     def extinguish(self, extinction, apply_completeness=True, 
-                   update_errors=False):
+                   update_errors=True):
         """Simulate the effect of extinction and return an updated catalogue.
 
         Arguments
@@ -669,7 +779,8 @@ class PhotometricCatalogue(table.Table):
 
         update_errors : bool, default to False
             If set, errors are also modified to reflect the fact that objects
-            are now fainter. Not implemented yet.
+            are now fainter. Requires one to have called the
+            `fit_phot_uncertainties` method before.
 
         Returns
         -------
@@ -677,17 +788,33 @@ class PhotometricCatalogue(table.Table):
             The updated PhotometricCatalogue (self is left untouched).
         """
         cat = self.copy()
-        if isinstance(extinction, float):
+        if isinstance(extinction, (float, int)):
             extinction = extinction * self.meta['reddening_law']
         if apply_completeness and cat.meta['nc_pars'] is None:
             # Fit the number counts if this has not been done earlier on
             cat.fit_number_counts()
+        if update_errors and cat.meta['noise_pars'] is None:
+            # Fit the photometric noise if this has not been done earlier on
+            cat.fit_phot_uncertainties()
         for band in range(cat.meta['n_bands']):
             mask = np.where(cat['mag_errs'][:, band] < cat.meta['max_err'])[0]
+            if update_errors and extinction[band] > 0:
+                pars = cat.meta['noise_pars'][band]
+                mags = cat['mags'][mask, band]
+                errs = cat['mag_errs'][mask, band]
+                # Compute the luminosities
+                lums = 10**(-0.4*(mags - pars[0]))
+                # and the luminosity errors
+                e_lums = errs * lums * np.log(10) / 2.5
+                # Find out the associated exposure time
+                ts = (e_lums**2 - pars[3]) / (pars[1]*lums + pars[2])
+                # Update the luminosities for extinction
+                lums *= 10**(-0.4*extinction[band])
+                # Find the new errors
+                e_lums = np.sqrt(pars[1]*ts*lums + pars[2]*ts + pars[3])
+                errs = e_lums * 2.5 / (lums * np.log(10))
+                cat['mag_errs'][mask, band] = errs
             cat['mags'][mask, band] += extinction[band]
-            if update_errors:
-                # It would be a good idea to update the errors too! Find a reliable way to do it
-                raise NotImplementedError
             if apply_completeness and extinction[band] > 0:
                 log_completeness_ratio = (cat.log_completeness(band, cat['mags'][mask, band]) -
                                           cat.log_completeness(band, cat['mags'][mask, band] - extinction[band]))

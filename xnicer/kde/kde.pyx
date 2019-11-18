@@ -139,7 +139,7 @@ cdef class KDE:
 
         oversampling : int, default to 11
             The oversampling factor. Must be an odd integer. High oversampling values
-            make the code smaller only for the initialization, but can have an impact
+            make the code slower only for the initialization, but can have an impact
             on the memory consumption.
             
         max_power : int, default to 1
