@@ -805,14 +805,14 @@ class PhotometricCatalogue(table.Table):
                 # Compute the luminosities
                 lums = 10**(-0.4*(mags - pars[0]))
                 # and the luminosity errors
-                e_lums = errs * lums * np.log(10) / 2.5
+                e_lums = errs * lums * (np.log(10) / 2.5)
                 # Find out the associated exposure time
                 ts = (e_lums**2 - pars[3]) / (pars[1]*lums + pars[2])
                 # Update the luminosities for extinction
                 lums *= 10**(-0.4*extinction[band])
                 # Find the new errors
                 e_lums = np.sqrt(pars[1]*ts*lums + pars[2]*ts + pars[3])
-                errs = e_lums * 2.5 / (lums * np.log(10))
+                errs = e_lums * (2.5 / np.log(10)) / lums
                 cat['mag_errs'][mask, band] = errs
             cat['mags'][mask, band] += extinction[band]
             if apply_completeness and extinction[band] > 0:
