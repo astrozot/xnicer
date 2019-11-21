@@ -48,17 +48,18 @@ cdef double logsumexp(double *x, int n) nogil:
     if isinf(xmax):
         return xmax
     for i in range(n):
-        result += exp(x[i] - xmax) 
+        result += exp(x[i] - xmax)
     return xmax + log(result)
 
 
 cpdef double log_likelihoods(double[:,:] deltas, double[:,:,:] covars, double[::1] results=None):
-    """Compute the log-likelihood for a set of data.
-    
+    """
+    Compute the log-likelihood for a set of data.
+
     Parameters
     ----------
     deltas : array-like, shape(n, r)
-        The differences between the means of the normal distributions and 
+        The differences between the means of the normal distributions and
         the datapoints.
 
     covars : array-like, shape(n, r, r)
@@ -69,6 +70,7 @@ cpdef double log_likelihoods(double[:,:] deltas, double[:,:,:] covars, double[::
     results : array-like, shape(n)
         The computed log-likelihoods for each multivariate normal
         distribution. If set to None, no value is returned.
+
     """
     cdef int n, i, j, info
     cdef int nobjs=deltas.shape[0]
@@ -108,7 +110,7 @@ cpdef double log_likelihoods(double[:,:] deltas, double[:,:,:] covars, double[::
         free(res)
 
 
-cdef int e_single_step_noproj(double[::1] w, double[::1,:] S, 
+cdef int e_single_step_noproj(double[::1] w, double[::1,:] S,
         double[::1] m, double[::1,:] V,
         double* x, double* T, double* VRt,
         double* q, double* b, double* B) nogil:
@@ -133,7 +135,7 @@ cdef int e_single_step_noproj(double[::1] w, double[::1,:] S,
     #
     # Output data, also double * with allocated memory. These are essentially
     # given by Eq. (25) of the original paper, with the important difference
-    # that b is here in reality b_ij - m_j. This ensures better numerical 
+    # that b is here in reality b_ij - m_j. This ensures better numerical
     # stability.
     # q: (1)
     # b: (r,)
@@ -188,10 +190,11 @@ cdef int e_single_step_noproj(double[::1] w, double[::1,:] S,
     return 0
 
 
-cpdef int py_e_single_step(double[::1] w, double[:,::1] R, double[:,::1] S, 
+cpdef int py_e_single_step(double[::1] w, double[:,::1] R, double[:,::1] S,
                            double[::1] m, double[:,::1] V,
                            double[::1] q, double[::1] b, double[:,::1] B):
-    """Pure Python version of e_single_step.
+    """
+    Pure Python version of e_single_step.
 
     Perform a single E-step for the extreme deconvolution.
 
@@ -217,7 +220,7 @@ cpdef int py_e_single_step(double[::1] w, double[:,::1] R, double[:,::1] S,
     These parameters must be NumPy array of the correct shape and will be
     filled with the results of the computation.  These are essentially
     given by Eq. (25) of the original paper, with the important difference
-    that b is here in reality b_ij - m_j. This ensures better numerical 
+    that b is here in reality b_ij - m_j. This ensures better numerical
     stability.
 
     q: array-like, shape (1,)
@@ -228,6 +231,7 @@ cpdef int py_e_single_step(double[::1] w, double[:,::1] R, double[:,::1] S,
 
     B: array-like, shape (d, d)
         The B matrix.
+
     """
     cdef double *x
     cdef double *T
@@ -261,9 +265,9 @@ cpdef int py_e_single_step(double[::1] w, double[:,::1] R, double[:,::1] S,
     free(x)
     free(T)
     free(VRt)
-    
 
-cdef int e_single_step(double[::1] w, double[::1,:] Rt, double[::1,:] S, 
+
+cdef int e_single_step(double[::1] w, double[::1,:] Rt, double[::1,:] S,
         double[::1] m, double[::1,:] V,
         double* x, double* T, double* VRt,
         double* q, double* b, double* B) nogil:
@@ -286,7 +290,7 @@ cdef int e_single_step(double[::1] w, double[::1,:] Rt, double[::1,:] S,
     #
     # Output data, also double * with allocated memory. These are essentially
     # given by Eq. (25) of the original paper, with the important difference
-    # that b is here in reality b_ij - m_j. This ensures better numerical 
+    # that b is here in reality b_ij - m_j. This ensures better numerical
     # stability.
     # q: (1)
     # b: (d,)
@@ -344,35 +348,36 @@ cdef int e_single_step(double[::1] w, double[::1,:] Rt, double[::1,:] S,
 
 
 @cython.binding(True)
-cpdef double _scores(double[::1,:] w, double[::1,:,:] S, 
+cpdef double _scores(double[::1,:] w, double[::1,:,:] S,
                      double[::1,:] alphaclass,
-                     double[::1,:] m, double[::1,:,:] V, 
+                     double[::1,:] m, double[::1,:,:] V,
                      double[::1,:] logclasses, double [::1, :] q,
                      double[::1,:,:] Rt=None):
-    """Compute the score (log-likelihood) for each sample & component.
-    
+    """
+    Compute the score (log-likelihood) for each sample & component.
+
     Parameters
     ----------
     Note: all array parameters are expected to be provided as Fortran
     contiguous arrays.
-    
+
     w: array-like, shape (r, n)
         Set of observations involving n data, each having r dimensions
-    
+
     S: array-like, shape (r, r, n)
         Array of covariances of the observational data w.
-    
+
     alphaclass: array-like, shape (c, k)
-        Array with the statistical weight per class of each Gaussian. Runs 
+        Array with the statistical weight per class of each Gaussian. Runs
         over the k clusters and the c classes.
 
     m: array-like, shape (d, k)
         Centers of multivariate Gaussians.
-    
+
     V: array-like, shape (d, d, k)
         Array of covariance matrices of the multivariate Gaussians.
-    
-    logclasses: array-like, shape (c, n) 
+
+    logclasses: array-like, shape (c, n)
         Log-probabilities that each observation belong to a given class. Use
         logclasses = np.zeros((1,n)) to prevent the use of classes.
 
@@ -388,9 +393,9 @@ cpdef double _scores(double[::1,:] w, double[::1,:,:] S,
     -------------------
     Rt: array-like, shape (d, r, n)
         Array of projection matrices: for each datum (n), it is the transpose
-        of the matrix that transforms the original d-dimensional vector into 
-        the observed r-dimensional vector. If None, it is assumed that r=d 
-        and that no project is performed (equivalently: R is an array if 
+        of the matrix that transforms the original d-dimensional vector into
+        the observed r-dimensional vector. If None, it is assumed that r=d
+        and that no project is performed (equivalently: R is an array if
         identity matrices).
     """
     # Temporary data for the E-step
@@ -415,7 +420,7 @@ cpdef double _scores(double[::1,:] w, double[::1,:,:] S,
     cdef double *qclass
     cdef double *b
     cdef double *B
-    
+
     with nogil, parallel():
         # Allocates the block-local variables
         x = <double *>malloc(r*sizeof(double))
@@ -430,13 +435,13 @@ cpdef double _scores(double[::1,:] w, double[::1,:,:] S,
                 # Perform the E-step. Note that b return does not include
                 # the m term, so it is really b_ij - m_j
                 if Rt is None:
-                    e_single_step_noproj(w[:,i], S[:,:,i], 
-                                         m[:,j], V[:,:,j], 
+                    e_single_step_noproj(w[:,i], S[:,:,i],
+                                         m[:,j], V[:,:,j],
                                          x, T, VRt,
                                          &q[j, i], &b[j*d], &B[j*d*d])
                 else:
-                    e_single_step(w[:,i], Rt[:,:,i], S[:,:,i], 
-                                  m[:,j], V[:,:,j], 
+                    e_single_step(w[:,i], Rt[:,:,i], S[:,:,i],
+                                  m[:,j], V[:,:,j],
                                   x, T, VRt,
                                   &q[j, i], &b[j*d], &B[j*d*d])
                 for l in range(c):
@@ -453,29 +458,30 @@ cpdef double _scores(double[::1,:] w, double[::1,:,:] S,
 
 
 @cython.binding(True)
-cpdef double em_step(double[::1,:] w, double[::1,:,:] S, 
+cpdef double em_step(double[::1,:] w, double[::1,:,:] S,
                      double[::1] alpha, double[::1,:] alphaclass,
-                     double[::1,:] m, double[::1,:,:] V, 
+                     double[::1,:] m, double[::1,:,:] V,
                      double[::1] logweights, double[::1,:] logclasses,
-                     double[::1,:,:] Rt=None, 
+                     double[::1,:,:] Rt=None,
                      uint8_t[::1] fixpars=None, double regularization=0.0):
-    """Perform a single E-M step for the extreme deconvolution.
-    
+    """
+    Perform a single E-M step for the extreme deconvolution.
+
     Parameters
     ----------
     Note: all array parameters are expected to be provided as Fortran
     contiguous arrays.
-    
+
     w: array-like, shape (r, n)
         Set of observations involving n data, each having r dimensions
-    
+
     S: array-like, shape (r, r, n)
         Array of covariances of the observational data w.
-    
+
     alpha: array-like, shape (k,)
         Array with the statistical weight of each Gaussian. Updated at
         the exit with the new weights.
-        
+
     alphaclass: array-like, shape (c, k)
         Array with the statistical weight per class of each Gaussian. Updated
         at the exit with the new weights. Runs over the k clusters and the c
@@ -484,16 +490,16 @@ cpdef double em_step(double[::1,:] w, double[::1,:,:] S,
     m: array-like, shape (d, k)
         Centers of multivariate Gaussians, updated at the exit with the new
         centers.
-    
+
     V: array-like, shape (d, d, k)
-        Array of covariance matrices of the multivariate Gaussians, updated 
+        Array of covariance matrices of the multivariate Gaussians, updated
         at the exit with the new covariance matrices.
-    
-    logweights: array-like, shape (n,) 
+
+    logweights: array-like, shape (n,)
         Log-weights for each observation, or None. Use logweights = np.zeros(n)
         to prevent the use of weights.
 
-    logclasses: array-like, shape (c, n) 
+    logclasses: array-like, shape (c, n)
         Log-probabilities that each observation belong to a given class. Use
         logclasses = np.zeros((1,n)) to prevent the use of classes.
 
@@ -501,16 +507,17 @@ cpdef double em_step(double[::1,:] w, double[::1,:,:] S,
     -------------------
     Rt: array-like, shape (d, r, n)
         Array of projection matrices: for each datum (n), it is the transpose
-        of the matrix that transforms the original d-dimensional vector into 
-        the observed r-dimensional vector. If None, it is assumed that r=d 
-        and that no project is performed (equivalently: R is an array if 
+        of the matrix that transforms the original d-dimensional vector into
+        the observed r-dimensional vector. If None, it is assumed that r=d
+        and that no project is performed (equivalently: R is an array if
         identity matrices).
-        
+
     fixpars: array-like, shape (k,)
         Array of bitmasks with the FIX_AMP, FIX_MEAN, and FIX_AMP combinations.
-    
+
     regularization: double, default=0
         Regularization parameter (use 0 to prevent the regularization).
+
     """
     # Temporary data for the E-step
     # x: (r,), difference = w - R*m
@@ -551,7 +558,7 @@ cpdef double em_step(double[::1,:] w, double[::1,:,:] S,
     cdef double *m0
     cdef double *m1
     cdef double *m2
-    
+
     # Set the weight variables
     weightsum = 0.0
     for i in prange(n, nogil=True):
@@ -588,13 +595,13 @@ cpdef double em_step(double[::1,:] w, double[::1,:,:] S,
                 # Perform the E-step. Note that b return does not include
                 # the m term, so it is really b_ij - m_j
                 if Rt is None:
-                    e_single_step_noproj(w[:,i], S[:,:,i], 
-                                         m[:,j], V[:,:,j], 
+                    e_single_step_noproj(w[:,i], S[:,:,i],
+                                         m[:,j], V[:,:,j],
                                          x, T, VRt,
                                          &q[j], &b[j*d], &B[j*d*d])
                 else:
-                    e_single_step(w[:,i], Rt[:,:,i], S[:,:,i], 
-                                  m[:,j], V[:,:,j], 
+                    e_single_step(w[:,i], Rt[:,:,i], S[:,:,i],
+                                  m[:,j], V[:,:,j],
                                   x, T, VRt,
                                   &q[j], &b[j*d], &B[j*d*d])
                 for l in range(c):
@@ -691,7 +698,7 @@ cpdef double em_step(double[::1,:] w, double[::1,:,:] S,
         for j in range(k):
             if not fixpars[j] & _FIX_AMP:
                 alpha[j] *= sumfreealpha / sumalpha
-                
+
     # Finally free the memory
     free(M0)
     free(m0)

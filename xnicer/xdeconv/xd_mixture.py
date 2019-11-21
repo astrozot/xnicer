@@ -20,75 +20,6 @@ class XDGaussianMixture(GaussianMixture):
     This class allows to estimate the parameters of a Gaussian mixture
     distribution from data with noise.
 
-    Parameters
-    ----------
-    n_components : int, tuple, list of int, or list of tuple, default=1.
-        The number of mixture components. In case objects can be classified in
-        multiple classes, it must be a tuple, indicating the number of found
-        using the BIC (see `bic_test`)
-
-    n_classes : int or None, default=None
-        The number of classes to use. If None, the number of classes is
-        automatically determined from the first call to `fit` and set equal to
-        the number of classes in the fitted classes are not taken into
-        account). data. Use n_classes=1 to force the use of a singlee class
-        (that is, no classes are used).
-
-    tol : float, defaults to 1e-5. The convergence threshold. EM iterations
-        will stop when the lower bound average gain is below this threshold.
-
-    reg_covar : float, defaults to 1e-6. Non-negative regularization added to
-        the diagonal of covariance. Allows to assure that the covariance
-        matrices are all positive.
-
-    max_iter : int, defaults to 10**9. The maximum number of EM iterations to
-        perform.
-
-    regularization : float, defaults to 0.0 The regularization parameter used
-        by the extreme deconvolution.
-
-    n_init : int, defaults to 1. The number of initializations to perform. The
-        best results are kept.
-
-    init_params : {'gmm', 'kmeans', 'random'} or XDGaussianMixture, defaults
-        to 'gmm'. The method used to initialize the weights, the means and the
-        precisions. Must be one of:
-
-            'gmm'      : data are initialized from a quick GMM fit.
-            'kmeans'   : responsibilities are initialized using kmeans.
-            'random'   : responsibilities are initialized randomly.
-            XDGaussianMixture: instance of a XDGaussianMixture already fitted.
-
-    weights_init : array-like, shape (n_components, ), optional The
-        user-provided initial weights, defaults to None. If it None, weights
-        are initialized using the `init_params` method.
-
-    means_init : array-like, shape (n_components, n_x_features), optional The
-        user-provided initial means, defaults to None, If it None, means are
-        initialized using the `init_params` method.
-
-    splitnmerge : int, default to 0. The depth of the split and merge path
-        (default=0, i.e. no split and merge is performed).
-
-    random_state : int, RandomState instance or None, optional (default=None)
-        If int, random_state is the seed used by the random number generator;
-        If RandomState instance, random_state is the random number generator;
-        If None, the random number generator is the RandomState instance used
-        by `np.random`.
-
-    warm_start : bool, default to False. If 'warm_start' is True, the solution
-        of the last fitting is used as initialization for the next call of
-        fit(). This can speed up convergence when fit is called several time
-        on similar problems.
-
-    verbose : int, default to 0. Enable verbose output. If 1 then it prints
-        the current initialization and each iteration step. If greater than 1
-        then it prints also the log probability and the time needed for each
-        step.
-
-    verbose_interval : int, default to 10 Number of iteration done before the
-        next print.
-
     Attributes
     ----------
     weights_ : array-like, shape (n_components,) The weights of each mixture
@@ -119,6 +50,81 @@ class XDGaussianMixture(GaussianMixture):
                  init_params='gmm', weights_init=None, means_init=None,
                  splitnmerge=0, random_state=None, warm_start=False,
                  regularization=0.0, verbose=0, verbose_interval=10):
+        """Constructor for the extreme deconvolution Gaussian mixture model.
+
+        Parameters
+        ----------
+        n_components : int, tuple, list of int, or list of tuple, default=1.
+            The number of mixture components. In case objects can be classified
+            in multiple classes, it must be a tuple, indicating the number of
+            found using the BIC (see `bic_test`)
+
+        n_classes : int or None, default=None
+            The number of classes to use. If None, the number of classes is
+            automatically determined from the first call to `fit` and set equal
+            to the number of classes in the fitted classes are not taken into
+            account). data. Use n_classes=1 to force the use of a singlee class
+            (that is, no classes are used).
+
+        tol : float, defaults=1e-5
+            The convergence threshold. EM iterations will stop when the lower
+            bound average gain is below this threshold.
+
+        reg_covar : float, defaults=1e-6.
+            Non-negative regularization added to the diagonal of covariance.
+            Allows to assure that the covariance matrices are all positive.
+
+        max_iter : int, defaults=10**9.
+            The maximum number of EM iterations to perform.
+
+        n_init : int, defaults=1.
+            The number of initializations to perform. The best results are
+            kept.
+
+        init_params : 'gmm', 'kmeans', 'random' or XDGaussianMixture, defaults='gmm'
+            The method used to initialize the weights, the means and the
+            precisions. Must be one of:
+
+                'gmm'      : data are initialized from a quick GMM fit.
+                'kmeans'   : responsibilities are initialized using kmeans.
+                'random'   : responsibilities are initialized randomly.
+                XDGaussianMixture: instance of a XDGaussianMixture already fitted.
+
+        weights_init : array-like, shape (n_components, ), optional
+            The user-provided initial weights, defaults to None. If it None,
+            weights are initialized using the `init_params` method.
+
+        means_init : array-like, shape (n_components, n_x_features), optional
+            The user-provided initial means, defaults to None, If it None,
+            means are initialized using the `init_params` method.
+
+        splitnmerge : int, default to 0
+            The depth of the split and merge path (default=0, i.e. no split
+            and merge is performed).
+
+        random_state : int, RandomState instance or None, default=None
+            If int, random_state is the seed used by the random number
+            generator; if RandomState instance, random_state is the random
+            number generator; if None, the random number generator is the
+            RandomState instance used by `np.random`.
+
+        warm_start : bool, default=False
+            If 'warm_start' is True, the solution of the last fitting is used
+            as initialization for the next call of fit(). This can speed up
+            convergence when fit is called several time on similar problems.
+
+        regularization : float, defaults=0.0
+            The regularization parameter used by the extreme deconvolution.
+
+        verbose : int, defaults=0
+            Enable verbose output. If 1 then it prints the current
+            initialization and each iteration step. If greater than 1 then it
+            prints also the log probability and the time needed for each step.
+
+        verbose_interval : int, default=10
+            Number of iteration done before the next print.
+
+        """
         super(XDGaussianMixture, self).__init__(
             n_components=n_components, tol=tol, reg_covar=reg_covar,
             max_iter=max_iter, n_init=n_init, init_params=init_params,
