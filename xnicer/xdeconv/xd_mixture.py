@@ -1,33 +1,38 @@
+"""Extreme deconvolution code (using GaussianMixture).
+
+:Author: Marco Lombardi
+:Version: 0.1.0 of 2019/05/13
+"""
+
+# pylint: disable=arguments-differ, invalid-name
 import warnings
 import numpy as np
-from scipy.special import ndtri, logsumexp
+from scipy.special import logsumexp
 from sklearn.utils import check_array, check_random_state
 from sklearn.mixture import GaussianMixture
 # from extreme_deconvolution import extreme_deconvolution
-from . import FIX_NONE, FIX_AMP, FIX_CLASS, FIX_MEAN, FIX_COVAR, FIX_ALL, \
-    xdeconv, scores, log_likelihoods
+from . import xdeconv, scores
 
 
-class XD_Mixture(GaussianMixture):
-    """Extreme decomposition using a Gaussian Mixture Model
+class XDGaussianMixture(GaussianMixture):
+    """Extreme deconvolution using a Gaussian Mixture Model.
 
     This class allows to estimate the parameters of a Gaussian mixture
     distribution from data with noise.
 
     Parameters
     ----------
-    n_components : int, tuple, list of int, or list of tuple, default=1. The
-        number of mixture components. In case objects can be classified in
-        multiple classes, it must be a tuple, indicating the number of
-        components in each class. If a list is provided, the best value is
-        found using the BIC (see `bic_test`)
+    n_components : int, tuple, list of int, or list of tuple, default=1.
+        The number of mixture components. In case objects can be classified in
+        multiple classes, it must be a tuple, indicating the number of found
+        using the BIC (see `bic_test`)
 
     n_classes : int or None, default=None
-        The number of classes to use. If None, the number of classes is 
-        automatically determined from the first call to `fit` and set equal
-        to the number of classes in the fitted data. Use n_classes=1 to force
-        the use of a singlee class (that is, classes are not taken into 
-        account).
+        The number of classes to use. If None, the number of classes is
+        automatically determined from the first call to `fit` and set equal to
+        the number of classes in the fitted classes are not taken into
+        account). data. Use n_classes=1 to force the use of a singlee class
+        (that is, no classes are used).
 
     tol : float, defaults to 1e-5. The convergence threshold. EM iterations
         will stop when the lower bound average gain is below this threshold.
@@ -45,14 +50,14 @@ class XD_Mixture(GaussianMixture):
     n_init : int, defaults to 1. The number of initializations to perform. The
         best results are kept.
 
-    init_params : {'gmm', 'kmeans', 'random'} or XD_Mixture, defaults to
-        'gmm'. The method used to initialize the weights, the means and the
+    init_params : {'gmm', 'kmeans', 'random'} or XDGaussianMixture, defaults
+        to 'gmm'. The method used to initialize the weights, the means and the
         precisions. Must be one of:
 
             'gmm'      : data are initialized from a quick GMM fit.
             'kmeans'   : responsibilities are initialized using kmeans.
             'random'   : responsibilities are initialized randomly.
-            XD_Mixture : instance of a XD_Mixture already fitted.
+            XDGaussianMixture: instance of a XDGaussianMixture already fitted.
 
     weights_init : array-like, shape (n_components, ), optional The
         user-provided initial weights, defaults to None. If it None, weights
@@ -86,37 +91,37 @@ class XD_Mixture(GaussianMixture):
 
     Attributes
     ----------
-    weights_ : array-like, shape (n_components,) 
-        The weights of each mixture components.
+    weights_ : array-like, shape (n_components,) The weights of each mixture
+        components.
 
-    means_ : array-like, shape (n_components, n_x_features) 
-        The mean of each mixture component.
+    means_ : array-like, shape (n_components, n_x_features) The mean of each
+        mixture component.
 
-    covariances_ : array-like, shape (n_components, n_x_features, n_x_features)
-        The covariance of each mixture component.
-        
-    classes_ : array-like, shape (n_components, n_classes)
-        The class probability for each component.
-        
-    converged_ : bool 
-        True when convergence was reached in fit(), False otherwise.
+    covariances_ : array-like, shape (n_components, n_x_features,
+        n_x_features) The covariance of each mixture component.
 
-    lower_bound_ : float 
-        Log-likelihood of the best fit of EM.
+    classes_ : array-like, shape (n_components, n_classes) The class
+        probability for each component.
+
+    converged_ : bool True when convergence was reached in fit(), False
+        otherwise.
+
+    lower_bound_ : float Log-likelihood of the best fit of EM.
 
     See Also
     --------
     GaussianMixture : Gaussian mixture model.
+
     """
 
-    def __init__(self, n_components=1, n_classes=None, tol=1e-5, 
-                 reg_covar=1e-06, max_iter=int(1e9), n_init=1, 
+    def __init__(self, n_components=1, n_classes=None, tol=1e-5,
+                 reg_covar=1e-06, max_iter=int(1e9), n_init=1,
                  init_params='gmm', weights_init=None, means_init=None,
                  splitnmerge=0, random_state=None, warm_start=False,
                  regularization=0.0, verbose=0, verbose_interval=10):
-        super(XD_Mixture, self).__init__(
-            n_components=n_components, tol=tol, reg_covar=reg_covar, 
-            max_iter=max_iter, n_init=n_init, init_params=init_params, 
+        super(XDGaussianMixture, self).__init__(
+            n_components=n_components, tol=tol, reg_covar=reg_covar,
+            max_iter=max_iter, n_init=n_init, init_params=init_params,
             weights_init=weights_init, means_init=means_init,
             random_state=random_state, warm_start=warm_start,
             verbose=verbose, verbose_interval=verbose_interval)
@@ -130,7 +135,7 @@ class XD_Mixture(GaussianMixture):
         # Other model parameters
         self.n_samples_ = self.n_eff_samples_ = None
         self.n_features_ = None
-        self.BIC_ = None
+        self.bic_ = None
 
     def _check_parameters(self, Y):
         """Check the Gaussian mixture parameters are well defined."""
@@ -140,12 +145,12 @@ class XD_Mixture(GaussianMixture):
                              "['full']"
                              % self.covariance_type)
         init_params = self.init_params
-        if self.init_params == 'gmm' or isinstance(self.init_params, XD_Mixture):
+        if self.init_params == 'gmm' or isinstance(self.init_params, XDGaussianMixture):
             self.init_params = 'kmeans'
-        super(XD_Mixture, self)._check_parameters(Y)
+        super(XDGaussianMixture, self)._check_parameters(Y)
         self.init_params = init_params
 
-    def _check_Y_Yerr(self, Y, Yerr, Yclass=None, projection=None, 
+    def _check_Y_Yerr(self, Y, Yerr, Yclass=None, projection=None,
                       log_weight=None):
         """Check the input data Y together with its errors Yerr.
 
@@ -156,7 +161,7 @@ class XD_Mixture(GaussianMixture):
 
         Yerr: array_like, shape (n_samples, n_y_features[, n_y_features])
             (Co)variances on input data.
-            
+
         Yclasses: array_like, shape (n_samples, n_classes)
             Optional log-probability of each class, for each object.
 
@@ -183,9 +188,10 @@ class XD_Mixture(GaussianMixture):
 
         log_weight: array_like, shape (n_samples,) or None
             The converted log weight.
+
         """
-        Y = check_array(Y, dtype=[np.float64], order='C', 
-                        estimator='XD_Mixture')
+        Y = check_array(Y, dtype=[np.float64], order='C',
+                        estimator='XDGaussianMixture')
         n_samples, n_y_features = Y.shape
         if n_samples < self.n_components:
             raise ValueError('Expected n_samples >= n_components '
@@ -193,8 +199,9 @@ class XD_Mixture(GaussianMixture):
                              % (self.n_components, Y.shape[0]))
         if len(Yerr.shape) not in [2, 3]:
             raise ValueError('Expected a 2d or 3d array for Yerr')
-        Yerr = check_array(Yerr, dtype=[
-                           np.float64], order='C', ensure_2d=False, allow_nd=True, estimator='XD_Mixture')
+        Yerr = check_array(Yerr, dtype=[np.float64], order='C',
+                           ensure_2d=False, allow_nd=True,
+                           estimator='XDGaussianMixture')
         if Yerr.shape[0] != n_samples:
             raise ValueError('Yerr must have the same number of samples as Y')
         if Yerr.shape[1] != n_y_features:
@@ -208,15 +215,17 @@ class XD_Mixture(GaussianMixture):
                 raise ValueError(
                     'Yclass must be of shape (n_samples, n_classes)')
         if projection is not None:
-            projection = check_array(projection, dtype=[np.float64], order='C', ensure_2d=False,
-                                     allow_nd=True, estimator='XD_Mixture')
+            projection = check_array(projection, dtype=[np.float64],
+                                     order='C', ensure_2d=False,
+                                     allow_nd=True, estimator='XDGaussianMixture')
             if projection.ndim != 3 or projection.shape[0] != n_samples or \
                 projection.shape[1] != n_y_features:
                 raise ValueError(
                     'projection must be of shape (n_samples, n_y_features, n_x_features)')
         if log_weight is not None:
-            log_weight = check_array(log_weight, dtype=[np.float64], order='C', ensure_2d=False,
-                                     allow_nd=True, estimator='XD_Mixture')
+            log_weight = check_array(log_weight, dtype=[np.float64],
+                                     order='C', ensure_2d=False,
+                                     allow_nd=True, estimator='XDGaussianMixture')
             if log_weight.ndim != 1:
                 raise ValueError('log_weight must be a 1d array')
             if log_weight.shape[0] != n_samples:
@@ -224,7 +233,7 @@ class XD_Mixture(GaussianMixture):
                     'log_weight must have the same number of samples as Y')
         return Y, Yerr, projection, log_weight
 
-    def _initialize_parameters(self, Y, Yerr, random_state, projection=None, 
+    def _initialize_parameters(self, Y, Yerr, random_state, projection=None,
                                log_weight=None, Yclass=None):
         """Initialize the model parameters.
 
@@ -245,11 +254,12 @@ class XD_Mixture(GaussianMixture):
 
         log_weight : array_like, shape (n_samples,)
             Optional log weights for the various points.
-            
+
         Yclass : array_like, shape (n_samples, n_classes)
             Optional log probability for each point to belong to a given class.
+
         """
-        if isinstance(self.init_params, XD_Mixture):
+        if isinstance(self.init_params, XDGaussianMixture):
             parameters = list(p.copy()
                               for p in self.init_params._get_parameters())
             self._set_parameters(parameters)
@@ -289,7 +299,7 @@ class XD_Mixture(GaussianMixture):
                     resp = tmp_gmm.predict_proba(Y[mask])[:, :, np.newaxis] * \
                         np.exp(Yclass)[mask, np.newaxis, :]
                     xclass = np.sum(resp, axis=0)
-                    xclass /= np.sum(xclass, axis=1)[:, np.newaxis] 
+                    xclass /= np.sum(xclass, axis=1)[:, np.newaxis]
                 else:
                     tmp_gmm._initialize_parameters(
                         Y[mask], tmp_gmm.random_state)
@@ -297,7 +307,7 @@ class XD_Mixture(GaussianMixture):
                         np.log(self.n_classes)
                 self.means_ = tmp_gmm.means_
                 self.classes_ = xclass
-                self.weights_ = tmp_gmm.weights_ 
+                self.weights_ = tmp_gmm.weights_
                 self.covariances_ = tmp_gmm.covariances_
             # Renormalize the weights
             self.weights_ /= np.sum(self.weights_)
@@ -305,7 +315,7 @@ class XD_Mixture(GaussianMixture):
 
     def fit(self, Y, Yerr, Yclass=None, projection=None, log_weight=None,
             fixpars=None):
-        """Fit the XD model to data
+        """Fit the XD model to data.
 
         Parameters
         ----------
@@ -325,32 +335,33 @@ class XD_Mixture(GaussianMixture):
 
         log_weight : array_like, shape (n_samples,)
             Optional log weights for the various points.
-            
+
         fixpars : None, int, or int array_like, shape (self.n_components,)
-            A combination of FIX_AMP, FIX_CLASS, FIX_MEAN, FIX_COVAR that 
-            indicates the parameters to keep fixed for each component.  If a 
+            A combination of FIX_AMP, FIX_CLASS, FIX_MEAN, FIX_COVAR that
+            indicates the parameters to keep fixed for each component.  If a
             scalar, the same value is used for all components.
 
         The best fit parameters are directly saved in the object.
+
         """
         # If n_components is a list, perform BIC optimization
         if isinstance(self.n_components, list):
-            self.bic_test(Y, Yerr, self.n_components, projection=projection, 
+            self.bic_test(Y, Yerr, self.n_components, projection=projection,
                           log_weight=log_weight)
             return self
-        
-        if self.n_classes == None:
+
+        if self.n_classes is None:
             if Yclass is not None:
                 self.n_classes = Yclass.shape[1]
             else:
                 self.n_classes = 1
         elif self.n_classes == 1:
             Yclass = None
-        
+
         # Temporarily change some of the parameters to perform a first
         # initialization
         Y, Yerr, projection, log_weight = self._check_Y_Yerr(
-            Y, Yerr, Yclass=Yclass, projection=projection, 
+            Y, Yerr, Yclass=Yclass, projection=projection,
             log_weight=log_weight)
         self._check_initial_parameters(Y)
 
@@ -380,7 +391,7 @@ class XD_Mixture(GaussianMixture):
                 self.lower_bound_ = -np.infty
             self.lower_bound_ = xdeconv(Y, Yerr, self.weights_, self.means_, self.covariances_,
                                         tol=self.tol, maxiter=self.max_iter,
-                                        regular=self.reg_covar, splitnmerge=self.splitnmerge, 
+                                        regular=self.reg_covar, splitnmerge=self.splitnmerge,
                                         weight=log_weight, xclass=self.classes_,
                                         projection=projection,
                                         fixpars=fixpars, classes=Yclass)
@@ -407,9 +418,9 @@ class XD_Mixture(GaussianMixture):
         (self.weights_, self.means_, self.covariances_, self.classes_,
          self.lower_bound_) = params
 
-    def score_samples_components(self, Y, Yerr, Yclass=None, 
+    def score_samples_components(self, Y, Yerr, Yclass=None,
                                  projection=None):
-        """Compute the log probabilities for each component
+        """Compute the log probabilities for each component.
 
         Parameters
         ----------
@@ -420,7 +431,7 @@ class XD_Mixture(GaussianMixture):
             (Co)variances on input data.
 
         Yclass : array_like, shape (n_samples, n_classes)
-            An optional array of log-probabilities of each object to belong 
+            An optional array of log-probabilities of each object to belong
             to a given class.
 
         projection : array_like (optional), shape (n_samples, n_y_features, n_x_features)
@@ -431,10 +442,11 @@ class XD_Mixture(GaussianMixture):
         -------
         logprob : array_like, shape (n_samples, n_components)
             Log probabilities of each data point in X.
+
         """
         Y, Yerr, projection, _ = self._check_Y_Yerr(
             Y, Yerr, Yclass=Yclass, projection=projection)
-        return scores(Y, Yerr, self.means_, self.covariances_, 
+        return scores(Y, Yerr, self.means_, self.covariances_,
                       projection=projection, classes=Yclass,
                       xclass=self.classes_)
 
@@ -450,7 +462,7 @@ class XD_Mixture(GaussianMixture):
             (Co)variances on input data.
 
         Yclass : array_like, shape (n_samples, n_classes)
-            An optional array of log-probabilities of each object to belong 
+            An optional array of log-probabilities of each object to belong
             to a given class.
 
         projection : array_like (optional), shape (n_samples, n_y_features, n_x_features)
@@ -461,6 +473,7 @@ class XD_Mixture(GaussianMixture):
         -------
         log_prob : array, shape (n_samples,)
             Log probabilities of each data point in X.
+
         """
         log = self.score_samples_components(Y, Yerr, Yclass=Yclass,
                                             projection=projection)
@@ -478,7 +491,7 @@ class XD_Mixture(GaussianMixture):
             (Co)variances on input data.
 
         Yclass : array_like, shape (n_samples, n_classes)
-            An optional array of log-probabilities of each object to belong 
+            An optional array of log-probabilities of each object to belong
             to a given class.
 
         projection : array_like (optional), shape (n_samples, n_y_features, n_x_features)
@@ -492,6 +505,7 @@ class XD_Mixture(GaussianMixture):
         -------
         log_likelihood : float
             Log likelihood of the Gaussian mixture given X.
+
         """
         if log_weight is not None:
             weight = np.exp(log_weight)
@@ -503,8 +517,7 @@ class XD_Mixture(GaussianMixture):
                                               projection=projection))
 
     def bic(self, Y=None, Yerr=None, projection=None, log_weight=None, ranks=None):
-        """Compute Bayesian information criterion for current model and
-        proposed data.
+        """Compute Bayesian information criterion for current model and proposed data.
 
         Computed in the same way as the scikit-learn GMM model computes
             the BIC.
@@ -528,6 +541,7 @@ class XD_Mixture(GaussianMixture):
         -------
         bic : float
             BIC for the model and data (lower is better).
+
         """
         if Y is None:
             score = self.lower_bound_
@@ -545,7 +559,7 @@ class XD_Mixture(GaussianMixture):
         return (-2 * score * n_samples +
                 self._n_parameters() * np.log(n_samples))
 
-    def aic(self, Y=None, Yerr=None, projection=None, log_weight=None, ranks=None):
+    def aic(self, Y=None, Yerr=None, projection=None, log_weight=None):
         """Akaike information criterion for the current model on the input X.
 
         Parameters
@@ -567,6 +581,7 @@ class XD_Mixture(GaussianMixture):
         -------
         aic : float
             The lower the better.
+
         """
         if Y is None:
             score = self.lower_bound_
@@ -612,6 +627,7 @@ class XD_Mixture(GaussianMixture):
 
         lowest_bic : float
             Lowest BIC from the scores computed.
+
         """
         bics = np.array([])
         lowest_bic = np.infty
@@ -636,5 +652,3 @@ class XD_Mixture(GaussianMixture):
             self.set_params(**optimal_par)
             self._set_parameters(optimal_res)
         return bics, optimal_n_comp, optimal_bic
-
-

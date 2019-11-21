@@ -1,15 +1,16 @@
 """Catalogue handling code.
 
 :Author: Marco Lombardi
-:Version: 0.1.0 of 2019/05/13"""
+:Version: 0.1.0 of 2019/05/13
+"""
 
 # Author: Marco Lombardi <marco.lombardi@gmail.com>
 
 import collections
 import warnings
-import numpy as np
 import copy
 import logging
+import numpy as np
 from scipy.optimize import minimize
 from scipy.special import log_ndtr, logsumexp # pylint: disable=no-name-in-module
 from astropy import table
@@ -17,10 +18,10 @@ from astropy.io import votable
 from astropy.coordinates import SkyCoord
 from .utilities import log1mexp
 
-logger = logging.getLogger(__name__)
+LOGGER = logging.getLogger(__name__)
 
 # Table 3 from Rieke & Lebovsky (1985), ApJ 288, 618: ratio A_lambda / A_V.
-rieke_lebovsky_ucd = {
+RIEKE_LEBOVSKY_UCD = {
     'em.opt.U': 1.531,
     'em.opt.B': 1.324,
     'em.opt.V': 1.000,
@@ -32,7 +33,7 @@ rieke_lebovsky_ucd = {
     'em.IR.3-4um': 0.058,
     'em.IR.4-8um': 0.023
 }
-rieke_lebovsky_names = {
+RIEKE_LEBOVSKY_NAMES = {
     'U': 1.531,
     'B': 1.324,
     'V': 1.000,
@@ -48,31 +49,35 @@ rieke_lebovsky_names = {
 
 
 def _find_reddening_vector(name):
-    """Tries to find the reddening for a given band name."""
+    """Try to find the reddening for a given band name."""
     name = name.upper()
-    if name in rieke_lebovsky_names:
-        return rieke_lebovsky_names[name]
-    elif name[-4:] == '_MAG' and name[:-4] in rieke_lebovsky_names:
-        return rieke_lebovsky_names[name[:-4]]
-    elif name[-3:] == 'MAG' and name[:-3] in rieke_lebovsky_names:
-        return rieke_lebovsky_names[name[:-3]]
+    if name in RIEKE_LEBOVSKY_NAMES:
+        return RIEKE_LEBOVSKY_NAMES[name]
+    elif name[-4:] == '_MAG' and name[:-4] in RIEKE_LEBOVSKY_NAMES:
+        return RIEKE_LEBOVSKY_NAMES[name[:-4]]
+    elif name[-3:] == 'MAG' and name[:-3] in RIEKE_LEBOVSKY_NAMES:
+        return RIEKE_LEBOVSKY_NAMES[name[:-3]]
     else:
         return False
-    
+
 
 class AstrometricCatalogue(SkyCoord):
-    
+    """An astrometric catalogue, child of SkyCoord.
+
+    Defined so that one can use some class methods to build the catalogue.
+    """
+
     @classmethod
-    def from_votable(cls, table, frame=None, **kwargs):
-        """Extract coordinates from a VOTable into a SkyCoord object
+    def from_votable(cls, input_table, frame=None, **kwargs):
+        """Extract coordinates from a VOTable into a SkyCoord object.
 
         Parameters
         ----------
-        table : VOTable
+        input_table : VOTable
             A VOTable that include astrometric coordinates.
-            
+
         frame : Coordinate Frame
-            Should be a known coordinate frame, such as 'fk4', 'fk5', 
+            Should be a known coordinate frame, such as 'fk4', 'fk5',
             'galactic', 'icrs'... If unspecified, the frame is inferred
             from the kind of coordinate. In future we should parse the
             frame from the VO table directly, using `vo.iter_coosys`.
@@ -84,6 +89,7 @@ class AstrometricCatalogue(SkyCoord):
         -------
         SkyCoord
             A SkyCoord object with the coordinates of the input table
+
         """
         frames = {
             'eq': {'ra': 0, 'dec': 1},
@@ -91,7 +97,7 @@ class AstrometricCatalogue(SkyCoord):
             'gal': {'lon': 0, 'lat': 1},
         }
         result = {}
-        for field in table.fields:
+        for field in input_table.fields:
             ucd = votable.ucd.parse_ucd(field.ucd)
             force = len(ucd) > 1 and (ucd[1][1] == 'meta.main')
             words = ucd[0][1].split('.')
@@ -102,8 +108,8 @@ class AstrometricCatalogue(SkyCoord):
                     i = frames[ucd_frame][ucd_coord]
                     if ucd_frame not in result:
                         result[ucd_frame] = [None, None]
-                    if force or result[ucd_frame][i] == None:
-                        result[ucd_frame][i] = field                        
+                    if force or result[ucd_frame][i] is None:
+                        result[ucd_frame][i] = field
         if 'eq' in result:
             if frame is None:
                 frame = 'icrs'
@@ -116,92 +122,48 @@ class AstrometricCatalogue(SkyCoord):
             result = result['gal']
         else:
             raise KeyError('No known coordinate system found in the table')
-        return cls(table.array[result[0].ID],
-                   table.array[result[1].ID], 
+        return cls(input_table.array[result[0].ID],
+                   input_table.array[result[1].ID],
                    frame=frame, unit=result[0].unit,
                    equinox=result[0].ref, **kwargs)
 
     @classmethod
-    def from_table(cls, table, colnames, unit='deg', frame='icrs', **kw):
+    def from_table(cls, input_table, colnames, unit='deg', frame='icrs', **kw):
+        """Build a new AstrometricCatalogue from an astropy Table.
+
+        Parameters
+        ----------
+        input_table : astropy Table
+            The table from which we can extract the coordinates.
+
+        colnames : sequence or list of strings
+            The names of the columns with the object coordinates.
+
+        unit : str, default='deg'
+            The units of the coodinates.
+
+        frame : str, default='icrs'
+            The frame of the coordinates.
+
+        Returns
+        -------
+        AstrometricCatalogue
+            The newly built astrometric catalogue (a child of SkyCoord).
+
+        """
         pars = []
         for colname in colnames:
-            pars.append(table[colname])
+            pars.append(input_table[colname])
         return cls(*pars, unit=unit, frame=frame, **kw)
 
 class PhotometricCatalogue(table.Table):
-    """Initialize a new photometric catalogue.
+    """A photometric catalogue (child of astropy Table).
 
-    The initialization can be carried using either a Table or arrays of
-    magnitudes and associated errors.
+    The catalogues will contain at least the following
 
-    Parameters
-    ----------
-    data : Table, VOTable, or table-like object optional
-        If specified, must be a table-like object containing the magnitudes
-        and the associated errors.
-
-    mags : array_like, shape (n_objs, n_bands) or list of strings
-        If `data` is not specified, an array with the measured magnitudes of 
-        all objects; otherwise, a list of strings indicating which columns 
-        of data should be interpreted as magnitudes.
-
-    mag_errs : array_like, shape (n_objs, n_bands) or list of strings
-        If data is not specified, an array with the measured magnitude errors
-        of all objects; otherwise, a list of strings indicating which columns
-        of data should be interpreted as magnitude errors.
-
-    probs : array_like, shape (n_objs, n_bands) or None
-        The (log) probability to observe a given magnitude for a given 
-        object. Used to simulate the effects of extinction through 
-        `extinguish`. If None, the probabilities are ignored (that is, all
-        objects are assumed to be observable with 100% probability).
-        
-    log_probs : bool, default=False
-        If True, `probs` are really log probabilities; otherwise, are
-        just probabilities.
-        
-    class_names : tuple or list of strings or None
-        The name of the various discrete classes of objects the catalogue
-        describes. If None, all objects are taken to be part of the same
-        class.
-
-    class_probs : array_like, shape (n_objs, n_classes) or None
-        If the catalogue contains classified objects, an array that stores,
-        for each object, the (log) probability that each objecs belongs to a
-        given class. The probabilities should be normalized to unity (that
-        is, the sum for a given object of all probabilities must be 1). 
-        Alternatively, one can provide an array of shape (n_objs, 
-        n_classes-1): in this case, it is assumed that these probabilities
-        are associated to the first n_classes-1 classes; the probability for
-        the last class is inferred from the normalization condition.
-        
-    log_class_probs : bool, default=False
-        If True, `class_probs` are really log probabilities.
-
-    reddening_law : array_like, shape (n_bands,) or None
-        The reddening law associated with the bands in the catalogue. If not
-        provided and the catalogue is a VO table, the reddening law is 
-        inferred from the ucd or names of the bands using the Rieke & Lebovsky
-        (1985) data.
-
-    use_projection : bool, default to True
-        What to do in case of missing band measurements. If true, the
-        catalogue will be built using different combinations of magnitudes and
-        the associated projection matrix will be returned when computing
-        colors.
-
-    max_err : float, default to 1.0
-        Maximum admissible error above which a datum is discarted.
-
-    min_bands : int, default to 2
-        The minimum number of bands with valid measuremens to include the
-        object in the final catalogue.
-
-    null_mag: float, default to 15.0
-        The value used to mark a null magnitude.
-
-    null_err: float, default to 100.0
-        The value used to mark a null magnitude error.
+    Columns
+    -------
+    mags :
 
     Attributes
     ----------
@@ -214,24 +176,24 @@ class PhotometricCatalogue(table.Table):
 
     mags : array_like, shape (n_objs, n_bands)
         Array with the extracted magnitudes.
-        
+
     mag_names : array_like, shape (n_bands,) or None
         The names of the bands present in the catalogue, if available. This
         variable is only set if the user provide the parameter `data`.
 
     mag_errs : array_like, shape (n_objs, n_bands, n_bands)
         Array with the extracted magnitude errors.
-    
+
     err_names : array_like, shape (n_bands,) or None
-        The names of the error in each band present in the catalogue, if 
-        available. This variable is only set if the user provide the 
+        The names of the error in each band present in the catalogue, if
+        available. This variable is only set if the user provide the
         parameter `data`.
 
     log_probs : array_like, shape (n_objs, n_bands) or None
-        The log probability to observe a given magnitude for a given 
-        object. Used to simulate the effects of extinction through 
+        The log probability to observe a given magnitude for a given
+        object. Used to simulate the effects of extinction through
         `extinguish`. If None, the probabilities are ignored.
-        
+
     class_names : tuple or list of strings or None
         The name of the various discrete classes of objects the catalogue
         describes. If None, all objects are taken to be part of the same
@@ -242,7 +204,7 @@ class PhotometricCatalogue(table.Table):
         for each object, the logarithms of the probability that each object
         belongs to a given class. The probabilities, if provided, should be
         normalized to unity along axis 1 (the second axis).
-        
+
     reddening_law : array_like, shape (n_bands,) or None
         The reddening law associated with the bands in the catalogue.
 
@@ -257,16 +219,35 @@ class PhotometricCatalogue(table.Table):
     min_bands : int
         The minimum number of bands with valid measuremens to include the
         object in the final catalogue.
-    
+
     null_mag: float
         The value used to mark a null magnitude.
 
     null_err: float
         The value used to mark a null magnitude error.
+
     """
 
     @classmethod
     def from_votable(cls, data, reddening_law=None):
+        """Build a PhotometricCatalogue using a VO Table.
+
+        Parameters
+        ----------
+        data : VOTable
+            The VOTable containing the original data. The magnitudes and their
+            associated errors are automatically extracted from the table.
+
+        reddening_law : array-like, optional
+            The reddening law associated with the bands contained in the table.
+            If not provided, the reddening law is inferred from the band names
+            and taken to follow the Rieke & Lebovsky (1985) one.
+
+        Returns
+        -------
+        The newly built PhotometricCatalogue.
+
+        """
         bands = collections.OrderedDict()
         for field in data.fields:
             ucd = votable.ucd.parse_ucd(field.ucd)
@@ -287,7 +268,7 @@ class PhotometricCatalogue(table.Table):
                         bands[mag][1] = field.ID
                 else:
                     bands[mag] = [None, field.ID]
-        # Now write the mags and mag_errs arrays        
+        # Now write the mags and mag_errs arrays
         mags = []
         mag_errs = []
         for ucd, (mag, mag_err) in bands.items():
@@ -296,8 +277,8 @@ class PhotometricCatalogue(table.Table):
                 mag_errs.append(mag_err)
                 if reddening_law is None:
                     reddening_law = []
-                    if ucd in rieke_lebovsky_ucd:
-                        reddening_law.append(rieke_lebovsky_ucd[ucd])
+                    if ucd in RIEKE_LEBOVSKY_UCD:
+                        reddening_law.append(RIEKE_LEBOVSKY_UCD[ucd])
                     else:
                         reddening = _find_reddening_vector(mag)
                         if reddening:
@@ -305,13 +286,44 @@ class PhotometricCatalogue(table.Table):
                         else:
                             warnings.warn(f"Cannot automatically find the reddening law for {mag}")
                             reddening_law = False
-        if reddening_law == False:
+        if reddening_law is False:
             reddening_law = None
         return cls.from_table(data.array, mags, mag_errs, reddening_law=reddening_law)
 
     @classmethod
-    def from_table(cls, data, mag_names, err_names, prob_names=None,
-                   class_prob_names=None, *args, **kw):
+    def from_table(cls, data, mag_names, err_names, *args, prob_names=None,
+                   class_prob_names=None, **kw):
+        """Build a catalogue from an astropy Table.
+
+        Parameters
+        ----------
+        data : Table or table-like object
+            A table-like object containing the magnitudes and the associated
+            errors.
+
+        mag_names : tuple or list of strings
+            A list of strings indicating which columns of data should be
+            interpreted as magnitudes.
+
+        err_names : tuple or list of strings
+            A list of strings indicating which columns of data should be
+            interpreted as magnitude errors.
+
+        prob_names : tuple or list of strings, or None
+            A list of strings indicating which columns of data should be
+            interpreted as detection probabilities. If None, the probabilities
+            are ignored (that is, all objects are assumed to be observable with
+            100% probability).
+
+        class_prob_names : tuple or list of strings, or None
+            A list of strings indicating which columns of data are to be taken
+            the probability that each object belongs to a given class. If set,
+            one needs also to set class_names (see `from_photometry`). If None,
+            all objects are taken to be par of the same unique class.
+
+        All further parameters are passed to `from_photometry`.
+
+        """
         # Kind of data allocator
         if data.masked:
             allocator = np.ma.empty
@@ -340,13 +352,13 @@ class PhotometricCatalogue(table.Table):
                 probs[:, n] = data[prob_names[n]].data
         if class_prob_names is not None:
             class_probs = allocator((n_objs, len(class_prob_names)))
-            for n in range(len(class_prob_names)):
-                class_probs[:, n] = data[class_prob_names[n]].data
+            for n, name in enumerate(class_prob_names):
+                class_probs[:, n] = data[name].data
         else:
-            class_probs = None        
-        return cls.from_photometry(mags, mag_errs, 
+            class_probs = None
+        return cls.from_photometry(mags, mag_errs,
                                    mag_names=mag_names, err_names=err_names,
-                                   probs=probs, class_probs=class_probs, 
+                                   probs=probs, class_probs=class_probs,
                                    *args, **kw)
 
     @classmethod
@@ -355,7 +367,70 @@ class PhotometricCatalogue(table.Table):
                         log_probs=False, class_names=None, class_probs=None,
                         log_class_probs=False, reddening_law=None,
                         max_err=1.0, min_bands=2, null_mag=15.0, null_err=99.999):
+        """Initialize a new photometric catalogue from raw data (arrays).
 
+        Parameters
+        ----------
+        mags : array_like, shape (n_objs, n_bands) An array with the measured
+            magnitudes of all objects.
+
+        mag_errs : array_like, shape (n_objs, n_bands) An array with the
+            measured magnitude errors of all objects.
+
+        mag_names : list of strings, default=None The names associated to each
+            magnitude band.
+
+        err_names : list of strings, default=None The names associated to each
+            error in magnitude.
+
+        probs : array_like, shape (n_objs, n_bands) The (log) probability to
+            observe a given magnitude for a given object. Used to simulate the
+            effects of extinction through `extinguish`. If None, the
+            probabilities are ignored (that is, all objects are assumed to be
+            observable with 100% probability).
+
+        log_probs : bool, default=False If True, `probs` are really log
+            probabilities; otherwise, are just probabilities.
+
+        class_names : tuple or list of strings or None The name of the various
+            discrete classes of objects the catalogue describes. If None, all
+            objects are taken to be part of the same class.
+
+        class_probs : array_like, shape (n_objs, n_classes) or None If the
+            catalogue contains classified objects, an array that stores, for
+            each object, the (log) probability that each objecs belongs to a
+            given class. The probabilities should be normalized to unity (that
+            is, the sum for a given object of all probabilities must be 1).
+            Alternatively, one can provide an array of shape (n_objs,
+            n_classes-1): in this case, it is assumed that these probabilities
+            are associated to the first n_classes-1 classes; the probability
+            for the last class is inferred from the normalization condition.
+
+        log_class_probs : bool, default=False If True, `class_probs` are
+            really log probabilities.
+
+        reddening_law : array_like, shape (n_bands,) or None
+            The reddening law associated with the bands in the catalogue.
+
+        use_projection : bool, default to True What to do in case of missing
+            band measurements. If true, the catalogue will be built using
+            different combinations of magnitudes and the associated projection
+            matrix will be returned when computing colors.
+
+        max_err : float, default to 1.0
+            Maximum admissible error above which a datum is discarted.
+
+        min_bands : int, default to 2
+            The minimum number of bands with valid measuremens to include the
+            object in the final catalogue.
+
+        null_mag: float, default to 15.0
+            The value used to mark a null magnitude.
+
+        null_err: float, default to 99.999
+            The value used to mark a null magnitude error.
+
+        """
         cat = cls()
 
         # Initial checks
@@ -405,7 +480,7 @@ class PhotometricCatalogue(table.Table):
             cat.meta['class_names'] = tuple(class_names)
         else:
             cat.meta['class_names'] = None
-        
+
         # Create the main columns
         mask = np.zeros((n_objs, n_bands), dtype=np.bool)
         if isinstance(mags, np.ma.MaskedArray):
@@ -418,13 +493,13 @@ class PhotometricCatalogue(table.Table):
             mask |= mag_errs.mask
             mag_errs = mag_errs.filled(null_err)
         cat.add_column(table.Column(
-            mag_errs, name='mag_errs', 
+            mag_errs, name='mag_errs',
             description='Array of errors in magnitudes',
             unit='mag', format='%5.3f'))
         mask |= cat['mag_errs'] >= max_err
         cat['mags'][mask] = null_mag
         cat['mag_errs'][mask] = null_err
-        
+
         # log_prob column
         if probs is not None:
             if probs.ndim != 2:
@@ -477,19 +552,20 @@ class PhotometricCatalogue(table.Table):
                 class_probs, name='log_class_probs',
                 description='log-probabilities of class belonging',
                 format='%+5.3f'))
-            
+
         # Remove objects with too few bands
-        idx = np.where(np.sum(cat['mag_errs'] < max_err, axis=1) 
+        idx = np.where(np.sum(cat['mag_errs'] < max_err, axis=1)
                        >= min_bands)[0]
         cat = cat[idx]
         cat.add_column(table.Column(
-            idx, name='idx', 
+            idx, name='idx',
             description='index with respect to the original catalogue',
             format='%d'
         ), index=0)
         return cat
-    
+
     def __getitem__(self, item):
+        """Get item method."""
         if isinstance(item, str):
             if item in self.colnames:
                 return self.columns[item]
@@ -543,37 +619,42 @@ class PhotometricCatalogue(table.Table):
         self['log_probs'][np.where(self['mag_errs'] > self.meta['max_err'])] = -np.inf
 
     def remove_log_probs(self):
-        """Removes log probabilities from the photometric catalogue.
-        
+        """Remove log probabilities from the photometric catalogue.
+
         This method also applies decimation to the data: that is, it "cleans"
         magnitudes bands depending on the value of the log probabilities.
         """
         if 'log_probs' not in self.colnames:
-            return self
+            return
         removed = np.where(self['log_probs'] < np.log(
             np.random.uniform(size=(len(self), self.meta['n_bands']))))[0]
         self.remove_rows(removed)
         self.remove_column('log_probs')
 
     def get_colors(self, *pars, **kw):
+        """Return the ColorCatalogue associated to this PhotometricCatalogue.
+
+        This function just call `ColorCatalogue.from_photometric_catalogue`
+        passing all parameters to it.
+        """
         return ColorCatalogue.from_photometric_catalogue(self, *pars, **kw)
 
-    def fit_number_counts(self, start_completeness=20.0, start_width=0.3, 
+    def fit_number_counts(self, start_completeness=20.0, start_width=0.3,
                           method='Nelder-Mead', indices=None):
-        """Perform a fit with a simple model for the number counts.
+        r"""Perform a fit with a simple model for the number counts.
 
         The assumed model is an exponential distribution, truncated at high
         magnitudes with an erfc function:
 
-        ..math: p(m) \\propto \\exp(b m) \\erfc((m - c) / \\sqrt{2 s^2})
+        ..math: p(m) \propto \exp(b m) \erfc((m - c) / \sqrt{2 s^2})
 
         where b is the number count slope, c the completeness limit, and s
         its width. Note that this procedure must be used to correctly
         simulate extinction in a control field.
 
-        The results of the best-fit are saved in self.meta['nc_pars'] and 
+        The results of the best-fit are saved in self.meta['nc_pars'] and
         also returned.
-        
+
         Arguments
         ---------
         start_completeness : float, default = 20.0
@@ -594,8 +675,10 @@ class PhotometricCatalogue(table.Table):
             Array with the tripled (exponential slope, 50% completeness
             limit, completeness width) for each band, also saved in
             self.meta['nc_pars'].
+
         """
-        def number_count_lnlikelihood_(x, mags):
+        def number_count_lnlikelihood_(x, mags):  # pylint: disable=invalid-name
+            """Service function to compute the likelihood for number counts."""
             # Magnitude errors ignored here, not sure if important...
             c = x[0]  # c -> m_c
             s = x[1]  # s -> \sigma_c
@@ -625,8 +708,8 @@ class PhotometricCatalogue(table.Table):
             s_c = m.x[1]
             d = m_c - np.mean(mags)
             beta = 2.0 / (d + np.sqrt(d * d + 4 * s_c * s_c))
-            logger.info(f'Number-count fit for band #{band}: ({beta:g}, '
-                        f'{m_c:g}, {np.abs(s_c):g})')
+            LOGGER.info('Number-count fit for band %d: (%g, %g, %g)',
+                        band, beta, m_c, np.abs(s_c))
             nc_pars.append([beta, m_c, np.abs(s_c)])
         self.meta['nc_pars'] = np.array(nc_pars)
         return self.meta['nc_pars']
@@ -634,18 +717,18 @@ class PhotometricCatalogue(table.Table):
     def fit_phot_uncertainties(self, start_alpha=1.0, start_beta=1.0,
                                start_gamma=1.0, n_times=2, nc_cut=3.0,
                                method='Nelder-Mead', indices=None):
-        """Perform a fit of the photometric uncertainties.
+        r"""Perform a fit of the photometric uncertainties.
 
         The model assumes that the noise e in luminosity for each source can
         be written as
 
-        ..math: e = \\sqrt{\\alpha l t + \\beta t + \\gamma} 
+        ..math: e = \sqrt{\alpha l t + \beta t + \gamma}
 
         where l is the source luminosity and t is the exposure time (expressed
         in a suitable unit). This expression can correctly model the noise due
-        to photon counting (shot noise, \\alpha term), the dark current
-        (termal noise, \\beta term), the sky contribution (background noise,
-        also included in the \\beta term), and the readout noise (\\gamma
+        to photon counting (shot noise, \alpha term), the dark current
+        (termal noise, \beta term), the sky contribution (background noise,
+        also included in the \beta term), and the readout noise (\gamma
         term). The model further assumes that all the greek-letter
         coefficients are constants for each source, and that only the time t
         changes (as a result, for example, of different coverage).
@@ -653,9 +736,9 @@ class PhotometricCatalogue(table.Table):
         The conversion from magnitudes to luminosities is done using the
         simple expression
 
-        ..math: m = m0 + 2.5 \\log_{10} l
+        ..math: m = m0 + 2.5 \log_{10} l
 
-        The constant m0 is chosen so that \\alpha is approximately unity.
+        The constant m0 is chosen so that \alpha is approximately unity.
 
         The fit proceeds using a limited set of possible exposure times t (by
         default only two values), and then fits the other parameters.
@@ -666,15 +749,15 @@ class PhotometricCatalogue(table.Table):
 
         Arguments
         ---------
-        start_alpha : float, default = 1.0 
+        start_alpha : float, default = 1.0
             The initial guess for the alpha parameter.
 
-        start_beta : float, default = 1.0 
+        start_beta : float, default = 1.0
             The initial guess for the beta parameter.
 
-        start_gamma : float, default = 1.0 
+        start_gamma : float, default = 1.0
             The initial guess for the gamma parameter.
-            
+
         n_times : int, default = 2
             The number of different time values to use in the fit. The initial
             guesses are taken to be np.arange(1, n_times+1)
@@ -683,7 +766,7 @@ class PhotometricCatalogue(table.Table):
             Cut to be carried out around the 50% completeness in units of the
             completeness width. Use nc_cut=None to avoid any cut. If a sequence
             is passed, it is used taken to be the nc_cut to use for each band.
-            
+
         method : string, default = 'Nelder-Mead'
             The optimization method to use (see `minimize`).
 
@@ -692,15 +775,17 @@ class PhotometricCatalogue(table.Table):
 
         Return value
         ------------
-        noise_pars : array like, shape (n_bands, 4) 
-            Array with the results of the fit (m0, \\alpha, \\beta, \\gamma)
+        noise_pars : array like, shape (n_bands, 4)
+            Array with the results of the fit (m0, \alpha, \beta, \gamma)
             for each band, also saved in self.meta['noise_pars'].
+
         """
-        def phot_uncert_chisquare_(x, m0, mags, errs):
+        def phot_uncert_chisquare_(x, m0, mags, errs):  # pylint: disable=invalid-name
+            """Chi-square function for the photometry uncertainty fit."""
             a, b, c = x[0:3]
             ts = np.hstack(([1.0], x[3:]))
             l = 10**(-0.4*(mags - m0))
-            e_l = np.sqrt(a*a*ts[:, np.newaxis]*l[np.newaxis, :] + 
+            e_l = np.sqrt(a*a*ts[:, np.newaxis]*l[np.newaxis, :] +
                           b*b*ts[:, np.newaxis] + c*c)
             e_m = 2.5 / (l*np.log(10)) * e_l
             delta = np.min((errs[np.newaxis, :] - e_m)**2, axis=0)
@@ -718,11 +803,11 @@ class PhotometricCatalogue(table.Table):
                 self.meta['nc_pars'][:, 2]*np.array(nc_cut)
         else:
             mag_lims = np.repeat(np.inf, self.meta['n_bands'])
-        logger.debug(f'Magnitude limits: {mag_lims}')
+        LOGGER.debug('Magnitude limits: %g', mag_lims)
         for band in range(self.meta['n_bands']):
             mags = self['mags'][indices, band]
             errs = self['mag_errs'][indices, band]
-            w = np.where((errs < self.meta['null_err']) & 
+            w = np.where((errs < self.meta['null_err']) &
                          (mags < mag_lims[band]))[0]
             mags = mags[w]
             errs = errs[w]
@@ -731,8 +816,8 @@ class PhotometricCatalogue(table.Table):
             p0 = np.hstack((p0, np.arange(n_times-1) + 2))
             m = minimize(phot_uncert_chisquare_, p0,
                          args=(m0, mags, errs), method=method)
-            logger.info(f'Noise fit for band #{band}: ({m0:g}, '
-                        f'{m.x[0]**2:g}, {m.x[1]**2:g}, {m.x[2]**2:g})')
+            LOGGER.info('Noise fit for band %d: (%g, %g, %g, %g)',
+                        band, m0, m.x[0]**2, m.x[1]**2, m.x[2]**2)
             noise_pars.append(np.hstack(([m0], m.x[:3]**2)))
         self.meta['noise_pars'] = np.array(noise_pars)
         return self.meta['noise_pars']
@@ -754,19 +839,20 @@ class PhotometricCatalogue(table.Table):
         float or array-like, shape (n_mags,)
             The log of the completeness function, computed for the requested
             band, at the magnitude values indicated.
+
         """
         _, m_c, s_c = self.meta['nc_pars'][band]
         return log_ndtr((m_c - magnitudes) / s_c)
 
-    def extinguish(self, extinction, apply_completeness=True, 
+    def extinguish(self, extinction, apply_completeness=True,
                    update_errors=True):
         """Simulate the effect of extinction and return an updated catalogue.
 
         Arguments
         ---------
         extinction : float or array-like, shape (n_bands,)
-            The extinction to apply for each band, in magnitudes. Must be 
-            always non-negative. If it is a float, multiply it by 
+            The extinction to apply for each band, in magnitudes. Must be
+            always non-negative. If it is a float, multiply it by
             self.meta['reddening_law'] to obtain the extinction in each band.
 
         apply_completeness : bool, default to True
@@ -786,6 +872,7 @@ class PhotometricCatalogue(table.Table):
         -------
         PhotometricCatalogue
             The updated PhotometricCatalogue (self is left untouched).
+
         """
         cat = self.copy()
         if isinstance(extinction, (float, int)):
@@ -817,7 +904,8 @@ class PhotometricCatalogue(table.Table):
             cat['mags'][mask, band] += extinction[band]
             if apply_completeness and extinction[band] > 0:
                 log_completeness_ratio = (cat.log_completeness(band, cat['mags'][mask, band]) -
-                                          cat.log_completeness(band, cat['mags'][mask, band] - extinction[band]))
+                                          cat.log_completeness(band, cat['mags'][mask, band] -
+                                                               extinction[band]))
                 if 'log_probs' in cat.colnames:
                     cat['log_probs'][mask, band] += log_completeness_ratio
                 else:
@@ -901,10 +989,11 @@ class ColorCatalogue(table.Table):
         for each object, the logarithms of the probability that each object
         belongs to a given class. The probabilities, if provided, should be
         normalized to unity, so that logaddexp(log_class_probs, axis=1) == 0.
+
     """
-    
+
     @classmethod
-    def from_photometric_catalogue(cls, cat, use_projection=True, 
+    def from_photometric_catalogue(cls, cat, use_projection=True,
                                    band=None, map_mags=lambda _: _,
                                    extinctions=None, tolerance=1e-5):
         """Compute the colors associate to the current catalogue.
@@ -917,7 +1006,7 @@ class ColorCatalogue(table.Table):
         ---------
         cat : PhotometricCatalogue
             The catalogue to convert into a ColorCatalogue.
-            
+
         use_projection : bool, default to True If True, the procedure sorts
             bands so that missed bands are excluded from the color
             computation. A projection matrix will be returned.
@@ -948,6 +1037,7 @@ class ColorCatalogue(table.Table):
         (and non-vanishing), the result will have a different number of
         objects with respect to the original catalogue, because it will
         contain all possible color combinations.
+
         """
         # If we have to work with probabilities, we will make a new catalogue
         # containing all possible combinations of magnitudes. We will
@@ -983,7 +1073,7 @@ class ColorCatalogue(table.Table):
                          (np.sum(cat2['mag_errs'] < cat2.meta['max_err'],
                                  axis=1) >= cat2.meta['min_bands']))[0]
             res = cat2[w].get_colors(use_projection=use_projection, band=band,
-                                    map_mags=map_mags, extinctions=extinctions)
+                                     map_mags=map_mags, extinctions=extinctions)
             res['log_probs'] = log_probs[w]
             return res
 
@@ -1065,7 +1155,7 @@ class ColorCatalogue(table.Table):
             res.meta['reddening_law'] = cat.meta['reddening_law'][:-1] - \
                 cat.meta['reddening_law'][1:]
         res.add_column(table.Column(
-            cat['idx'], name='idx', 
+            cat['idx'], name='idx',
             description='index with respect to the original catalogue',
             format='%d'
         ))
@@ -1087,6 +1177,7 @@ class ColorCatalogue(table.Table):
         return res
 
     def __getitem__(self, item):
+        """Get item method."""
         if isinstance(item, str):
             if item in self.colnames:
                 return self.columns[item]
@@ -1099,7 +1190,7 @@ class ColorCatalogue(table.Table):
 
 class ExtinctionCatalogue(table.Table):
     """The result of XNicer extinction measurements.
-    
+
     Parameters
     ----------
     n_objs : int
@@ -1111,11 +1202,11 @@ class ExtinctionCatalogue(table.Table):
     n_colors : int, default=0
         If >0, the number of colors used for the estimate of the intrinsic
         colors of each star.
-    
+
     selection : array-like, shape (n_objs,) or None
         If not None, the original selection of objects in the original
         catalogue.
-    
+
     Attributes
     ----------
     n_objs : int
@@ -1130,25 +1221,25 @@ class ExtinctionCatalogue(table.Table):
 
     log_weights : array-like, shape (n_objs, n_components)
         The log of the weight of each component for each object.
-        
+
     log_class_probs : array-like, shape (n_objs, n_classes)
         Only present if the catalogue has classes. The log-probability of
         each object to belong to a given class.
 
     means_A : array-like, shape (n_objs, n_components)
-        The centers of the Gaussian profiles for each extinction component 
+        The centers of the Gaussian profiles for each extinction component
         of each object.
 
     means_c : array-like, shape (n_objs, n_components, n_colors)
-        The centers of the Gaussian profiles for each intrinsic color 
+        The centers of the Gaussian profiles for each intrinsic color
         component of each object.
-        
+
     variances_A : array-like, shape (n_objs, n_components)
         The variances of the Gaussian profiles for each extinction component
         of each object.
 
     variances_c : array-like, shape (n_objs, n_components, n_colors, n_colors)
-        The (co)variances of the Gaussian profiles for each intrinsic color 
+        The (co)variances of the Gaussian profiles for each intrinsic color
         component of each object.
 
     covariances : array-like, shape (n_objs, n_components, n_colors)
@@ -1187,13 +1278,15 @@ class ExtinctionCatalogue(table.Table):
 
     xnicest_bias : array-like, shape (n_objs,)
         The estimated bias associated to each object in the XNicest algorithm.
-    
+
     xnicest_weight : array-like, shape (n_objs,)
         The estimated weight associated to each object that needs to be used
         in the XNicest algorithm.
+
     """
 
     def __getitem__(self, item):
+        """Get item implementation."""
         if isinstance(item, str):
             if item in self.colnames:
                 return self.columns[item]
@@ -1207,28 +1300,29 @@ class ExtinctionCatalogue(table.Table):
 
         The mean_A and variance_A columns are just a single-component
         equivalent of the multi-component extinction.  They are computed using
-        a technique identical to the one implemented by merge_components. """
+        a technique identical to the one implemented by merge_components.
+        """
         ws = np.exp(self['log_weights'])
         norm = np.sum(ws, axis=-1)
         self['log_weight'] = np.log(norm)
         self['mean_A'] = np.sum(ws * self['means_A'], axis=-1) / norm
-        diff_A = self['means_A'] - self['mean_A'][..., np.newaxis]
+        diff_ext = self['means_A'] - self['mean_A'][..., np.newaxis]
         self['variance_A'] = np.sum(
-            ws*(self['variances_A'] + diff_A**2), axis=-1) / norm
+            ws*(self['variances_A'] + diff_ext**2), axis=-1) / norm
         if self.meta['n_colors'] > 0:
             self['mean_c'] = np.sum(ws[..., np.newaxis] *
-                                self['means_c'], axis=-2) / norm[..., np.newaxis]
+                                    self['means_c'], axis=-2) / norm[..., np.newaxis]
             diff_c = self['means_c'] - self['mean_c'][..., np.newaxis, :]
             self['variance_c'] = np.sum(
                 ws[..., np.newaxis, np.newaxis] *
                 (self['variances_c'] +
-                diff_c[..., np.newaxis, :]*diff_c[..., np.newaxis]),
+                 diff_c[..., np.newaxis, :]*diff_c[..., np.newaxis]),
                 axis=-3) / norm[..., np.newaxis, np.newaxis]
             self['covariance'] = np.sum(
                 ws[..., np.newaxis] *
-                (self['covariances'] + diff_A[..., np.newaxis] * diff_c),
+                (self['covariances'] + diff_ext[..., np.newaxis] * diff_c),
                 axis=-2) / norm[..., np.newaxis]
-    
+
     def merge_components(self, merged_components=None):
         """Merge a number of components together.
 
@@ -1237,7 +1331,9 @@ class ExtinctionCatalogue(table.Table):
         merged_components : array-like, shape (_,)
             The array containing the components that need to be merged together.
             If not specified, all components are merged.
+
         """
+        # pylint: disable=invalid-name
         if self.meta['n_components'] == 1:
             return self
         if merged_components is None:
@@ -1267,9 +1363,8 @@ class ExtinctionCatalogue(table.Table):
         self.meta['n_components'] = n_components
         return self
 
-    def score_samples_components(self, X, Xerr):
-        """
-        Compute the log of the probability distribution for each component.
+    def score_samples_components(self, X, Xerr):  # pylint: disable=invalid-name
+        """Compute the log of the probability distribution for each component.
 
         Given a specific extinction value and associated error, this method
         computes the score (that is, the log of the pdf) for that extinction
@@ -1287,14 +1382,15 @@ class ExtinctionCatalogue(table.Table):
         -------
         logprob : array_like, shape (n_samples, n_components)
             Log probabilities of each data point, for each component.
+
         """
-        T = Xerr[:, np.newaxis] + self['variances_A']
+        T = Xerr[:, np.newaxis] + \
+            self['variances_A']  # pylint: disable=invalid-name
         delta = X[:, np.newaxis] - self['means_A']
         return -delta*delta/(2.0*T) - np.log(2.0*np.pi*T) / 2
 
-    def score_samples(self, X, Xerr):
-        """
-        Compute the log of the probability distribution for all objects.
+    def score_samples(self, X, Xerr):  # pylint: disable=invalid-name
+        """Compute the log of the probability distribution for all objects.
 
         Given a specific extinction value and associated error, this method
         computes the score (that is, the log of the pdf) for that extinction
@@ -1312,6 +1408,7 @@ class ExtinctionCatalogue(table.Table):
         -------
         logprob : array_like, shape (n_samples,)
             Log probabilities of each data point in A.
+
         """
         log = self.score_samples_components(X, Xerr)
         return logsumexp(self['log_weights'] + log, axis=-1)

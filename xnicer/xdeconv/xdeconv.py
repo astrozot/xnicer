@@ -1,32 +1,39 @@
-import logging, warnings
+"""Extreme deconvolution code.
+
+:Author: Marco Lombardi
+:Version: 0.1.0 of 2019/05/13
+"""
+
+import logging
+import warnings
 import numpy as np
 from scipy.special import logsumexp
-from .em_step import em_step, FIX_NONE, FIX_AMP, FIX_CLASS  # pylint: disable=no-name-in-module
-from .em_step import FIX_MEAN, FIX_COVAR, FIX_ALL, _scores  # pylint: disable=no-name-in-module
+from .em_step import em_step, FIX_NONE, FIX_ALL, _scores # pylint: disable=no-name-in-module
 
-logger = logging.getLogger(__name__)
+LOGGER = logging.getLogger(__name__)
 
 def check_numpy_array(name, arr, shapes):
     """Verify that an array has the correct shape.
-    
+
     Parameters
     ----------
     name: string
         Name of the array. Used for error messages.
-        
+
     arr: array-like
         The array to check.
-        
+
     shapes: list
         Must be a list of touples, with each touple indicating an allowed
         shape. If an element of the touple is negative or null, it indicates
-        that the corresponding dimension can have any size; otherwise, a 
+        that the corresponding dimension can have any size; otherwise, a
         strict check on the dimension is performed.
-        
+
     Returns
     -------
     arr.shape: tuple
         The shape of the array, if it has passed all checks.
+
     """
     def shape_error():
         if len(shapes) == 1:
@@ -61,57 +68,59 @@ def xdeconv(ydata, ycovar, xamp, xmean, xcovar,
     ----------
     ydata: array-like, shape (n, dy)
         Set of observations involving n data, each having r dimensions
-        
+
     ycovar: array-like, shape (n, dy, dy)
         Array of covariances of the observational data ydata.
-    
+
     xamp: array-like, shape (k)
         Array with the statistical weight of each Gaussian. Updated at the
         exit with the new weights.
-        
+
     xmean: array-like, shape (k, dx)
         Centers of multivariate Gaussians, updated at the exit with the new
         centers.
-    
+
     xcovar: array-like, shape (k, dx, dx)
-        Array of covariance matrices of the multivariate Gaussians, updated 
+        Array of covariance matrices of the multivariate Gaussians, updated
         at the exit with the new covariance matrices.
-    
+
     Optional Parameters
     -------------------
     xclass: array-like, shape (k, c)
         Array with the statistical weight of each Gaussian for each class.
         Updated at the exit with the new weights. The sum of all classes for
         a single cluster k is unity.
-    
+
     projection: array-like, shape (n, dy, dx)
         Array of projection matrices: for each datum (n), it is a matrix
         that transform the original d-dimensional vector into the observed
         r-dimensional vector. If None, it is assumed that r=d and that no
-        project is performed (equivalently: R is an array if identity 
+        project is performed (equivalently: R is an array if identity
         matrices).
-        
-    weights: array-like, shape (n,) 
+
+    weights: array-like, shape (n,)
         Log-weights for each observation, or None
-        
-    classes: array-like, shape (n, c) 
+
+    classes: array-like, shape (n, c)
         Log-probabilities that each observation belong to a given class.
-        
+
     fixpars: integer or int array-like, shape (k,)
         Array of bitmasks with the FIX_AMP, FIX_MEAN, FIX_AMP, and FIX_CLASS
         combinations. If a single value is passed, it is used for all
         components.
-        
+
     tol: double, default=1e-6
-        Tolerance for the convergence: if two consecutive loglikelihoods 
+        Tolerance for the convergence: if two consecutive loglikelihoods
         differ by less than tol, the procedure stops.
-        
+
     maxiter: int, default=1e9
         Maximum number of iterations.
-    
+
     regular: double, default=0
         Regularization parameter (use 0 to prevent the regularization).
+
     """
+    # pylint: disable=invalid-name
     nobjs, ydim = check_numpy_array("ydata", ydata, (-1, -1))
     w = np.asfortranarray(ydata.T, dtype=np.float64)
 
@@ -167,12 +176,12 @@ def xdeconv(ydata, ycovar, xamp, xmean, xcovar,
         fix = None
 
     with np.errstate(divide='ignore'):
-        oldloglike = em_step(w, S, alpha, alphaclass, m, V, wgh, clss, 
+        oldloglike = em_step(w, S, alpha, alphaclass, m, V, wgh, clss,
                              Rt=Rt, fixpars=fix, regularization=regular)
-        logger.debug(f'Initial log-like={oldloglike}')
+        LOGGER.debug('Initial log-like=%g', oldloglike)
         decreased = False
-        for iter in range(1, maxiter):
-            loglike = em_step(w, S, alpha, alphaclass, m, V, wgh, clss, 
+        for niter in range(1, maxiter):
+            loglike = em_step(w, S, alpha, alphaclass, m, V, wgh, clss,
                               Rt=Rt, fixpars=fix, regularization=regular)
             diff = loglike - oldloglike
             oldloglike = loglike
@@ -180,8 +189,8 @@ def xdeconv(ydata, ycovar, xamp, xmean, xcovar,
                 decreased = True
             if abs(diff) < tol:
                 break
-    logger.debug(f'Loop exit after {iter} iterations')
-    logger.debug(f'Final log-like={oldloglike}.')
+    LOGGER.debug('Loop exit after %d iterations', niter)
+    LOGGER.debug('Final log-like=%g', oldloglike)
 
     # Split and merge code
     while True:
@@ -196,7 +205,7 @@ def xdeconv(ydata, ycovar, xamp, xmean, xcovar,
         # Shortcut: exit if no split and merge has to be performed
         if splitnmerge == 0:
             break
-        
+
         # Comput the split and merge ranks (ijk is an iterator!)
         ijk = splitnmerge_rank(ydata, ycovar, xamp, xmean, xcovar,
                                xclass, projection, classes)
@@ -210,23 +219,23 @@ def xdeconv(ydata, ycovar, xamp, xmean, xcovar,
                 # quit the loop
                 break
             # Prepare the new set of parameters
-            logger.debug(f'Performing split-and-merge ({i},{j},{k})')
+            LOGGER.debug('Performing split-and-merge (%d, %d, %d)', i, j, k)
             alpha1 = np.copy(alpha)
             alpha1[i] = alpha[i] + alpha[j]
             alpha1[j] = alpha1[k] = alpha[k] * 0.5
             m1 = np.copy(m)
-            m1[:,i] = (alpha[i]*m[:,i] + alpha[j]*m[:,j]) / alpha1[i]
-            det = np.linalg.det(V[:,:,k]) ** (1 / xdim)
-            m1[:,j] = m[:,k] + eps * np.random.randn(xdim) * np.sqrt(det)
-            m1[:,k] = m[:,k] + eps * np.random.randn(xdim) * np.sqrt(det)
+            m1[:, i] = (alpha[i]*m[:, i] + alpha[j]*m[:, j]) / alpha1[i]
+            det = np.linalg.det(V[:, :, k]) ** (1 / xdim)
+            m1[:, j] = m[:, k] + eps * np.random.randn(xdim) * np.sqrt(det)
+            m1[:, k] = m[:, k] + eps * np.random.randn(xdim) * np.sqrt(det)
             V1 = np.copy(V)
-            V1[:,:,i] = (alpha[i]*V[:,:,i] + alpha[j]*V[:,:,j]) / alpha1[i]
-            V1[:,:,j] = np.identity(xdim) * det
-            V1[:,:,k] = np.copy(V1[:,:,j])
+            V1[:, :, i] = (alpha[i]*V[:, :, i] + alpha[j]*V[:, :, j]) / alpha1[i]
+            V1[:, :, j] = np.identity(xdim) * det
+            V1[:, :, k] = np.copy(V1[:, :, j])
             alphaclass1 = np.copy(alphaclass)
-            alphaclass1[:,i] = (alphaclass[:,i] + alphaclass[:,j]) * 0.5
-            alphaclass1[:,j] = np.copy(alphaclass[:,k])
-            alphaclass1[:,k] = np.copy(alphaclass1[:,j])
+            alphaclass1[:, i] = (alphaclass[:, i] + alphaclass[:, j]) * 0.5
+            alphaclass1[:, j] = np.copy(alphaclass[:, k])
+            alphaclass1[:, k] = np.copy(alphaclass1[:, j])
             # Now performs a minimization keeping the other parameters fixed.
             # This is the so-called partial EM procedure
             if fix is not None:
@@ -239,7 +248,7 @@ def xdeconv(ydata, ycovar, xamp, xmean, xcovar,
                 for piter in range(10):
                     em_step(w, S, alpha1, alphaclass1, m1, V1, wgh, clss,
                             Rt=Rt, fixpars=fix1, regularization=regular)
-            iter += piter
+            niter += piter
             # Now perform again the full EM procedure
             if fix is not None:
                 fix1 = np.copy(fix)
@@ -248,7 +257,7 @@ def xdeconv(ydata, ycovar, xamp, xmean, xcovar,
             with np.errstate(divide='ignore'):
                 old_ll = em_step(w, S, alpha1, alphaclass1, m1, V1, wgh, clss,
                                  Rt=Rt, fixpars=fix1, regularization=regular)
-                for piter in range(maxiter - iter):
+                for piter in range(maxiter - niter):
                     ll = em_step(w, S, alpha1, alphaclass1, m1, V1, wgh, clss,
                                  Rt=Rt, fixpars=fix1, regularization=regular)
                     diff = ll - old_ll
@@ -257,7 +266,7 @@ def xdeconv(ydata, ycovar, xamp, xmean, xcovar,
                         decreased = True
                     if abs(diff) < tol:
                         break
-            iter += piter
+            niter += piter
             # Regardless if we converged or not, check if we have increased
             # the log-likelihood wrt the original one. My check takes into
             # account (partially, by 50%) the fact that we have performed
@@ -265,7 +274,8 @@ def xdeconv(ydata, ycovar, xamp, xmean, xcovar,
             # somewhat improved our log-likelihood.
             if ll - loglike > tol * piter * 0.5:
                 # OK, we have done a good job, copy the final parameters
-                logger.info(f'Success w/ split and merge ({i},{j},{k}): {ll} > {loglike}')
+                LOGGER.info('Success w/ split and merge (%d, %d, %d) %g > %g',
+                            i, j, k, ll, loglike)
                 loglike = oldloglike = ll
                 alpha = alpha1
                 m = m1
@@ -275,73 +285,75 @@ def xdeconv(ydata, ycovar, xamp, xmean, xcovar,
                 success = True
                 break
             else:
-                logger.debug(f'Failure w/ split and merge: {ll} < {loglike}')
+                LOGGER.debug('Failure w/ split and merge: %g < %g',
+                             ll, loglike)
 
             # If we did not improve, we will try th next combination of
             # triplet for the split & merge.
         if not success:
-            logger.debug(f'No more split and merge possibilities')
+            LOGGER.debug('No more split and merge possibilities')
             # We have exhausted our possibilities for split and merge: exit
             break
 
     # Final checks: show warnings if necessary
     if maxiter > 1:
-        if iter == maxiter-1:
-            logger.warn(
-                f"xdeconv did not converge after {maxiter} iterations")
-            warnings.warn(
-                f"xdeconv did not converge after {maxiter} iterations")
+        if niter == maxiter-1:
+            LOGGER.warning('xdeconv did not converge after %d iterations',
+                           maxiter)
+            warnings.warn('xdeconv did not converge after %d iterations',
+                          maxiter)
         if decreased:
-            logger.warn(
-                f"Log-likelihood decreased during the fitting procedure")
+            LOGGER.warning('Log-likelihood decreased during the fitting procedure')
 
     return oldloglike
 
 
 def scores(ydata, ycovar, xmean, xcovar,
            xclass=None, projection=None, classes=None):
-    """Compute the scores (log-likelihoods) for all objects and components.
+    """Compute the scores, i.e. log-likelihoods, for all objects and components.
 
     Note that the computed log-likelihood does not include the term associated
     with the amplitude (statistical weight) of each Gaussian, but possibly it
     includes the amplitude of each class within each Gaussian.
-    
+
     Parameters
     ----------
     ydata: array-like, shape (n, dy)
         Set of observations involving n data, each having r dimensions
-        
+
     ycovar: array-like, shape (n, dy, dy)
         Array of covariances of the observational data ydata.
-    
+
     xmean: array-like, shape (k, dx)
         Centers of multivariate Gaussians.
-    
+
     xcovar: array-like, shape (k, dx, dx)
         Array of covariance matrices of the multivariate Gaussians.
-    
+
     Optional Parameters
     -------------------
     xclass: array-like, shape (k, c)
         Array with the statistical weight of each Gaussian for each class.
         Updated at the exit with the new weights. The sum of all classes for
         a single cluster k is unity.
-    
+
     projection: array-like, shape (n, dy, dx)
         Array of projection matrices: for each datum (n), it is a matrix
         that transform the original d-dimensional vector into the observed
         r-dimensional vector. If None, it is assumed that r=d and that no
-        project is performed (equivalently: R is an array if identity 
+        project is performed (equivalently: R is an array if identity
         matrices).
-        
-    classes: array-like, shape (n, c) 
+
+    classes: array-like, shape (n, c)
         Log-probabilities that each observation belong to a given class.
-        
+
     Returns
     -------
     scores: array-like, shape (n, k)
         The log-likelihoods for each point and each cluster.
+
     """
+    # pylint: disable=invalid-name
     nobjs, ydim = check_numpy_array("ydata", ydata, (-1, -1))
     w = np.asfortranarray(ydata.T, dtype=np.float64)
 
@@ -387,53 +399,54 @@ def scores(ydata, ycovar, xmean, xcovar,
     return np.ascontiguousarray(qs.T)
 
 
-def splitnmerge_rank(ydata, ycovar, xamp, xmean, xcovar, xclass=None, 
+def splitnmerge_rank(ydata, ycovar, xamp, xmean, xcovar, xclass=None,
                      projection=None, classes=None, fixpars=None):
-    """Computes the order for the split and merge algorithm.
-    
+    """Compute the order for the split and merge algorithm.
+
     ydata: array-like, shape (n, dy)
         Set of observations involving n data, each having r dimensions
-        
+
     ycovar: array-like, shape (n, dy, dy)
         Array of covariances of the observational data ydata.
-    
+
     xamp: array-like, shape (k,)
         The amplitude of the Gaussians.
-        
+
     xmean: array-like, shape (k, dx)
         Centers of multivariate Gaussians.
-    
+
     xcovar: array-like, shape (k, dx, dx)
         Array of covariance matrices of the multivariate Gaussians.
-    
+
     Optional Parameters
     -------------------
     xclass: array-like, shape (k, c)
         Array with the statistical weight of each Gaussian for each class.
         Updated at the exit with the new weights. The sum of all classes for
         a single cluster k is unity.
-    
+
     projection: array-like, shape (n, dy, dx)
         Array of projection matrices: for each datum (n), it is a matrix
         that transform the original d-dimensional vector into the observed
         r-dimensional vector. If None, it is assumed that r=d and that no
-        project is performed (equivalently: R is an array if identity 
+        project is performed (equivalently: R is an array if identity
         matrices).
-        
-    classes: array-like, shape (n, c) 
+
+    classes: array-like, shape (n, c)
         Log-probabilities that each observation belong to a given class.
-        
+
     fixpars: array-like, shape (k,) or None
         Array of bitmasks with the FIX_AMP, FIX_MEAN, FIX_AMP, and FIX_CLASS
         combinations. If a single value is passed, it is used for all
-        components. All clusters with fixpars != FIX_NONE will not be used for 
+        components. All clusters with fixpars != FIX_NONE will not be used for
         spitting and merging.
-        
+
     Returns
     -------
     A generator that, each time it is used, will return a triplet (i,j,k):
     the i-th and j-th clusters are candidates for a merging, while the k-th
     cluster is a candidate for a splitting.
+
     """
     if fixpars is None:
         idx = np.arange(xamp.shape[0])

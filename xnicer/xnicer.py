@@ -1,21 +1,21 @@
 """Extreme decomposition and XNICER code.
 
 :Author: Marco Lombardi
-:Version: 0.1.0 of 2019/05/13"""
+:Version: 0.1.0 of 2019/05/13
+"""
 
 # Author: Marco Lombardi <marco.lombardi@gmail.com>
 
 # See https://numpydoc.readthedocs.io/en/latest/format.html
 
 from __future__ import print_function, division
-import numpy as np
 import warnings
-import copy
-from scipy.special import ndtri, logsumexp
+import numpy as np
+from scipy.special import logsumexp
 from sklearn.base import BaseEstimator
 from astropy import table
-from .xdeconv import XD_Mixture, FIX_MEAN, FIX_COVAR
-from .utilities import log1mexp, cho_solve, cho_matrix_solve
+from .xdeconv import FIX_MEAN, FIX_COVAR
+from .utilities import cho_solve, cho_matrix_solve
 from .catalogs import ExtinctionCatalogue
 
 
@@ -24,12 +24,12 @@ class XNicer(BaseEstimator):
 
     This class allows one to estimate the extinction from two color catalogues,
     a control field and a science field. It uses the extreme deconvolution
-    provided by the XD_Mixture class.
+    provided by the XDGaussianMixture class.
 
     Parameters
     ----------
-    xdmix : XD_Mixture
-        An XD_Mixture instance used to perform all necessary extreme 
+    xdmix : XDGaussianMixture
+        An XDGaussianMixture instance used to perform all necessary extreme
         deconvolutions.
 
     extinctions : array-like, shape (n_extinctions,)
@@ -38,24 +38,27 @@ class XNicer(BaseEstimator):
     log_weights_ : tuple of array-like, shape (n_extinctions, xdmix.n_components))
         The log of the weights of the extreme decomposition, for each class of
         objects, at each extintion value.
-    
+
     calibration : tuple or None
-        A tuple of arrays that saves a list of calibration parameters, 
+        A tuple of arrays that saves a list of calibration parameters,
         computed through the `calibrate` method:
-        
+
         - The extinctions for which the calibration has been computed
         - The biases associated to each extinction
         - The normalized sum of inverse variances
-        
+
         Set to None if no calibration has been performed.
+
     """
 
     def __init__(self, xdmix, extinctions=None):
+        """Constructor."""
         self.xdmix = xdmix
         if extinctions is None:
             extinctions = [0.0]
         self.extinctions = np.array(extinctions)
         self.log_weights_ = None
+        self.log_classes_ = None
         self.calibration = None
 
     def fit(self, cat, update=False):
@@ -65,33 +68,34 @@ class XNicer(BaseEstimator):
         ----------
         cat : PhotometricCatalogue
             The control field data, as a PhotometricCatalogue.
-            
+
         update : bool
             If true, the first value of self.extinctions is skipped, which
             makes the whole procedure much faster.
+
         """
         n_exts = len(self.extinctions)
         use_classes = 'log_class_probs' in cat.colnames
         for n, extinction in enumerate(self.extinctions):
-            # If update is set, skip the first iteration: this makes the 
+            # If update is set, skip the first iteration: this makes the
             # fitting procedure much faster
             if update and n == 0:
                 continue
             # Add the extinction, as requested
-            cat_A = cat.extinguish(extinction, apply_completeness=True,
-                                   update_errors=False)
-            cat_A['mags'] -= extinction * cat.meta['reddening_law']
-            cols_A = cat_A.get_colors(use_projection=True)
+            cat_ext = cat.extinguish(extinction, apply_completeness=True,
+                                     update_errors=False)
+            cat_ext['mags'] -= extinction * cat.meta['reddening_law']
+            cols_ext = cat_ext.get_colors(use_projection=True)
             if n == 0:
-                self.xdmix.fit(cols_A['cols'].data, cols_A['col_covs'], 
-                               projection=cols_A['projections'], 
-                               log_weight=cols_A['log_probs'], 
-                               Yclass=cols_A['log_class_probs'])
+                self.xdmix.fit(cols_ext['cols'].data, cols_ext['col_covs'],
+                               projection=cols_ext['projections'],
+                               log_weight=cols_ext['log_probs'],
+                               Yclass=cols_ext['log_class_probs'])
             else:
-                self.xdmix.fit(cols_A['cols'], cols_A['col_covs'], 
-                               projection=cols_A['projections'],
-                               log_weight=cols_A['log_probs'], 
-                               Yclass=cols_A['log_class_probs'],
+                self.xdmix.fit(cols_ext['cols'], cols_ext['col_covs'],
+                               projection=cols_ext['projections'],
+                               log_weight=cols_ext['log_probs'],
+                               Yclass=cols_ext['log_class_probs'],
                                fixpars=FIX_MEAN | FIX_COVAR)
             if self.log_weights_ is None:
                 # We could set this earlier in the __init__, but it does not
@@ -109,7 +113,7 @@ class XNicer(BaseEstimator):
 
     def calibrate(self, cat, extinctions=None, **kw):
         """Perform a full calibration of the algorithm for a set of extinctions.
-        
+
         The calibration works by simulating in turn all extionctions provided,
         and by checking the final bias and (inverse) variances of the
         estimated data. This way we can predict and counter-balance the
@@ -135,6 +139,7 @@ class XNicer(BaseEstimator):
 
         kw : dictionary
             Additional keywords are directly passed to `predict`.
+
         """
         self.calibration = None
         if extinctions is None:
@@ -153,10 +158,10 @@ class XNicer(BaseEstimator):
             ivars.append(ivar)
         self.calibration = (np.array(extinctions), np.array(biases),
                             np.array(ivars) / ivars[0])
-            
-    def predict(self, cat, use_projection=True, use_classes=True, 
+
+    def predict(self, cat, use_projection=True, use_classes=True,
                 full=False, n_iters=3):
-        """Compute the extinction for each object of a PhotometryCatalogue
+        """Compute the extinction for each object of a PhotometryCatalogue.
 
         Parameters
         ----------
@@ -180,10 +185,12 @@ class XNicer(BaseEstimator):
             Number of iterations to use during the fitting procedure. If
             n_iters=1, then no adjustment for the extinction selection
             effect is made.
+
         """
+        # pylint: disable=invalid-name
         # Compute the colors
         cols = cat.get_colors(use_projection=use_projection)
-        
+
         # Check if we need to use classes
         if use_classes and 'log_class_probs' in cols.colnames and \
             self.xdmix.n_classes > 0:
@@ -197,7 +204,7 @@ class XNicer(BaseEstimator):
         # this case, we need to keep track of the original objects and of the
         # associated probabilities.
         res = ExtinctionCatalogue()
-        res.meta['n_components'] = self.xdmix.n_components,
+        res.meta['n_components'] = self.xdmix.n_components
         res.add_column(table.Column(
             cols['idx'], name='idx',
             description='index with respect to the original catalogue',
@@ -221,7 +228,7 @@ class XNicer(BaseEstimator):
             PVP = np.matmul(PV, np.moveaxis(P, -2, -1))
             # Could not find an equivalent faster way of doing next lines
             mu = np.einsum('...ij,...j->...i', P,
-                           self.xdmix.means_[np.newaxis,:,:])
+                           self.xdmix.means_[np.newaxis, :, :])
             color_ext_vec = np.einsum('...ij,...j->...i',
                                       cols['projections'],
                                       color_ext_vec)[:, np.newaxis, :]
@@ -241,7 +248,7 @@ class XNicer(BaseEstimator):
         # log of the weights of the extinction GMM that does not include any
         # term related to the xdmix weight.
         res.add_column(table.Column(
-            sigma_k2 * np.sum(T_k * T_d, axis=-1), name='means_A', 
+            sigma_k2 * np.sum(T_k * T_d, axis=-1), name='means_A',
             description='Array of means of extinction components',
             unit='mag', format='%6.3f'))
         # variances_ = np.sum(T_d * T_d, axis=-1) - self.ext*self.ext /
@@ -259,7 +266,7 @@ class XNicer(BaseEstimator):
             T_V = cho_matrix_solve(Tc, PV)
             V_TT_k = np.einsum('...ji,...j->...i', T_V, T_k)
             res.add_column(table.Column(
-                -V_TT_k * res['variances_A'][:, :, np.newaxis], 
+                -V_TT_k * res['variances_A'][:, :, np.newaxis], # pylint: disable=invalid-unary-operand-type
                 name='covariances',
                 description='Array of covariances of extinction-magnitude',
                 unit='mag^2', format='%7.5f'))
@@ -272,7 +279,7 @@ class XNicer(BaseEstimator):
             res.add_column(table.Column(
                 self.xdmix.means_[np.newaxis, :, :] +
                 np.einsum('...ji,...j->...i', T_V, T_d) - \
-                V_TT_k * res['means_A'][:,:, np.newaxis],
+                V_TT_k * res['means_A'][:, :, np.newaxis],
                 name='means_c',
                 description='Array of means of intrinsic magnitudes',
                 unit='mag', format='%6.3f'))
@@ -293,9 +300,9 @@ class XNicer(BaseEstimator):
                 # I am summing over all extinctions to use the correct
                 # combination of values.
                 tmp = log_weights0_[:, :, np.newaxis] + logsumexp(
-                    self.log_weights_[np.newaxis, :, :, np.newaxis] + 
-                    self.log_classes_[np.newaxis, :, :, :] + 
-                    cols['log_class_probs'][:, np.newaxis, np.newaxis, :] + 
+                    self.log_weights_[np.newaxis, :, :, np.newaxis] +
+                    self.log_classes_[np.newaxis, :, :, :] +
+                    cols['log_class_probs'][:, np.newaxis, np.newaxis, :] +
                     log_ext_weights[:, :, np.newaxis, np.newaxis], axis=1)
                 res['log_weights'] = logsumexp(tmp, axis=2)
                 res['log_class_probs'] = logsumexp(tmp, axis=1)
@@ -304,7 +311,7 @@ class XNicer(BaseEstimator):
                 res['log_class_probs'] -= res['log_evidence'][:, np.newaxis]
             else:
                 res['log_weights'] = log_weights0_ + logsumexp(
-                    self.log_weights_[np.newaxis, :, :] + 
+                    self.log_weights_[np.newaxis, :, :] +
                     log_ext_weights[:, :, np.newaxis], axis=1)
                 res['log_evidence'] = logsumexp(res['log_weights'], axis=-1)
                 res['log_weights'] -= res['log_evidence'][:, np.newaxis]
@@ -339,7 +346,7 @@ class XNicer(BaseEstimator):
             # Perform a first pass with no bias corrected
             for e, extinction in enumerate(self.calibration[0]):
                 log_ext_weights[:, e] = res.score_samples(
-                        np.repeat(extinction, n_objs), np.zeros(n_objs))
+                    np.repeat(extinction, n_objs), np.zeros(n_objs))
             log_ext_weights -= logsumexp(log_ext_weights, axis=-1)[..., np.newaxis]
             ext_weights = np.exp(log_ext_weights)
             # Now do the bias correction, based on the measured extinctions
@@ -354,14 +361,14 @@ class XNicer(BaseEstimator):
             log_ext_weights -= logsumexp(log_ext_weights, axis=-1)[..., np.newaxis]
             ext_weights = np.exp(log_ext_weights)
             # Finally perform the XNicest evaluations
-            res.add_column(table.Column(np.sum(
-                ext_weights / self.calibration[2], axis=1),
+            res.add_column(table.Column(
+                np.sum(ext_weights / self.calibration[2], axis=1),
                 name='xnicest_weight',
                 description='Object\'s weight to use with the XNicest alogorithm',
                 format='%7.5f'))
             res.add_column(table.Column(
                 np.sum(ext_weights * self.calibration[0]
-                       / self.calibration[2], axis=1) / 
+                       / self.calibration[2], axis=1) /
                 res['xnicest_weight'] - np.sum(
                     ext_weights * self.calibration[0], axis=1),
                 name='xnicest_bias',
