@@ -10340,7 +10340,6 @@ static PyObject *__pyx_pf_6xnicer_3kde_3kde_3KDE_14kde(struct __pyx_obj_6xnicer_
  *         else:
  *             return self.kde_double(coords, weights, power, mask, output, nocut,             # <<<<<<<<<<<<<<
  *                                    callback)
- * 
  */
   /*else*/ {
     __Pyx_XDECREF(__pyx_r);
@@ -10355,8 +10354,6 @@ static PyObject *__pyx_pf_6xnicer_3kde_3kde_3KDE_14kde(struct __pyx_obj_6xnicer_
  *         else:
  *             return self.kde_double(coords, weights, power, mask, output, nocut,
  *                                    callback)             # <<<<<<<<<<<<<<
- * 
- * 
  */
     __pyx_t_17.__pyx_n = 6;
     __pyx_t_17.weights = __pyx_t_15;
