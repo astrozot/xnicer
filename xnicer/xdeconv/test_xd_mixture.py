@@ -174,7 +174,7 @@ def test_xdmix_2d_projection():
     for seed in range(5):
         npts = [100, 300, 1000, 3000, 10000][seed]
         a, b, c = generate_test_xdmix([0.5, 0.5], [[3.0, 1.0], [-3.0, -1.0]],
-                                      [1.0, 0.5], [1.0, 1.0],
+                                      [0.7, 0.4], [0.8, 0.7],
                                       use_projection='random', npts=npts, seed=seed, silent=True)
         assert np.all(
             np.abs(a[1]) < 3), f"|a[1]| = {np.max(np.abs(a[1])):.2f} > 3"
@@ -196,7 +196,7 @@ def test_xdmix_2d_projection():
             np.abs(c[1]) < 6), f"|c[1]| = {np.max(np.abs(c[1])):.2f} > 6"
 
     for seed in range(3):
-        npts = [1000, 3000, 10000][seed]
+        npts = [300, 1000, 3000, 10000][seed]
         a, b, c = generate_test_xdmix([0.25, 0.25, 0.5],
                                       [[0.0, 0.0], [4.0, 2.0], [-3.0, 1.0]],
                                       [0.8, 1.2, 1.0], 1,
