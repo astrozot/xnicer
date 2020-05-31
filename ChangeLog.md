@@ -8,14 +8,14 @@ Initial release.
 
 ## Version 0.2
 
-*Partial release*
+*Partial on 31 May 2020*
 
 - Computation of the intrinsic colors and associated covariance 
   matrix.
 - Addition of attributes to use different classes of objects in
   photometric and color catalogues.
 - A PhotometricCatalogue can now be built automatically from a VOTable
-- Use of Cython code to perform the XD
+- Use of Cython code to perform the XD and the prediction
 - Change of the XDCV class name into XD_Mixture
 - Several tests added in the file test_em_step
 - Better file organization

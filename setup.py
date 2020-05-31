@@ -1,3 +1,5 @@
+# python setup.py build_ext --use-cython --inplace
+
 import sys
 # from distutils.core import setup
 # from distutils.extension import Extension
@@ -6,23 +8,23 @@ from setuptools.extension import Extension
 import numpy as np
 
 with open('README.md', 'r') as fh:
-    long_description = fh.read()
+    LONG_DESCRIPTION = fh.read()
 
 if '--use-cython' in sys.argv:
     USE_CYTHON = True
     sys.argv.remove('--use-cython')
 else:
     USE_CYTHON = False
-ext = '.pyx' if USE_CYTHON else '.c'
+EXT = '.pyx' if USE_CYTHON else '.c'
 
-extensions = [
+EXTENSIONS = [
     Extension(
         'xnicer.kde.kde',
-        ['xnicer/kde/kde' + ext]
+        ['xnicer/kde/kde' + EXT]
     ),
     Extension(
         'xnicer.xdeconv.em_step',
-        ['xnicer/xdeconv/em_step' + ext],
+        ['xnicer/xdeconv/em_step' + EXT],
         include_dirs=[np.get_include()],
         extra_compile_args=['-fopenmp'],
         extra_link_args=['-fopenmp']
@@ -31,7 +33,7 @@ extensions = [
 
 if USE_CYTHON:
     from Cython.Build import cythonize
-    extensions = cythonize(extensions)
+    EXTENSIONS = cythonize(EXTENSIONS)
 
 setup(
     name='xnicer',
@@ -39,12 +41,12 @@ setup(
     author='Marco Lombardi',
     author_email='marco.lombardi@gmail.com',
     description='The XNICER/XNICEST algorithm',
-    long_description=long_description,
+    long_description=LONG_DESCRIPTION,
     long_description_content_type='text/markdown',
     url='https://github.com/astropy/xnicer',
     packages=[], # was setuptools.find_packages(),
     python_requires='>=3.6',
-    setup_requires=['numpy','scipy','sklearn'],
+    setup_requires=['numpy', 'matplotlib', 'scipy', 'sklearn', 'astropy'],
     classifiers=[
         'Programming Language :: Python :: 3',
         'Programming Language :: Cython',
@@ -54,5 +56,5 @@ setup(
         'Topic :: Scientific/Engineering :: Astronomy'
     ],
     keywords='xnicer',
-    ext_modules=extensions
+    ext_modules=EXTENSIONS
 )

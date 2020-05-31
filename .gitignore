@@ -21,3 +21,4 @@
 .vscode
 .eggs
 xnicer.code-workspace
+.pytest_cache/v/cache/nodeids

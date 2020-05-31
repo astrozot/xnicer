@@ -14,7 +14,7 @@ from scipy.ndimage import uniform_filter
 cdef class KDE:
     """
     Class to perform a kernel density estimation.
-    
+
     This class implements all the machinery to efficiently perform kernel
     density estimation. To speed up all computations, the kernel is
     evaluated when the class is constructed on a fine grid (as dictated by
@@ -26,11 +26,11 @@ cdef class KDE:
     bandwidth : float
         A quantity that controls the size of the kernel; it is just the
         sigma for a Gaussian smoothing.
-        
+
     kernel : string
         The kernel used. Can be 'gaussian', 'tophat', 'linear', 'epanechinov',
         'exponential', 'cosine'.
-        
+
     kernel_radius : int
         The radius, in pixel, used for the current kernel. It is automatically
         computed given the kernel and the bandwidth. Note that kernels with
@@ -40,10 +40,10 @@ cdef class KDE:
     kernel_size : int
         Computed as kernel_radius*2 + 1, is the total size of a kernel "rubber
         stamp", in each dimension.
-        
+
     binned_kernel : boolean
         If True, the class uses a binned version of the kernel: that is, the
-        kernel function is integrated within each pixel. This way pixels are 
+        kernel function is integrated within each pixel. This way pixels are
         interpreted as "bins" of a histogram, and not as sampling positions.
 
     metric : float
@@ -69,12 +69,13 @@ cdef class KDE:
         The oversampling factor. Must be an odd integer. High oversampling values
         make the code smaller only for the initialization, but can have an impact
         on the memory consumption.
-        
+
     max_power : int
         The higher power allowed for the kernel when computing the smoothing. One
         generally is only interested to a simple kernel (that is, with power=1);
         however, occasionally one might need to compute a power-two kernel for
         error estimates.
+
     """
     cdef public:
         str kernel
@@ -88,12 +89,12 @@ cdef class KDE:
         float[:,:,:] kernel_table
         long[:] kernel_index
 
-    def __cinit__(self, tuple naxis, double bandwidth=1.0, 
+    def __cinit__(self, tuple naxis, double bandwidth=1.0,
                   str kernel='gaussian', double metric=2.0,
-                  bint binned_kernel=True, int oversampling=11, 
+                  bint binned_kernel=True, int oversampling=11,
                   int max_power=1):
         """
-        Cython onstructor for the KDE class.
+        Cython constructor for the KDE class.
         """
         self.kernel = kernel
         self.metric = metric
@@ -123,30 +124,31 @@ cdef class KDE:
         bandwidth : float, default to 1.0
             A parameter that controls the size of the kernel; it is just the
             sigma for a Gaussian smoothing.
-            
+
         kernel : string, default to 'gaussian'
             The kernel used. Can be 'gaussian', 'tophat', 'linear', 'epanechinov',
             'exponential', 'cosine'.
-            
+
         metric : float, default to 2.0
             The exponent of the p-metric to use. Must be within zero and infinity,
             included. The default corresponds to the Eucledian metric.
-            
+
         binned_kernel : boolean, default to True
             If True, the method uses a binned version of the kernel: that is, the
-            kernel function is integrated within each pixel. This way pixels are 
+            kernel function is integrated within each pixel. This way pixels are
             interpreted as "bins" of a histogram, and not as sampling positions.
 
         oversampling : int, default to 11
             The oversampling factor. Must be an odd integer. High oversampling values
-            make the code smaller only for the initialization, but can have an impact
+            make the code slower only for the initialization, but can have an impact
             on the memory consumption.
-            
+
         max_power : int, default to 1
             The higher power allowed for the kernel when computing the smoothing. One
             generally is only interested to a simple kernel (that is, with power=1);
             however, occasionally one might need to compute a power-two kernel for
             error estimates.
+
         """
         if self.kernel == 'gaussian':
             self.kernel_radius = lrint(3.0*self.bandwidth + 0.5)
@@ -187,7 +189,7 @@ cdef class KDE:
         elif self.metric == 0:
             coords = np.min(np.abs(coords), axis=0)**2
         elif self.metric > 0:
-            coords = np.sum((np.abs(coords))**self.metric, axis=0)**(2.0/self.metric) 
+            coords = np.sum((np.abs(coords))**self.metric, axis=0)**(2.0/self.metric)
         else:
             raise ValueError('The p-metric must have a non-negative exponent')
         # Compute the kernel table on the oversampled area
@@ -199,7 +201,7 @@ cdef class KDE:
         kernel_table = kernel_table.reshape(*(self.kernel_size, self.oversampling) * self.ndim)
         # At the end of the next line, the kernel_table has the dimensions
         # oversampling^ndim x kernel_size^ndim
-        kernel_table = kernel_table.transpose(tuple(range(1, 1+2*self.ndim, 2)) + 
+        kernel_table = kernel_table.transpose(tuple(range(1, 1+2*self.ndim, 2)) +
                                               tuple(range(0, 2*self.ndim, 2)))
         last = tuple(range(self.ndim, self.ndim*2))
         kernel_table /= \
@@ -210,7 +212,7 @@ cdef class KDE:
         # Reformat so that it is a 2D array
         kernel_table = kernel_table.reshape(self.oversampling**self.ndim,
                                             self.kernel_size**self.ndim)
-        kernel_table_3d = np.empty((self.max_power, self.oversampling**self.ndim, 
+        kernel_table_3d = np.empty((self.max_power, self.oversampling**self.ndim,
                                     self.kernel_size**self.ndim), dtype=np.float32)
         for p in range(self.max_power):
             kernel_table_3d[p, :, :] = (kernel_table**(p+1)).astype(np.float32)
@@ -241,12 +243,12 @@ cdef class KDE:
     def mask_inside(self, *args):
         """
         Return a mask corresponding to all objects that are within the current map.
-        
+
         Parameters
         ----------
         coords : array-like, shape (n_objs, ndim)
             The object coordinates, as provided to `kde`. Alternatively, the
-            coordinates can be entered as several parameters, one for each 
+            coordinates can be entered as several parameters, one for each
             dimension.
 
         Return
@@ -255,6 +257,7 @@ cdef class KDE:
             The mask of objects within the field: that is, a list of boolean
             values, where True means the object is entirely in the field (and
             also its "stamp" is in the field).
+
         """
         if len(args) == 0:
             raise ValueError('At least one array must be provided')
@@ -262,11 +265,11 @@ cdef class KDE:
             coords = np.rint(args[0])
         else:
             coords = np.rint(np.stack(args, axis=-1))
-        return (np.all(coords >= -self.kernel_radius - 1, axis=-1) & 
+        return (np.all(coords >= -self.kernel_radius - 1, axis=-1) &
                 np.all(coords < np.array(self.framed_naxis) - 3*self.kernel_radius - 2, axis=-1))
 
 
-    cpdef kde_float(self, float[:,:] coords, float[:,:] weights=None, short int[:] power=None, 
+    cpdef kde_float(self, float[:,:] coords, float[:,:] weights=None, short int[:] power=None,
                     short int[:] mask=None, float[:,:] output=None, bint nocut=False,
                     object callback=None):
         """
@@ -280,7 +283,7 @@ cdef class KDE:
         cdef long[:] framed_naxis = np.array(self.framed_naxis, dtype=np.long)
         cdef float coord, delta, weight = 1.0
         cdef float[:,:] result
-        
+
         if weights is not None:
             n_planes = weights.shape[0]
         elif power is not None:
@@ -315,7 +318,7 @@ cdef class KDE:
                 for k in range(kernel_full_size):
                     result[plane, j + self.kernel_index[k]] += \
                         weight * self.kernel_table[power[plane], i, k]
-        if callback is not None: 
+        if callback is not None:
             callback(self, n_objs, n_objs)
         if output is None:
             if nocut:
@@ -327,7 +330,7 @@ cdef class KDE:
             return output
 
 
-    cpdef kde_double(self, double[:,:] coords, double[:,:] weights=None, short int[:] power=None, 
+    cpdef kde_double(self, double[:,:] coords, double[:,:] weights=None, short int[:] power=None,
                      short int[:] mask=None, double[:,:] output=None, bint nocut=False,
                      object callback=None):
         """
@@ -341,7 +344,7 @@ cdef class KDE:
         cdef long[:] framed_naxis = np.array(self.framed_naxis, dtype=np.long)
         cdef double coord, delta, weight = 1.0
         cdef double[:,:] result
-        
+
         if weights is not None:
             n_planes = weights.shape[0]
         elif power is not None:
@@ -376,7 +379,7 @@ cdef class KDE:
                 for k in range(kernel_full_size):
                     result[plane, j + self.kernel_index[k]] += \
                         weight * self.kernel_table[power[plane], i, k]
-        if callback is not None: 
+        if callback is not None:
             callback(self, n_objs, n_objs)
         if output is None:
             if nocut:
@@ -391,9 +394,11 @@ cdef class KDE:
     def kde(self, coords, weights=None, power=None, mask=None, output=None,
             nocut=False, callback=None):
         """Perform the KDE computation.
-        
+
         This procedure computes a KDE map given a set of points and associated weights.
-        
+
+        Parameters
+        ----------
         coords : array-like, shape (n_objs, ndim)
             An array with the coordinate of each object along each axis.
 
@@ -408,7 +413,7 @@ cdef class KDE:
         mask : array-like, shape (n_objs,), default no mask
             If provided, must be a list of boolean values that denotes the
             objects that can be used for the analysis.
-            
+
         output : array-like, shape (n_planes, prod(self.framed_naxis)), default to None
             If not None, the output grid is not initialized but the provided
             array is used instead. The same, updated array is also returned as
@@ -424,21 +429,21 @@ cdef class KDE:
         callback : function
             A function to call to update the current status. Must accept three
             arguments: (self, object number, total number of objects)
-            
+
         Returns
         -------
         If output is None:
-        
+
         array-like, shape (n_planes, naxis[0], ..., naxis[ndim-1])
             A set of images with the KDE associated to each weight.
-            
+
         The naxis values can be self.framed_naxis (if nocut=True) or
         self.naxis (if nocut=False). If output is not None:
-        
+
         array-like, shape (n_planes, prod(framed_naxis))
             A set of images with the KDE associated to each weight, compressed
             along the various coordinates. To recover the real output use
-            
+
             result.reshape((n_planes,) + tuple(self.framed_naxis))
         """
         if coords.dtype == np.float64 or coords.dtype == np.float128:
@@ -470,5 +475,3 @@ cdef class KDE:
         else:
             return self.kde_double(coords, weights, power, mask, output, nocut,
                                    callback)
-        
-

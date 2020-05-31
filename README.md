@@ -1,10 +1,10 @@
 # XNICER algorithm
 
 This package implements the **XNICER** algorithm (Lombardi 2018, *A&A* vol.
-615, id.A174), an optimized multi-band extinction technique based on the 
+615, id.A174), an optimized multi-band extinction technique based on the
 extreme deconvolution of the intrinsic colors of objects observed through
-a molecular cloud. **XNICER** follows a rigorous statistical approach and 
-provides the full Bayesian inference of the extinction for each observed 
+a molecular cloud. **XNICER** follows a rigorous statistical approach and
+provides the full Bayesian inference of the extinction for each observed
 object. Photometric errors in both the training control field and in the
 science field are properly taken into account.
 
@@ -14,3 +14,5 @@ inhomogeneities in the extinction pattern) and foreground objects.
 
 Ancillary code for the creation of registered extinction maps is also
 provided.
+
+For a complete use-case see the `example.ipynb` notebook file.

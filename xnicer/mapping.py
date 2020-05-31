@@ -1,17 +1,18 @@
 """Mapping module, used to create registered extinction maps.
 
 :Author: Marco Lombardi
-:Version: 0.1.0 of 2019/05/13"""
+:Version: 0.1.0 of 2019/05/13
+"""
 
+import datetime
 import numpy as np
 import astropy.wcs
 from astropy.io import fits
-import datetime
 
 def guess_wcs(coords, projection='TAN', border=10, target_density=5.0,
-             pixel_size=None):
+              pixel_size=None):
     """Perform an initial guess of a WCS given a catalogue.
-    
+
     Parameters
     ----------
     coords : astropy.coordinates.SkyCoord
@@ -34,18 +35,19 @@ def guess_wcs(coords, projection='TAN', border=10, target_density=5.0,
     pixel_size : float, default to None
         If not None, the exact value of the pixel size in arcmin; if None,
         the pixel size will be computed using the target_density.
-    
+
     Returns
     -------
     wcs : astropy.wcs.WCS
         The proposed WCS structure to use with the provided catalogue.
-    
+
     (naxis1, naxis2) : (int, int)
         The proposed size of the final image along the two axes.
+
     """
-    goodscales = np.array([15*60, 10*60, 8*60, 5*60, 3*60, 2*60, 1.5*60, 60, 
+    goodscales = np.array([15*60, 10*60, 8*60, 5*60, 3*60, 2*60, 1.5*60, 60,
                            40, 30, 20, 15, 10, 8, 5, 3, 2, 1.5, 1,
-                           0.75, 0.5, 1/3, 0.25, 10/60, 8/60, 5/60, 3/60, 
+                           0.75, 0.5, 1/3, 0.25, 10/60, 8/60, 5/60, 3/60,
                            2/60, 1.5/60, 1/60])
     if coords.name in ('fk4', 'fk5', 'icrs', 'cirs', 'gcrs', 'hcrs'):
         ctypes = ('RA--', 'DEC-')
@@ -111,8 +113,8 @@ def guess_wcs(coords, projection='TAN', border=10, target_density=5.0,
 
 def make_maps(coords, ext, wcs, kde, n_iters=3, tolerance=3.0,
               use_xnicest=True):
-    """Map making algorithm
-    
+    """Map making algorithm.
+
     Parameters
     ----------
     coords : SkyCoord
@@ -147,7 +149,7 @@ def make_maps(coords, ext, wcs, kde, n_iters=3, tolerance=3.0,
     use_xnicest : bool, default to True
         If False, the XNicest algorithm will not be used, not even if the
         `ext` catalogue has XNicest weights computed.
-    
+
     Returns
     -------
     fits.HDU
@@ -160,7 +162,7 @@ def make_maps(coords, ext, wcs, kde, n_iters=3, tolerance=3.0,
             The XNicer extinction map, in units of [mag].
 
         data[1]
-            The inverse variance on the XNicer extinction map [mag^-2]. One 
+            The inverse variance on the XNicer extinction map [mag^-2]. One
             can obtains the error of the extinction map by computing
             data[1]**(-0.5)
 
@@ -180,16 +182,17 @@ def make_maps(coords, ext, wcs, kde, n_iters=3, tolerance=3.0,
         data[5]
             The inverse variance on the XNicest extinction map [mag^-2]. Only
             returned if the XNicest algorithm has been used.
-        
+
         data[6]
             The sum of weights of the XNIcest extinction map [mag^-2 pix^-1].
             Only returned if the XNicest algorithm has been used.
+
     """
     names = list(coords.frame.representation_component_names.keys())
     if 'idx' in ext.colnames:
         xy = wcs.all_world2pix(
-                getattr(coords, names[0]).deg[ext['idx']],
-                getattr(coords, names[1]).deg[ext['idx']], 0)
+            getattr(coords, names[0]).deg[ext['idx']],
+            getattr(coords, names[1]).deg[ext['idx']], 0)
     else:
         xy = wcs.all_world2pix(
             getattr(coords, names[0]).deg,
@@ -198,9 +201,9 @@ def make_maps(coords, ext, wcs, kde, n_iters=3, tolerance=3.0,
     mask = kde.mask_inside(xy)
     n_objs = xy.shape[0]
     # Check if we need to use the XNicest algorithm
-    xnicest = bool(use_xnicest) and ('xnicest_bias' is ext.colnames)
+    xnicest = bool(use_xnicest) and ('xnicest_bias' in ext.colnames)
     # Weights & power arrays: 0-cmap, 1-cvar, 2-cwgt, 3-dmap
-    # Moreover, if ext4-amap, 5-avar, 6-awgt
+    # Moreover, if xnicest: 4-amap, 5-avar, 6-awgt
     if xnicest:
         weights = np.empty((7, n_objs))
         power = np.zeros(7)
@@ -227,8 +230,8 @@ def make_maps(coords, ext, wcs, kde, n_iters=3, tolerance=3.0,
     # Shifted (unframed) coordinates, to the nearest int
     x_ = np.rint(xy[:, 1] + kde.kernel_size).astype(np.int)
     y_ = np.rint(xy[:, 0] + kde.kernel_size).astype(np.int)
-    for iter in range(n_iters):
-        if iter < n_iters - 1:
+    for iteration in range(n_iters):
+        if iteration < n_iters - 1:
             # Faster steps for intermediate iterations
             res = kde.kde(xy, weights[0:3],
                           power=power[0:3], mask=mask, nocut=True)
@@ -242,7 +245,7 @@ def make_maps(coords, ext, wcs, kde, n_iters=3, tolerance=3.0,
                           power=power, mask=mask, nocut=True)
         res[0] = np.divide(res[0], res[2], out=np.zeros_like(res[0]),
                            where=(res[2] != 0))
-        if iter < n_iters - 1:
+        if iteration < n_iters - 1:
             # Intermediate iterations: cvar is the observed scatter and has to
             # be computed as a sampled variance
             res[1] = np.divide(res[1], res[2], out=np.zeros_like(res[1]),
