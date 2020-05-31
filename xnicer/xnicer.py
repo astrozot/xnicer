@@ -17,7 +17,6 @@ from astropy import table
 from tqdm.auto import tqdm
 from .xdeconv import FIX_MEAN, FIX_COVAR
 from .xdeconv.em_step import predict_d  # pylint: disable=no-name-in-module
-from .utilities import cho_solve, cho_matrix_solve
 from .catalogs import PhotometricCatalogue, ColorCatalogue, ExtinctionCatalogue
 
 
