@@ -13,7 +13,6 @@ from sklearn.mixture import GaussianMixture
 # from extreme_deconvolution import extreme_deconvolution
 from . import xdeconv, scores
 
-
 class XDGaussianMixture(GaussianMixture):
     """Extreme deconvolution using a Gaussian Mixture Model.
 
@@ -50,7 +49,7 @@ class XDGaussianMixture(GaussianMixture):
                  init_params='gmm', weights_init=None, means_init=None,
                  splitnmerge=0, random_state=None, warm_start=False,
                  regularization=0.0, verbose=0, verbose_interval=10):
-        """Constructor for the extreme deconvolution Gaussian mixture model.
+        """Construct the extreme deconvolution Gaussian mixture model.
 
         Parameters
         ----------
@@ -62,9 +61,8 @@ class XDGaussianMixture(GaussianMixture):
         n_classes : int or None, default=None
             The number of classes to use. If None, the number of classes is
             automatically determined from the first call to `fit` and set equal
-            to the number of classes in the fitted classes are not taken into
-            account). data. Use n_classes=1 to force the use of a singlee class
-            (that is, no classes are used).
+            to the number of classes in the data. Use n_classes=1 to force the
+            use of a singlee class (that is, no classes are used).
 
         tol : float, defaults=1e-5
             The convergence threshold. EM iterations will stop when the lower
@@ -196,7 +194,9 @@ class XDGaussianMixture(GaussianMixture):
             The converted log weight.
 
         """
-        Y = check_array(Y, dtype=[np.float64], order='C',
+        # Identify the type for all parameters
+        dtype = np.result_type(np.float32, Y.dtype, Yerr.dtype)
+        Y = check_array(Y, dtype=[dtype], order='C',
                         estimator='XDGaussianMixture')
         n_samples, n_y_features = Y.shape
         if n_samples < self.n_components:
@@ -205,7 +205,7 @@ class XDGaussianMixture(GaussianMixture):
                              % (self.n_components, Y.shape[0]))
         if len(Yerr.shape) not in [2, 3]:
             raise ValueError('Expected a 2d or 3d array for Yerr')
-        Yerr = check_array(Yerr, dtype=[np.float64], order='C',
+        Yerr = check_array(Yerr, dtype=[dtype], order='C',
                            ensure_2d=False, allow_nd=True,
                            estimator='XDGaussianMixture')
         if Yerr.shape[0] != n_samples:
@@ -217,11 +217,11 @@ class XDGaussianMixture(GaussianMixture):
                 'Yerr must be of shape (n_samples, n_y_features, n_y_features)')
         if Yclass is not None:
             if Yclass.ndim != 2 or Yclass.shape[0] != n_samples or \
-                Yclass.shape[1] != self.n_classes:
+                (Yclass.shape[1] != self.n_classes and self.n_classes > 0):
                 raise ValueError(
                     'Yclass must be of shape (n_samples, n_classes)')
         if projection is not None:
-            projection = check_array(projection, dtype=[np.float64],
+            projection = check_array(projection, dtype=[dtype],
                                      order='C', ensure_2d=False,
                                      allow_nd=True, estimator='XDGaussianMixture')
             if projection.ndim != 3 or projection.shape[0] != n_samples or \
@@ -229,7 +229,7 @@ class XDGaussianMixture(GaussianMixture):
                 raise ValueError(
                     'projection must be of shape (n_samples, n_y_features, n_x_features)')
         if log_weight is not None:
-            log_weight = check_array(log_weight, dtype=[np.float64],
+            log_weight = check_array(log_weight, dtype=[dtype],
                                      order='C', ensure_2d=False,
                                      allow_nd=True, estimator='XDGaussianMixture')
             if log_weight.ndim != 1:
@@ -401,6 +401,9 @@ class XDGaussianMixture(GaussianMixture):
                                         weight=log_weight, xclass=self.classes_,
                                         projection=projection,
                                         fixpars=fixpars, classes=Yclass)
+            # Alternatively, we could use here the original standard
+            # extreme_deconvolution procedure. Arguments are identical,
+            # except for the classes part which is not provided.
             if self.lower_bound_ > max_lower_bound:
                 max_lower_bound = self.lower_bound_
                 best_params = self._get_parameters()

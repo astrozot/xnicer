@@ -94,7 +94,7 @@ cdef class KDE:
                   bint binned_kernel=True, int oversampling=11,
                   int max_power=1):
         """
-        Cython onstructor for the KDE class.
+        Cython constructor for the KDE class.
         """
         self.kernel = kernel
         self.metric = metric
@@ -475,5 +475,3 @@ cdef class KDE:
         else:
             return self.kde_double(coords, weights, power, mask, output, nocut,
                                    callback)
-
-

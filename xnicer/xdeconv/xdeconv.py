@@ -8,7 +8,9 @@ import logging
 import warnings
 import numpy as np
 from scipy.special import logsumexp
-from .em_step import em_step, FIX_NONE, FIX_ALL, _scores # pylint: disable=no-name-in-module
+from tqdm.auto import tqdm
+from .em_step import em_step_s, em_step_d, FIX_NONE, FIX_ALL
+from .em_step import _scores_s, _scores_d  # pylint: disable=no-name-in-module
 
 LOGGER = logging.getLogger(__name__)
 
@@ -60,8 +62,8 @@ def check_numpy_array(name, arr, shapes):
 
 def xdeconv(ydata, ycovar, xamp, xmean, xcovar,
             xclass=None, projection=None, weight=None, classes=None,
-            fixpars=None, tol=1.e-6, maxiter=int(1e9),
-            regular=0.0, splitnmerge=0):
+            fixpars=None, tol=None, maxiter=int(1e9),
+            regular=0.0, splitnmerge=0, progressbar=None):
     """Perform a full extreme deconvolution.
 
     Parameters
@@ -109,7 +111,7 @@ def xdeconv(ydata, ycovar, xamp, xmean, xcovar,
         combinations. If a single value is passed, it is used for all
         components.
 
-    tol: double, default=1e-6
+    tol: double, default=1e-6 (double precision) or 1e-4 (single precision)
         Tolerance for the convergence: if two consecutive loglikelihoods
         differ by less than tol, the procedure stops.
 
@@ -119,52 +121,63 @@ def xdeconv(ydata, ycovar, xamp, xmean, xcovar,
     regular: double, default=0
         Regularization parameter (use 0 to prevent the regularization).
 
+    progressbar: bool or None, default=None
+        If True, show a progress bar using tqdm; if None (default), only
+        show for TTY output.
+
     """
     # pylint: disable=invalid-name
+
+    # Check the precision to be used for the computations
+    dtype = np.result_type(np.float32, ydata.dtype, ycovar.dtype)
+    em_step = em_step_s if dtype == np.float32 else em_step_d
+    if tol is None:
+        tol = 1e-4 if dtype == np.float32 else 1e-6
+
     nobjs, ydim = check_numpy_array("ydata", ydata, (-1, -1))
-    w = np.asfortranarray(ydata.T, dtype=np.float64)
+    w = np.asfortranarray(ydata.T, dtype=dtype)
 
     check_numpy_array("ycovar", ycovar, [(nobjs, ydim), (nobjs, ydim, ydim)])
     if ycovar.ndim == 2:
-        S = np.zeros((ydim, ydim, nobjs), order='F')
+        S = np.zeros((ydim, ydim, nobjs), order='F', dtype=dtype)
         for i in range(ydim):
             S[i, i, :] = ycovar[:, i]
     else:
-        S = np.asfortranarray(ycovar.T, dtype=np.float64)
+        S = np.asfortranarray(ycovar.T, dtype=dtype)
 
     kdim, = check_numpy_array("xamp", xamp, (-1,))
-    alpha = np.asfortranarray(xamp.T, dtype=np.float64)
+    alpha = np.asfortranarray(xamp.T, dtype=dtype)
     if xclass is not None:
         kdim, cdim = check_numpy_array("xclass", xclass, (kdim, -1))
-        alphaclass = np.asfortranarray(xclass.T, dtype=np.float)
+        alphaclass = np.asfortranarray(xclass.T, dtype=dtype)
         alphaclass /= np.sum(alphaclass, axis=0)
     else:
         cdim = 1
-        alphaclass = np.ones((cdim, kdim), dtype=np.float64, order='F') / cdim
+        alphaclass = np.ones((cdim, kdim), dtype=dtype, order='F') / cdim
 
     _, xdim = check_numpy_array("xmean", xmean, (kdim, -1))
-    m = np.asfortranarray(xmean.T, dtype=np.float64)
+    m = np.asfortranarray(xmean.T, dtype=dtype)
 
     check_numpy_array("xcovar", xcovar, (kdim, xdim, xdim))
-    V = np.asfortranarray(xcovar.T, dtype=np.float64)
+    V = np.asfortranarray(xcovar.T, dtype=dtype)
 
     if projection is not None:
         check_numpy_array("projection", projection, (nobjs, ydim, xdim))
-        Rt = np.asfortranarray(projection.T, dtype=np.float64)
+        Rt = np.asfortranarray(projection.T, dtype=dtype)
     else:
         Rt = None
 
     if weight is not None:
         check_numpy_array("weight", weight, (nobjs,))
-        wgh = np.asfortranarray(weight.T, dtype=np.float64)
+        wgh = np.asfortranarray(weight.T, dtype=dtype)
     else:
-        wgh = np.zeros(nobjs, dtype=np.float64, order='F')
+        wgh = np.zeros(nobjs, dtype=dtype, order='F')
 
     if classes is not None:
         check_numpy_array("classes", classes, (nobjs, cdim))
-        clss = np.asfortranarray(classes.T, dtype=np.float64)
+        clss = np.asfortranarray(classes.T, dtype=dtype)
     else:
-        clss = np.zeros((cdim, nobjs), dtype=np.float64, order='F') - \
+        clss = np.zeros((cdim, nobjs), dtype=dtype, order='F') - \
             np.log(cdim)
 
     if fixpars is not None:
@@ -176,21 +189,31 @@ def xdeconv(ydata, ycovar, xamp, xmean, xcovar,
         fix = None
 
     with np.errstate(divide='ignore'):
+        niter = 0
         oldloglike = em_step(w, S, alpha, alphaclass, m, V, wgh, clss,
                              Rt=Rt, fixpars=fix, regularization=regular)
-        LOGGER.debug('Initial log-like=%g', oldloglike)
+        if progressbar is False:
+            LOGGER.debug('Initial log-like=%g', oldloglike)
         decreased = False
-        for niter in range(1, maxiter):
-            loglike = em_step(w, S, alpha, alphaclass, m, V, wgh, clss,
-                              Rt=Rt, fixpars=fix, regularization=regular)
-            diff = loglike - oldloglike
-            oldloglike = loglike
-            if diff < 0:
-                decreased = True
-            if abs(diff) < tol:
-                break
-    LOGGER.debug('Loop exit after %d iterations', niter)
-    LOGGER.debug('Final log-like=%g', oldloglike)
+        try:
+            iterator = tqdm(range(1, maxiter), total=float('inf'), leave=False,
+                            desc='xdeconv', disable=progressbar,
+                            postfix={'loglike': oldloglike})
+            for niter in iterator:
+                loglike = em_step(w, S, alpha, alphaclass, m, V, wgh, clss,
+                                  Rt=Rt, fixpars=fix, regularization=regular)
+                iterator.set_postfix({'loglike': oldloglike})
+                diff = loglike - oldloglike
+                oldloglike = loglike
+                if diff < 0:
+                    decreased = True
+                if abs(diff) < tol:
+                    break
+        finally:
+            iterator.close()
+    if progressbar is False:
+        LOGGER.debug('Loop exit after %d iterations', niter)
+        LOGGER.debug('Final log-like=%g', oldloglike)
 
     # Split and merge code
     while True:
@@ -219,7 +242,9 @@ def xdeconv(ydata, ycovar, xamp, xmean, xcovar,
                 # quit the loop
                 break
             # Prepare the new set of parameters
-            LOGGER.debug('Performing split-and-merge (%d, %d, %d)', i, j, k)
+            if progressbar is False:
+                LOGGER.debug(
+                    'Performing split-and-merge (%d, %d, %d)', i, j, k)
             alpha1 = np.copy(alpha)
             alpha1[i] = alpha[i] + alpha[j]
             alpha1[j] = alpha1[k] = alpha[k] * 0.5
@@ -274,8 +299,9 @@ def xdeconv(ydata, ycovar, xamp, xmean, xcovar,
             # somewhat improved our log-likelihood.
             if ll - loglike > tol * piter * 0.5:
                 # OK, we have done a good job, copy the final parameters
-                LOGGER.info('Success w/ split and merge (%d, %d, %d) %g > %g',
-                            i, j, k, ll, loglike)
+                if progressbar is False:
+                    LOGGER.info('Success w/ split and merge (%d, %d, %d) %g > %g',
+                                i, j, k, ll, loglike)
                 loglike = oldloglike = ll
                 alpha = alpha1
                 m = m1
@@ -285,25 +311,29 @@ def xdeconv(ydata, ycovar, xamp, xmean, xcovar,
                 success = True
                 break
             else:
-                LOGGER.debug('Failure w/ split and merge: %g < %g',
-                             ll, loglike)
+                if progressbar is False:
+                    LOGGER.debug('Failure w/ split and merge: %g < %g',
+                                 ll, loglike)
 
             # If we did not improve, we will try th next combination of
             # triplet for the split & merge.
         if not success:
-            LOGGER.debug('No more split and merge possibilities')
+            if progressbar is False:
+                LOGGER.debug('No more split and merge possibilities')
             # We have exhausted our possibilities for split and merge: exit
             break
 
     # Final checks: show warnings if necessary
     if maxiter > 1:
         if niter == maxiter-1:
-            LOGGER.warning('xdeconv did not converge after %d iterations',
-                           maxiter)
-            warnings.warn('xdeconv did not converge after %d iterations',
-                          maxiter)
+            if progressbar is False:
+                LOGGER.warning('xdeconv did not converge after %d iterations',
+                               maxiter)
+            warnings.warn(f'xdeconv did not converge after {maxiter} iterations')
         if decreased:
-            LOGGER.warning('Log-likelihood decreased during the fitting procedure')
+            if progressbar is False:
+                LOGGER.warning(
+                    'Log-likelihood decreased during the fitting procedure')
 
     return oldloglike
 
@@ -354,45 +384,50 @@ def scores(ydata, ycovar, xmean, xcovar,
 
     """
     # pylint: disable=invalid-name
+
+    # Check the precision to be used for the computations
+    dtype = np.result_type(np.float32, ydata.dtype, ycovar.dtype)
+    _scores = _scores_s if dtype == np.float32 else _scores_d
+
     nobjs, ydim = check_numpy_array("ydata", ydata, (-1, -1))
-    w = np.asfortranarray(ydata.T, dtype=np.float64)
+    w = np.asfortranarray(ydata.T, dtype=dtype)
 
     check_numpy_array("ycovar", ycovar, [(nobjs, ydim), (nobjs, ydim, ydim)])
     if ycovar.ndim == 2:
-        S = np.zeros((ydim, ydim, nobjs), order='F')
+        S = np.zeros((ydim, ydim, nobjs), dtype=dtype, order='F')
         for i in range(ydim):
             S[i, i, :] = ycovar[:, i]
     else:
-        S = np.asfortranarray(ycovar.T, dtype=np.float64)
+        S = np.asfortranarray(ycovar.T, dtype=dtype)
 
     kdim, xdim = check_numpy_array("xmean", xmean, (-1, -1))
-    m = np.asfortranarray(xmean.T, dtype=np.float64)
+    m = np.asfortranarray(xmean.T, dtype=dtype)
 
     if xclass is not None:
         kdim, cdim = check_numpy_array("xclass", xclass, (kdim, -1))
-        alphaclass = np.asfortranarray(xclass.T, dtype=np.float)
+        alphaclass = np.asfortranarray(xclass.T, dtype=dtype)
         alphaclass /= np.sum(alphaclass, axis=0)
     else:
         cdim = 1
-        alphaclass = np.ones((cdim, kdim), dtype=np.float64, order='F') / cdim
+        alphaclass = np.ones((cdim, kdim), dtype=dtype, order='F') / cdim
 
     check_numpy_array("xcovar", xcovar, (kdim, xdim, xdim))
-    V = np.asfortranarray(xcovar.T, dtype=np.float64)
+    V = np.asfortranarray(xcovar.T, dtype=dtype)
 
     if projection is not None:
         check_numpy_array("projection", projection, (nobjs, ydim, xdim))
-        Rt = np.asfortranarray(projection.T, dtype=np.float64)
+        Rt = np.asfortranarray(projection.T, dtype=dtype)
     else:
         Rt = None
 
     if classes is not None:
         check_numpy_array("classes", classes, (nobjs, cdim))
-        clss = np.asfortranarray(classes.T, dtype=np.float64)
+        clss = np.asfortranarray(classes.T, dtype=dtype)
     else:
-        clss = np.zeros((cdim, nobjs), dtype=np.float64, order='F') - \
+        clss = np.zeros((cdim, nobjs), dtype=dtype, order='F') - \
             np.log(cdim)
 
-    qs = np.zeros((kdim, nobjs), order='F')
+    qs = np.zeros((kdim, nobjs), order='F', dtype=dtype)
     with np.errstate(divide='ignore'):
         _scores(w, S, alphaclass, m, V, clss, qs, Rt=Rt)
 

@@ -201,9 +201,9 @@ def make_maps(coords, ext, wcs, kde, n_iters=3, tolerance=3.0,
     mask = kde.mask_inside(xy)
     n_objs = xy.shape[0]
     # Check if we need to use the XNicest algorithm
-    xnicest = bool(use_xnicest) and ('xnicest_bias' is ext.colnames)
+    xnicest = bool(use_xnicest) and ('xnicest_bias' in ext.colnames)
     # Weights & power arrays: 0-cmap, 1-cvar, 2-cwgt, 3-dmap
-    # Moreover, if ext4-amap, 5-avar, 6-awgt
+    # Moreover, if xnicest: 4-amap, 5-avar, 6-awgt
     if xnicest:
         weights = np.empty((7, n_objs))
         power = np.zeros(7)

@@ -2,9 +2,11 @@
 import warnings
 import numpy as np
 from scipy.special import logsumexp
-from .em_step import log_likelihoods, py_e_single_step, em_step  # pylint: disable=no-name-in-module
+from .em_step import log_likelihoods_d, py_e_single_step, em_step_d  # pylint: disable=no-name-in-module
 from .em_step import FIX_AMP, FIX_CLASS, FIX_MEAN, FIX_COVAR # pylint: disable=no-name-in-module
+from .em_step import py_predict_single, predict_d # pylint: disable=no-name-in-module
 from . import xdeconv, scores
+
 
 def py_log_likelihoods(deltas, covars, results=None):
     nobjs = deltas.shape[0]
@@ -25,7 +27,7 @@ def generate_test_log_likelihoods(n, r, seed=1):
     covars = np.einsum('...ij,...ik->...jk', C, C)
     results1 = np.zeros(n)
     results2 = np.zeros(n)
-    log_likelihoods(deltas, covars, results1)
+    log_likelihoods_d(deltas, covars, results1)
     py_log_likelihoods(deltas, covars, results2)
     assert np.allclose(results1, results2)
 
@@ -39,7 +41,7 @@ def test_log_likelihoods():
 
 def py_em_step(w, S, alpha, alphaclass, m, V, logweights, logclasses, Rt=None,
                fixpars=None, regularization=0.0):
-    """Perform an EM step using a pure Python code
+    """Perform an EM step using a pure Python code.
 
     Parameters
     ----------
@@ -89,6 +91,7 @@ def py_em_step(w, S, alpha, alphaclass, m, V, logweights, logclasses, Rt=None,
 
     regularization: double, default=0
         Regularization parameter (use 0 to prevent the regularization).
+
     """
     n = w.shape[1]
     d = m.shape[0]
@@ -144,6 +147,7 @@ def generate_test_single_e_step(r, d, seed=1):
 
     seed: int, default=1
         Seed for the random number generator.
+
     """
     np.random.seed(seed)
     w = np.random.rand(r)
@@ -194,6 +198,7 @@ def generate_test_single_e_step_proj(d, seed=1):
 
     seed: int, default=1
         Seed for the random number generator.
+
     """
     np.random.seed(seed)
     w = np.random.rand(d)
@@ -226,6 +231,177 @@ def test_single_e_step_proj():
             generate_test_single_e_step_proj(d, seed=seed)
 
 
+def generate_test_single_predict_proj(d1, d2, seed=1):
+    """Generate a random predict test.
+
+    This procedure generate a single random point, and runs a prediction on it
+    using the Cython codes with projection. It then compares the results.
+
+    Parameters
+    ----------
+    d1: int
+        Dimensionality of model
+
+    d2: int
+        Dimensionality of the data
+
+    seed: int, default=1
+        Seed for the random number generator.
+
+    """
+    np.random.seed(seed)
+    w = np.random.rand(d2)
+    # R = np.identity(d)
+    R = np.random.rand(d2, d1)
+    S = np.random.rand(d2, d2)
+    S = np.dot(S.T, S)
+    m = np.random.rand(d1)
+    V = np.random.rand(d1, d1)
+    V = np.dot(V.T, V)
+    k = np.random.rand(d1)
+
+    p = np.zeros(1)
+    var = np.zeros(1)
+    ev = np.zeros(1)
+    M = np.zeros(d1)
+    C = np.zeros(d1)
+    W = np.zeros((d1, d1))
+    py_predict_single(w, R, S, m, V, k, p, var, ev, M, C, W)
+
+    # New notation
+    P = R
+    PV = np.matmul(P, V)
+    PVP = np.matmul(PV, P.T)
+    mu = np.matmul(P, m)
+    color_ext_vec = np.matmul(P, k)
+
+    T = S + PVP
+    Tc = np.linalg.cholesky(T)
+    d = w - mu
+    T_k = np.linalg.solve(Tc, color_ext_vec)
+    T_d = np.linalg.solve(Tc, d)
+    Tlogdet = np.sum(np.log(np.diagonal(Tc)))
+    sigma_k2 = 1.0 / np.sum(T_k * T_k)
+    means_A = sigma_k2 * np.sum(T_k * T_d)
+    variances_A = sigma_k2
+    C_k = np.sum(T_d * T_d) - means_A**2 / sigma_k2
+
+    T_V = np.matmul(np.linalg.inv(Tc), PV)
+    V_TT_k = np.einsum('...ji,...j->...i', T_V, T_k)
+    covariances = -V_TT_k * variances_A
+    variances_c = V - np.einsum('...ij,...ik->...jk', T_V, T_V) - \
+        np.einsum('...i,...j->...ij', V_TT_k, covariances)
+    means_c = m - np.einsum('...ji,...j->...i', T_V, T_d) - V_TT_k * means_A
+
+    assert np.allclose(p, [means_A])
+    assert np.allclose(var, [variances_A])
+    assert np.allclose(ev, [-Tlogdet - C_k / 2.0])
+    assert np.allclose(covariances, C)
+    assert np.allclose(variances_c, W)
+
+
+def test_single_predict_proj():
+    """Perform a prediction test."""
+    for d1 in range(1, 8):
+        for d2 in range(1, 8):
+            for seed in range(10):
+                generate_test_single_predict_proj(d1, d2, seed=seed)
+
+
+def generate_test_predict(n, k, d1, d2, seed=1):
+    """Generate a random predict test.
+
+    This procedure generate a single random point, and runs a prediction on it
+    using the Cython codes with projection. It then compares the results.
+
+    Parameters
+    ----------
+    n: int
+        Number of points
+
+    k: int
+        Number of clusters
+
+    d1: int
+        Dimensionality of model
+
+    d2: int
+        Dimensionality of the data
+
+    seed: int, default=1
+        Seed for the random number generator.
+
+    """
+    np.random.seed(seed)
+    w = np.random.rand(n, d2)
+    R = np.random.rand(n, d2, d1)
+    S = np.random.rand(n, d2, d2)
+    S = np.einsum('...ij,...ik->...jk', S, S)
+    m = np.random.rand(k, d1)
+    V = np.random.rand(k, d1, d1)
+    V = np.einsum('...ij,...ik->...jk', V, V)
+    kvec = np.random.rand(d1)
+
+    Amean = np.asfortranarray(np.zeros((n, k)).T)
+    Avar = np.asfortranarray(np.zeros((n, k)).T)
+    Aweight = np.asfortranarray(np.zeros((n, k)).T)
+    Wmean = np.asfortranarray(np.zeros((n, k, d1)).T)
+    Wcov = np.asfortranarray(np.zeros((n, k, d1)).T)
+    Wvar = np.asfortranarray(np.zeros((n, k, d1, d1)).T)
+    predict_d(np.asfortranarray(w.T), np.asfortranarray(S.T),
+              np.asfortranarray(m.T), np.asfortranarray(V.T),
+              np.asfortranarray(kvec.T), Amean, Avar, Aweight,
+              np.asfortranarray(R.T), Wmean, Wcov, Wvar)
+
+    # New notation
+    V = V[np.newaxis, ...]
+    P = R[:, np.newaxis, :, :]
+    PV = np.matmul(P, V)
+    PVP = np.matmul(PV, np.moveaxis(P, -2, -1))
+    mu = np.einsum('...ij,...j->...i', P, m[np.newaxis, :, :])
+    color_ext_vec = np.einsum('...ij,...j->...i', R, kvec)[:, np.newaxis, :]
+    T = S[:, np.newaxis, :, :] + PVP
+    Tc = np.linalg.cholesky(T)
+    d = w[:, np.newaxis, :] - mu
+    T_k = np.linalg.solve(Tc, color_ext_vec)
+    T_d = np.linalg.solve(Tc, d)
+    Tlogdet = np.sum(np.log(np.diagonal(Tc, axis1=-2, axis2=-1)), axis=-1)
+    sigma_k2 = 1.0 / np.sum(T_k * T_k, axis=-1)
+    Amean2 = sigma_k2 * np.sum(T_k * T_d, axis=-1)
+    Avar2 = sigma_k2
+    C_k = np.sum(T_d * T_d, axis=-1) - Amean2**2 / sigma_k2
+    log_weights0_ = - Tlogdet - \
+        d1 * np.log(2.0*np.pi) / 2.0 - \
+        C_k / 2.0 + np.log(2.0 * np.pi * sigma_k2) / 2.0
+    Aweight2 = log_weights0_
+    # ----
+    T_V = np.linalg.solve(Tc, PV)
+    V_TT_k = np.einsum('...ji,...j->...i', T_V, T_k)
+    covariances = -V_TT_k * Avar2[:, :, np.newaxis]
+    variances_c = (V - np.einsum('...ij,...ik->...jk', T_V, T_V) -
+            np.einsum('...i,...j->...ij', V_TT_k, covariances))
+    means_c = m[np.newaxis, :, :] + \
+            np.einsum('...ji,...j->...i', T_V, T_d) - \
+            V_TT_k * Amean2[:, :, np.newaxis]
+
+    assert np.allclose(Amean.T, Amean2)
+    assert np.allclose(Avar.T, Avar2)
+    assert np.allclose(Aweight.T, Aweight2)
+    assert np.allclose(Wmean.T, means_c)
+    assert np.allclose(Wvar.T, variances_c)
+    assert np.allclose(Wcov.T, covariances)
+
+
+def test_predict():
+    """Perform a prediction test."""
+    for n in [1, 3, 10, 30, 100, 300]:
+        for k in range(1, 5):
+            for d1 in range(1, 5):
+                for d2 in range(1, 5):
+                    for seed in range(10):
+                        generate_test_predict(n, k, d1, d2, seed=seed)
+
+
 def generate_test_single_em_step(d, r, n, k, c, seed=1):
     """Generate a random EM-step test.
 
@@ -252,6 +428,7 @@ def generate_test_single_em_step(d, r, n, k, c, seed=1):
 
     seed: int, default=1
         Seed for the random number generator.
+
     """
     np.random.seed(seed)
     w = np.asfortranarray(np.random.rand(r, n))
@@ -283,7 +460,7 @@ def generate_test_single_em_step(d, r, n, k, c, seed=1):
     V2 = V.copy('A')
     weights = np.zeros(n, order='F')
 
-    em_step(w, S, alpha1, alphaclass1, m1, V1, weights, classes, Rt=Rt)
+    em_step_d(w, S, alpha1, alphaclass1, m1, V1, weights, classes, Rt=Rt)
     py_em_step(w, S, alpha2, alphaclass2, m2, V2, weights, classes, Rt=Rt)
 
     assert np.allclose(alpha1, alpha2)
@@ -304,7 +481,7 @@ def test_single_em_step():
 
 
 def generate_test_em_likelihood(d, n, k, c, seed=1):
-    """Generate a test to check the likelihood calculation
+    """Generate a test to check the likelihood calculation.
 
     This procedure generate a set of random points, and runs an EM-step on
     them using the Cython code, and check if the likelihood returned is
@@ -326,6 +503,7 @@ def generate_test_em_likelihood(d, n, k, c, seed=1):
 
     seed: int, default=1
         Seed for the random number generator.
+
     """
     assert c == 1
     np.random.seed(seed)
@@ -349,10 +527,10 @@ def generate_test_em_likelihood(d, n, k, c, seed=1):
 
     results = np.zeros((k, n))
     for k1 in range(k):
-        log_likelihoods(w.T - m[:, k1], S.T + V[:, :, k1], results[k1, :])
+        log_likelihoods_d(w.T - m[:, k1], S.T + V[:, :, k1], results[k1, :])
 
     lnlike1 = np.sum(logsumexp(results + np.log(alpha[:, np.newaxis]), axis=0))
-    lnlike2 = em_step(w, S, alpha, alphaclass, m, V, weights, classes)
+    lnlike2 = em_step_d(w, S, alpha, alphaclass, m, V, weights, classes)
 
     assert np.allclose([lnlike1 / n], [lnlike2])
 
@@ -429,6 +607,7 @@ def generate_data(xamp, xmean, xcovar, ycovar, npts=1000,
         A single parameter used to initialize the clusters with respect to the
         true parameters.  Confusion 0 indicate that the starting parameters
         are the true ones.
+
     """
     # pylint: disable=unsubscriptable-object
     np.random.seed(seed)
@@ -654,6 +833,7 @@ def generate_test_scores(xamp, xmean, xcovar, ycovar, npts=1000,
         If True, will not print warning messages.
 
     All extra keyword parameters are directly passed to xdeconv.
+
     """
     data = generate_data(xamp, xmean, xcovar, ycovar, npts=npts,
                          xclass=xclass, use_weight=use_weight,
@@ -693,7 +873,7 @@ def generate_test_scores(xamp, xmean, xcovar, ycovar, npts=1000,
     tmp = np.empty(Y.shape[0])
     result = np.empty((Y.shape[0], n_components))
     for c in range(n_components):
-        log_likelihoods(delta[:, c, :], T[:, c, :, :], tmp)
+        log_likelihoods_d(delta[:, c, :], T[:, c, :, :], tmp)
         result[:, c] = tmp
         if use_classes:
             result[:, c] += logsumexp(np.log(data['xclass'][np.newaxis, c, :]) \
@@ -702,7 +882,7 @@ def generate_test_scores(xamp, xmean, xcovar, ycovar, npts=1000,
 
 
 def test_scores():
-    """Test the score calculations in various configurations"""
+    """Test the score calculations in various configurations."""
     for seed in range(3):
         npts = [100, 300, 1000][seed]
         generate_test_scores([0.5, 0.5], [[3.0], [-3.0]], [[[1.0]], [[0.5]]], 1,
@@ -797,6 +977,7 @@ def generate_test_pyxc(xamp, xmean, xcovar, ycovar, npts=1000,
         If True, will not print warning messages.
 
     All extra keyword parameters are directly passed to xdeconv.
+
     """
     data = generate_data(xamp, xmean, xcovar, ycovar, npts=npts,
                          xclass=xclass, use_weight=use_weight,
@@ -846,7 +1027,7 @@ def generate_test_pyxc(xamp, xmean, xcovar, ycovar, npts=1000,
 
 
 def test_pyxc_1d():
-    """Test using 1D data w/ 2 or 3 clusters"""
+    """Test using 1D data w/ 2 or 3 clusters."""
     for seed in range(5):
         npts = [100, 300, 1000, 3000, 10000][seed]
         a, b, c = generate_test_pyxc([0.5, 0.5], [[3.0], [-3.0]], [[[1.0]], [[0.5]]], 1,
@@ -874,7 +1055,7 @@ def test_pyxc_1d():
 
 
 def test_pyxc_1d_fixed():
-    """Test using 1D data w/ randomly fixed parameters and 2 or 3 clusters"""
+    """Test using 1D data w/ randomly fixed parameters and 2 or 3 clusters."""
     repeats = 3
     for seed in range(5*repeats):
         npts = [100, 300, 1000, 3000, 10000][seed // repeats]
@@ -933,7 +1114,7 @@ def test_pyxc_1d_fixed():
 
 
 def test_pyxc_2d():
-    """Test using 2D data w/ 2 or 3 clusters"""
+    """Test using 2D data w/ 2 or 3 clusters."""
     for seed in range(5):
         npts = [100, 300, 1000, 3000, 10000][seed]
         a, b, c = generate_test_pyxc([0.5, 0.5], [[3.0, 1.0], [-3.0, -1.0]],
@@ -963,7 +1144,7 @@ def test_pyxc_2d():
 
 
 def test_pyxc_2d_projection():
-    """Test using 2D data in projection w/ 2 or 3 clusters"""
+    """Test using 2D data in projection w/ 2 or 3 clusters."""
     for seed in range(5):
         npts = [100, 300, 1000, 3000, 10000][seed]
         a, b, c = generate_test_pyxc([0.5, 0.5], [[3.0, 1.0], [-3.0, -1.0]],
@@ -994,7 +1175,7 @@ def test_pyxc_2d_projection():
 
 
 def test_pyxc_2d_classes():
-    """Test using 2D data w/ classes and projections"""
+    """Test using 2D data w/ classes and projections."""
     for use_classes in ['exact', 'random', 'uniform', 'approximate']:
         print(use_classes)
         for seed in range(5):
