@@ -37,7 +37,7 @@ if USE_CYTHON:
 
 setup(
     name='xnicer',
-    version='0.1.0',
+    version='0.2.0',
     author='Marco Lombardi',
     author_email='marco.lombardi@gmail.com',
     description='The XNICER/XNICEST algorithm',
