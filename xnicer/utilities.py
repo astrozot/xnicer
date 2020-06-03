@@ -1,7 +1,7 @@
 """Utilities for the XNICER code.
 
 :Author: Marco Lombardi
-:Version: 0.1.0 of 2019/05/13
+:Version: 0.2.0 of 2020/05/30
 """
 
 import numpy as np
