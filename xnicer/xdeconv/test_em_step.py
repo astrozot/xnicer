@@ -548,7 +548,7 @@ def generate_data(xamp, xmean, xcovar, ycovar, npts=1000,
                   xclass=None, use_weight=False, use_projection=False,
                   use_classes=False, fixpars=None, seed=1,
                   confusion=0.01):
-    """Generate a set of points for XD tests
+    """Generate a set of points for XD tests.
 
     Parameters
     ----------

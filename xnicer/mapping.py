@@ -124,8 +124,8 @@ def make_maps(coords, ext, wcs, kde, n_iters=3, tolerance=3.0,
 
     ext : ExtinctionCatalogue
         An extinction catalogue for the valid objects. Note that we use the
-        `selection` attribute of the catalogue to select only valid objects in
-        the coords.
+        `idx` attribute of the catalogue to select only valid objects in the
+        coords.
 
     wcs : WCS
         A Worlk Coordinate System structure, returned for example by

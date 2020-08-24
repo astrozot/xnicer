@@ -12,6 +12,7 @@ from __future__ import print_function, division
 import warnings
 import numpy as np
 from scipy.special import logsumexp
+from scipy import interpolate
 from sklearn.base import BaseEstimator
 from astropy import table
 from tqdm.auto import tqdm
@@ -201,7 +202,7 @@ class XNicer(BaseEstimator):
                             np.array(ivars) / ivars[0])
 
 
-    def predict(self, cols, use_classes=True, full=False, n_iters=3):
+    def predict(self, cols, use_classes=True, full=False, n_iters=3, **kw):
         """Compute the extinction for each object of a PhotometryCatalogue.
 
         Parameters
@@ -224,8 +225,15 @@ class XNicer(BaseEstimator):
             n_iters=1, then no adjustment for the extinction selection
             effect is made.
 
+        kw : list of keywords
+            Directly passed to `scipy.interpolate.splrep`. By default we
+            use k=3 (order of the spline) and s=0 (no smooothing).
+
         """
         # pylint: disable=invalid-name
+        # Set the default parameters
+        kw['k'] = kw.get('k', 3)
+        kw['s'] = kw.get('s', 0)
         # Basic check on the main parameter
         if not isinstance(cols, ColorCatalogue):
             raise TypeError("Expecting a ColorCatalogue as first argument")
@@ -349,38 +357,53 @@ class XNicer(BaseEstimator):
         # particular extinction step for each object; we initially assume that
         # all objects only have a contribution from the first extinction step.
         log_weights0_ = Aweight.T
-        log_ext_weights = np.full(
-            (len(cols), len(self.extinctions)), -np.inf, dtype=dtype)
-        log_ext_weights[:, 0] = 0.0
-        for _ in range(n_iters):
-            # If the classes are available, use them
-            if use_classes:
-                # The logsumexp's stuff has shape (n, e, k, c), where n=# objs,
-                # e=# calibration extinctions, k=# clusters, and c=# classes
-                # I am summing over all extinctions to use the correct
-                # combination of values.
-                tmp = log_weights0_[:, :, np.newaxis] + logsumexp(
-                    self.log_weights_.astype(dtype)[np.newaxis, :, :, np.newaxis] +
-                    self.log_classes_.astype(dtype)[np.newaxis, :, :, :] +
-                    cols['log_class_probs'].astype(dtype)[:, np.newaxis, np.newaxis, :] +
-                    log_ext_weights[:, :, np.newaxis, np.newaxis], axis=1)
-                res['log_weights'] = logsumexp(tmp, axis=2)
-                res['log_class_probs'] = logsumexp(tmp, axis=1)
-                res['log_evidence'] = logsumexp(res['log_weights'], axis=-1)
+        if use_classes:
+            log_ext_weights = (
+                np.tile(self.log_weights_[0, :], (len(cols), 1))[:, :, np.newaxis] +
+                np.tile(self.log_classes_[0, :, :], (len(cols), 1, 1))).astype(dtype)
+            for _ in range(n_iters):
+                # The stuff has shape (n, k, c), where n=# objs,
+                # k=# clusters, and c=# classes
+                tmp = log_weights0_[:, :, np.newaxis] + log_ext_weights + \
+                    cols['log_class_probs'].astype(dtype)[:, np.newaxis, :]
+                res['log_weights'] = logsumexp(tmp, axis=2)  # sum over c
+                res['log_class_probs'] = logsumexp(tmp, axis=1)  # sum over k
+                res['log_evidence'] = logsumexp(
+                    res['log_weights'], axis=-1)  # sum over c & k
                 res['log_weights'] -= res['log_evidence'][:, np.newaxis]
                 res['log_class_probs'] -= res['log_evidence'][:, np.newaxis]
-            else:
-                res['log_weights'] = log_weights0_ + logsumexp(
-                    self.log_weights_.astype(dtype)[np.newaxis, :, :] +
-                    log_ext_weights[:, :, np.newaxis], axis=1)
+                # Computes the extinction
+                res.update_()
+                # Now we need to update the weights for the extinction steps according
+                # to each object's average extinction
+                for k in range(self.xdmix.n_components):
+                    for c in range(self.xdmix.n_classes):
+                        tck = interpolate.splrep(
+                            self.extinctions, self.log_weights_[:, k] +
+                            self.log_classes_[:, k, c], **kw)
+                        log_ext_weights[:, k, c] = interpolate.splev(
+                            res['mean_A'], tck, ext=3)
+                log_ext_weights -= logsumexp(log_ext_weights,
+                                             axis=(1, 2))[:, np.newaxis, np.newaxis]
+        else: # no classes!
+            log_ext_weights = \
+                np.tile(self.log_weights_[0, :], (len(cols), 1)).astype(dtype)
+            for _ in range(n_iters):
+                res['log_weights'] = log_weights0_ + log_ext_weights
                 res['log_evidence'] = logsumexp(res['log_weights'], axis=-1)
                 res['log_weights'] -= res['log_evidence'][:, np.newaxis]
-            # Now we need to update the weights for the extinction steps according
-            # to each object's average extinction
-            for e, extinction in enumerate(self.extinctions):
-                log_ext_weights[:, e] = res.score_samples(
-                    np.repeat(extinction, len(cols)), np.zeros(len(cols)))
-            log_ext_weights -= logsumexp(log_ext_weights, axis=-1)[..., np.newaxis]
+                # Computes the extinction
+                res.update_()
+                # Now we need to update the weights for the extinction steps according
+                # to each object's average extinction
+                for k in range(self.xdmix.n_components):
+                    tck = interpolate.splrep(
+                        self.extinctions, self.log_weights_[:, k], **kw)
+                    log_ext_weights[:, k] = interpolate.splev(
+                        res['mean_A'], tck, ext=3)
+                log_ext_weights -= logsumexp(log_ext_weights,
+                                             axis=1)[:, np.newaxis]
+        # Fill the final catalogue
         res.update_()
         res['mean_A'].description = 'Mean of the posterior extinction'
         res['mean_A'].unit = 'mag'
