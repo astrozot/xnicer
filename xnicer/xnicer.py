@@ -227,12 +227,13 @@ class XNicer(BaseEstimator):
 
         kw : list of keywords
             Directly passed to `scipy.interpolate.splrep`. By default we
-            use k=3 (order of the spline) and s=0 (no smooothing).
+            use k=3 (order of the spline) if self.extinctions has at least 4
+            values, or k=1 otherwise; we also set s=0 (no smooothing).
 
         """
         # pylint: disable=invalid-name
         # Set the default parameters
-        kw['k'] = kw.get('k', 3)
+        kw['k'] = kw.get('k', 3 if len(self.extinctions) > 3 else 1)
         kw['s'] = kw.get('s', 0)
         # Basic check on the main parameter
         if not isinstance(cols, ColorCatalogue):
@@ -378,11 +379,14 @@ class XNicer(BaseEstimator):
                 # to each object's average extinction
                 for k in range(self.xdmix.n_components):
                     for c in range(self.xdmix.n_classes):
-                        tck = interpolate.splrep(
-                            self.extinctions, self.log_weights_[:, k] +
-                            self.log_classes_[:, k, c], **kw)
-                        log_ext_weights[:, k, c] = interpolate.splev(
-                            res['mean_A'], tck, ext=3)
+                        if len(self.extinctions) > 1:
+                            tck = interpolate.splrep(
+                                self.extinctions, self.log_weights_[:, k] +
+                                self.log_classes_[:, k, c], **kw)
+                            log_ext_weights[:, k, c] = interpolate.splev(
+                                res['mean_A'], tck, ext=3)
+                        else:  # no interpolation possible
+                            log_ext_weights[:, k, c] = self.log_weights_[0, k]
                 log_ext_weights -= logsumexp(log_ext_weights,
                                              axis=(1, 2))[:, np.newaxis, np.newaxis]
         else: # no classes!
@@ -397,10 +401,13 @@ class XNicer(BaseEstimator):
                 # Now we need to update the weights for the extinction steps according
                 # to each object's average extinction
                 for k in range(self.xdmix.n_components):
-                    tck = interpolate.splrep(
-                        self.extinctions, self.log_weights_[:, k], **kw)
-                    log_ext_weights[:, k] = interpolate.splev(
-                        res['mean_A'], tck, ext=3)
+                    if len(self.extinctions) > 1:
+                        tck = interpolate.splrep(
+                            self.extinctions, self.log_weights_[:, k], **kw)
+                        log_ext_weights[:, k] = interpolate.splev(
+                            res['mean_A'], tck, ext=3)
+                    else:  # no interpolation possible
+                        log_ext_weights[:, k] = self.log_weights_[0, k]
                 log_ext_weights -= logsumexp(log_ext_weights,
                                              axis=1)[:, np.newaxis]
         # Fill the final catalogue
