@@ -9,8 +9,8 @@ import numpy as np
 import astropy.wcs
 from astropy.io import fits
 
-def guess_wcs(coords, projection='TAN', border=10, target_density=5.0,
-              pixel_size=None):
+def guess_wcs(coords, nobjs=None, projection='TAN', border=10, 
+              target_density=5.0, pixel_size=None):
     """Perform an initial guess of a WCS given a catalogue.
 
     Parameters
@@ -19,6 +19,11 @@ def guess_wcs(coords, projection='TAN', border=10, target_density=5.0,
         A SkyCoord object, with a list of objects in a given astronomical
         coordinate system. The coordinate system of the coordinates is kept
         in the WCS.
+
+    nobjs : int, optional, default to None
+        If specified, it must indicate the effective number of objects used
+        in the map; if it is not provided, it is taken to be equal to the
+        number of coordinates indicated in `coords`.
 
     projection : str, optional, default to 'TAN'
         The mnemonic for the projection to be used in the WCS for both
@@ -59,6 +64,8 @@ def guess_wcs(coords, projection='TAN', border=10, target_density=5.0,
         ctypes = ('ELON', 'ELAT')
     elif coords.name == 'heliocentrictrueecliptic':
         ctypes = ('HLON', 'HLAT')
+    if nobjs is None:
+        nobjs = len(coords)
     names = list(coords.frame.representation_component_names.keys())
     lon_min = np.min(getattr(coords, names[0]).deg)
     lon_max = np.max(getattr(coords, names[0]).deg)
@@ -73,7 +80,7 @@ def guess_wcs(coords, projection='TAN', border=10, target_density=5.0,
     c = np.cos(crval2 * np.pi / 180.0)
     aspect = (lon_max - lon_min) / (c * (lat_max - lat_min))
     area = (lon_max - lon_min) * (lat_max - lat_min) * c
-    density = len(coords) / area
+    density = nobjs / area
     scale = np.sqrt(target_density / density) * 60
     if pixel_size is None:
         best_scale = goodscales[np.argmin(np.abs(scale - goodscales))]
