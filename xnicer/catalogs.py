@@ -6,6 +6,7 @@
 
 # Author: Marco Lombardi <marco.lombardi@gmail.com>
 
+from typing import Any, Iterable, Sequence, List, Tuple, Union, Optional, Dict
 import collections
 import warnings
 import copy
@@ -18,6 +19,7 @@ from astropy.io import votable
 from astropy.coordinates import SkyCoord
 from matplotlib import pyplot as plt
 from matplotlib.colors import PowerNorm
+from nptyping import NDArray
 from .utilities import log1mexp
 from .kde import KDE
 
@@ -51,7 +53,7 @@ RIEKE_LEBOVSKY_NAMES = {
 }
 
 
-def _find_reddening_vector(name):
+def _find_reddening_vector(name: str) -> Optional[float]:
     """Try to find the reddening for a given band name."""
     name = name.upper()
     if name in RIEKE_LEBOVSKY_NAMES:
@@ -61,7 +63,7 @@ def _find_reddening_vector(name):
     elif name[-3:] == 'MAG' and name[:-3] in RIEKE_LEBOVSKY_NAMES:
         return RIEKE_LEBOVSKY_NAMES[name[:-3]]
     else:
-        return False
+        return None
 
 
 class AstrometricCatalogue(SkyCoord):
@@ -71,7 +73,8 @@ class AstrometricCatalogue(SkyCoord):
     """
 
     @classmethod
-    def from_votable(cls, input_table, frame=None, **kwargs):
+    def from_votable(cls, input_table: votable.tree.Table,
+                     frame: str = None, **kwargs) -> 'AstrometricCatalogue':
         """Extract coordinates from a VOTable into a SkyCoord object.
 
         Parameters
@@ -94,35 +97,35 @@ class AstrometricCatalogue(SkyCoord):
             A SkyCoord object with the coordinates of the input table
 
         """
-        frames = {
+        known_frames = {
             'eq': {'ra': 0, 'dec': 1},
             'galactic': {'lon': 0, 'lat': 1},
             'gal': {'lon': 0, 'lat': 1},
         }
-        result = {}
+        frames = {}
         for field in input_table.fields:
-            ucd = votable.ucd.parse_ucd(field.ucd)
+            ucd: str = votable.ucd.parse_ucd(field.ucd)
             force = len(ucd) > 1 and (ucd[1][1] == 'meta.main')
             words = ucd[0][1].split('.')
             if words[0] == 'pos':
                 ucd_frame = words[1]
                 ucd_coord = words[2]
-                if ucd_frame in frames and ucd_coord in frames[ucd_frame]:
-                    i = frames[ucd_frame][ucd_coord]
-                    if ucd_frame not in result:
-                        result[ucd_frame] = [None, None]
-                    if force or result[ucd_frame][i] is None:
-                        result[ucd_frame][i] = field
-        if 'eq' in result:
+                if ucd_frame in known_frames and ucd_coord in known_frames[ucd_frame]:
+                    i = known_frames[ucd_frame][ucd_coord]
+                    if ucd_frame not in frames:
+                        frames[ucd_frame] = [None, None]
+                    if force or frames[ucd_frame][i] is None:
+                        frames[ucd_frame][i] = field
+        if 'eq' in frames:
             if frame is None:
                 frame = 'icrs'
-            result = result['eq']
-        elif 'galactic' in result:
+            result: votable.tree.Field = frames['eq']
+        elif 'galactic' in frames:
             frame = 'galactic'
-            result = result['galactic']
-        elif 'gal' in result:
+            result = frames['galactic']
+        elif 'gal' in frames:
             frame = 'galactic'
-            result = result['gal']
+            result = frames['gal']
         else:
             raise KeyError('No known coordinate system found in the table')
         return cls(input_table.array[result[0].ID],
@@ -131,7 +134,8 @@ class AstrometricCatalogue(SkyCoord):
                    equinox=result[0].ref, **kwargs)
 
     @classmethod
-    def from_table(cls, input_table, colnames, unit='deg', frame='icrs', **kw):
+    def from_table(cls, input_table: table.Table, colnames: Iterable[str], 
+                   unit: str = 'deg', frame: str = 'icrs', **kw) -> 'AstrometricCatalogue':
         """Build a new AstrometricCatalogue from an astropy Table.
 
         Parameters
@@ -232,7 +236,9 @@ class PhotometricCatalogue(table.Table):
     """
 
     @classmethod
-    def from_votable(cls, data, dtype=np.float32, reddening_law=None, **kw):
+    def from_votable(cls, data: votable.tree.Table, dtype: type = np.float32, 
+                     reddening_law: Optional[List[float]] = None, 
+                     **kw) -> 'PhotometricCatalogue':
         """Build a PhotometricCatalogue using a VO Table.
 
         Parameters
@@ -259,7 +265,7 @@ class PhotometricCatalogue(table.Table):
         The newly built PhotometricCatalogue.
 
         """
-        bands = collections.OrderedDict()
+        bands: Dict[str, List[Optional[str]]] = collections.OrderedDict()
         for field in data.fields:
             ucd = votable.ucd.parse_ucd(field.ucd)
             if ucd[0][1] == 'phot.mag':
@@ -280,8 +286,8 @@ class PhotometricCatalogue(table.Table):
                 else:
                     bands[mag] = [None, field.ID]
         # Now write the mags and mag_errs arrays
-        mags = []
-        mag_errs = []
+        mags: List[str] = []
+        mag_errs: List[str] = []
         if reddening_law is None:
             fit_reddening_law = True
             reddening_law = []
@@ -300,15 +306,17 @@ class PhotometricCatalogue(table.Table):
                             reddening_law.append(reddening)
                         else:
                             warnings.warn(f"Cannot automatically find the reddening law for {mag}")
-                            reddening_law = False
-        if reddening_law is False:
-            reddening_law = None
+                            reddening_law = None
+                            break
         return cls.from_table(data.array, mags, mag_errs, dtype=dtype,
                               reddening_law=reddening_law, **kw)
 
     @classmethod
-    def from_table(cls, data, mag_names, err_names, *args, prob_names=None,
-                   class_prob_names=None, **kw):
+    def from_table(cls, data: table.Table, 
+                   mag_names: Sequence[str], err_names: Sequence[str], 
+                   prob_names: Optional[Sequence[str]] = None,
+                   class_prob_names: Optional[Sequence[str]] = None, *args, 
+                   **kw) -> 'PhotometricCatalogue':
         """Build a catalogue from an astropy Table.
 
         Parameters
@@ -371,17 +379,25 @@ class PhotometricCatalogue(table.Table):
                 class_probs[:, n] = data[name]
         else:
             class_probs = None
-        return cls.from_photometry(mags, mag_errs,
+        return cls.from_photometry(mags, mag_errs,  # type: ignore
                                    mag_names=mag_names, err_names=err_names,
                                    probs=probs, class_probs=class_probs,
                                    *args, **kw)
 
     @classmethod
-    def from_photometry(cls, mags, mag_errs, mag_names=None, err_names=None,
-                        probs=None, dtype=np.float32,
-                        log_probs=False, class_names=None, class_probs=None,
-                        log_class_probs=False, reddening_law=None,
-                        max_err=1.0, min_bands=2, null_mag=15.0, null_err=99.999):
+    def from_photometry(cls, mags: NDArray[(Any, Any)], mag_errs: NDArray[(Any, Any)], 
+                        mag_names: Optional[Sequence[str]] = None, 
+                        err_names: Optional[Sequence[str]] = None,
+                        probs: Optional[NDArray[(Any, Any)]] = None, 
+                        dtype: type = np.float32,
+                        log_probs: bool = False, 
+                        class_names: Optional[Sequence[str]] = None, 
+                        class_probs: Optional[NDArray[(Any, Any)]] = None,
+                        log_class_probs: bool = False, 
+                        reddening_law: Optional[List[float]] = None,
+                        max_err: float = 1.0, min_bands: int = 2, 
+                        null_mag: float = 15.0, 
+                        null_err: float = 99.999) -> 'PhotometricCatalogue':
         """Initialize a new photometric catalogue from raw data (arrays).
 
         Parameters
@@ -592,7 +608,7 @@ class PhotometricCatalogue(table.Table):
         else:
             return super().__getitem__(item)
 
-    def __add__(self, cat):
+    def __add__(self, cat: 'PhotometricCatalogue'):
         """Concatenate two PhotometricCatalogue's."""
         if not isinstance(cat, self.__class__):
             raise ValueError("Expecting a PhotometricCatalogue here")
@@ -655,7 +671,7 @@ class PhotometricCatalogue(table.Table):
         self.remove_rows(removed)
         self.remove_column('log_probs')
 
-    def get_colors(self, *pars, **kw):
+    def get_colors(self, *pars, **kw) -> 'ColorCatalogue':
         """Return the ColorCatalogue associated to this PhotometricCatalogue.
 
         This function just call `ColorCatalogue.from_photometric_catalogue`
@@ -663,8 +679,9 @@ class PhotometricCatalogue(table.Table):
         """
         return ColorCatalogue.from_photometric_catalogue(self, *pars, **kw)
 
-    def fit_number_counts(self, start_completeness=20.0, start_width=0.3,
-                          method='Nelder-Mead', indices=None):
+    def fit_number_counts(self, start_completeness: float = 20.0, 
+                          start_width: float = 0.3, method: str = 'Nelder-Mead', 
+                          indices: Union[List[int], slice, None] = None):
         r"""Perform a fit with a simple model for the number counts.
 
         The assumed model is an exponential distribution, truncated at high
@@ -738,8 +755,12 @@ class PhotometricCatalogue(table.Table):
         self.meta['nc_pars'] = np.array(nc_pars, dtype=self['mags'].dtype)
         return self.meta['nc_pars']
 
-    def plot_number_counts(self, band=0, bins=None, range=None, histtype='bar',
-                           histcolor=None, histlabel=None, log=True, **kw):
+    def plot_number_counts(self, band: int = 0, 
+                           bins: Union[int, Sequence, str, None] = None, 
+                           range: Optional[Tuple] = None, histtype: str = 'bar',
+                           histcolor: Optional[str] = None, 
+                           histlabel: Optional[str] = None, log: bool = True, 
+                           **kw):
         """Make a plot of the fitted number counts.
 
         Parameters
@@ -759,7 +780,7 @@ class PhotometricCatalogue(table.Table):
         histcolor : str, optional
             The color for the histogram.
 
-        histlabel : [type], optional
+        histlabel : str, optional
             The label to use for the histogram, by default None.
 
         log : bool, optional
@@ -777,7 +798,7 @@ class PhotometricCatalogue(table.Table):
         h = plt.hist(mags, bins=bins, range=range, histtype=histtype,
                      color=histcolor, label=histlabel, log=log)
         mags = (h[1][:-1] + h[1][1:]) * 0.5
-        nc_pars = self.meta['nc_pars'][band]
+        nc_pars = self.meta['nc_pars'][band] # type: ignore
         probs = np.exp(mags * nc_pars[0]) * ndtr((nc_pars[1] - mags) / nc_pars[2])
         probs *= np.sum(h[0]) / np.sum(probs)
         plt.errorbar(mags, probs, yerr=np.sqrt(probs), fmt='.', **kw)
@@ -786,9 +807,11 @@ class PhotometricCatalogue(table.Table):
         plt.ylabel('number counts')
 
 
-    def fit_phot_uncertainties(self, start_alpha=1.0, start_beta=1.0,
-                               start_gamma=1.0, n_times=2, nc_cut=3.0,
-                               method='Nelder-Mead', indices=None):
+    def fit_phot_uncertainties(self, start_alpha: float = 1.0, 
+                               start_beta: float = 1.0, start_gamma: float = 1.0, 
+                               n_times: int = 2, nc_cut: float = 3.0,
+                               method: str = 'Nelder-Mead', 
+                               indices: Union[List[int], slice, None] = None):
         r"""Perform a fit of the photometric uncertainties.
 
         The model assumes that the noise e in luminosity for each source can
@@ -871,8 +894,8 @@ class PhotometricCatalogue(table.Table):
             if self.meta['nc_pars'] is None:
                 # We need the fit of the number counts
                 self.fit_number_counts(indices=indices)
-            mag_lims = self.meta['nc_pars'][:, 1] - \
-                self.meta['nc_pars'][:, 2]*np.array(nc_cut)
+            mag_lims = (self.meta['nc_pars'][:, 1] - # type: ignore
+                        self.meta['nc_pars'][:, 2]*np.array(nc_cut))  # type: ignore
         else:
             mag_lims = np.repeat(np.inf, self.meta['n_bands'])
         LOGGER.debug('Magnitude limits: %g' + (', %g'*(len(mag_lims) - 1)),
@@ -896,8 +919,9 @@ class PhotometricCatalogue(table.Table):
                                            dtype=self['mags'].dtype)
         return self.meta['noise_pars']
 
-    def plot_phot_uncertainties(self, band=0, stars_per_bin=1, kde=True,
-                                norm=None, times=None, **kw):
+    def plot_phot_uncertainties(self, band: int = 0, stars_per_bin: int = 1, 
+                                kde: Union[bool, Dict] = True, norm=None, 
+                                times=None, **kw):
         """Plot the fit to the photometric uncertainties.
 
         Parameters
@@ -948,20 +972,20 @@ class PhotometricCatalogue(table.Table):
         binx = int(np.round(nobjs/(biny*stars_per_bin)))
         if kde is not False:
             if kde is True:
-                kde = KDE((binx, biny))
+                fnc = KDE((binx, biny))
             else:
-                kde = KDE((binx, biny), **kde)
-            density = kde.kde(np.stack(((mags - ranges[0][0]) /
+                fnc = KDE((binx, biny), **kde)
+            density = fnc.kde(np.stack(((mags - ranges[0][0]) /
                                         (ranges[0][1] - ranges[0][0]) * binx,
                                         (errs - ranges[1][0]) /
                                         (ranges[1][1] - ranges[1][0]) * biny),
                                        axis=-1))[0]
-            xi, yi = np.mgrid[ranges[0][0]:ranges[0][1]:binx*1j,
-                              ranges[1][0]:ranges[1][1]:biny*1j]
+            xi, yi = np.mgrid[ranges[0][0]:ranges[0][1]:binx*1j,  # type: ignore
+                              ranges[1][0]:ranges[1][1]:biny*1j]  # type: ignore
             plt.pcolormesh(xi, yi, density, antialiased=True, norm=norm, **kw)
         else:
             plt.hist2d(mags, errs, bins=(binx, biny), norm=norm, **kw)
-        pars = self.meta['noise_pars'][band]
+        pars = self.meta['noise_pars'][band]  # type: ignore
         ms = np.linspace(ranges[0][0], ranges[0][1], 500)
         lums = 10**(-0.4*(ms - pars[0]))
         for t in times:
@@ -975,7 +999,8 @@ class PhotometricCatalogue(table.Table):
         plt.ylabel(self.meta['err_names'][band] if 'err_names' in self.meta
                    else 'error')
 
-    def log_completeness(self, band, magnitudes):
+    def log_completeness(self, band: int, 
+                         magnitudes: Union[float, NDArray[(Any,)]]):
         """Compute the log of the completeness function in a given band.
 
         Parameters
@@ -997,8 +1022,8 @@ class PhotometricCatalogue(table.Table):
         _, m_c, s_c = self.meta['nc_pars'][band]
         return log_ndtr((m_c - magnitudes) / s_c)
 
-    def extinguish(self, extinction, apply_completeness=True,
-                   update_errors=True):
+    def extinguish(self, extinction: Union[float, NDArray[(Any,)]], 
+                   apply_completeness: bool = True, update_errors: bool = True):
         """Simulate the effect of extinction and return an updated catalogue.
 
         Arguments
@@ -1146,10 +1171,13 @@ class ColorCatalogue(table.Table):
     """
 
     @classmethod
-    def from_photometric_catalogue(cls, cat, use_projection=True,
-                                   dtype=None,
-                                   band=None, map_mags=lambda _: _,
-                                   extinctions=None, tolerance=1e-5):
+    def from_photometric_catalogue(cls, cat: PhotometricCatalogue, 
+                                   use_projection: bool = True,
+                                   dtype: Optional[type] = None,
+                                   band: Optional[int] = None, 
+                                   map_mags = lambda _: _,
+                                   extinctions: Optional[NDArray[(Any,)]] = None, 
+                                   tolerance: float = 1e-5):
         """Compute the colors associate to the current catalogue.
 
         This operation is performed by subtracting two consecutive bands. For
@@ -1166,7 +1194,7 @@ class ColorCatalogue(table.Table):
             excluded from the color computation. A projection matrix will be
             returned.
 
-        dtype : data-tipe or None, default None
+        dtype : data-type or None, default None
             The datatype of the color catalogue. If None, the datatype is
             inferred from the original photometric catalogue.
 
@@ -1339,7 +1367,7 @@ class ColorCatalogue(table.Table):
                 projections, name='projections',
                 description='Projection matrices',
                 format='%g'))
-        if 'log_class_probs' in cat.colnames:
+        if 'log_class_probs' in cat.colnames:  # type: ignore
             res['log_class_probs'] = cat['log_class_probs'].copy()
             res.meta['class_names'] = cat.meta['class_names']
         return res
@@ -1532,7 +1560,8 @@ class ExtinctionCatalogue(table.Table):
         self.meta['n_components'] = n_components
         return self
 
-    def score_samples_components(self, X, Xerr):  # pylint: disable=invalid-name
+    def score_samples_components(self, X: NDArray[(Any,)], 
+                                 Xerr: NDArray[(Any,)]):  # pylint: disable=invalid-name
         """Compute the log of the probability distribution for each component.
 
         Given a specific extinction value and associated error, this method
@@ -1558,7 +1587,7 @@ class ExtinctionCatalogue(table.Table):
         delta = X[:, np.newaxis] - self['means_A']
         return -delta*delta/(2.0*T) - np.log(2.0*np.pi*T) / 2
 
-    def score_samples(self, X, Xerr):  # pylint: disable=invalid-name
+    def score_samples(self, X: NDArray[(Any,)], Xerr: NDArray[(Any,)]):  # pylint: disable=invalid-name
         """Compute the log of the probability distribution for all objects.
 
         Given a specific extinction value and associated error, this method
@@ -1582,7 +1611,8 @@ class ExtinctionCatalogue(table.Table):
         log = self.score_samples_components(X, Xerr)
         return logsumexp(self['log_weights'] + log, axis=-1)
 
-    def score_samples_single(self, X, logs=None):  # pylint: disable=invalid-name
+    def score_samples_single(self, X: NDArray[(Any,)], 
+                             logs: Optional[NDArray[(Any,)]] = None):  # pylint: disable=invalid-name
         """Compute the log of the probability distribution for all objects.
 
         Given a specific single extinction value for all objects, this method

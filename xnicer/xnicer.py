@@ -8,7 +8,8 @@
 
 # See https://numpydoc.readthedocs.io/en/latest/format.html
 
-from __future__ import print_function, division
+from typing import Any, Optional, Union, Tuple, Sequence, cast, TYPE_CHECKING
+from nptyping import NDArray
 import warnings
 import numpy as np
 from scipy.special import logsumexp
@@ -16,7 +17,7 @@ from scipy import interpolate
 from sklearn.base import BaseEstimator
 from astropy import table
 from tqdm.auto import tqdm
-from .xdeconv import FIX_MEAN, FIX_COVAR
+from .xdeconv import FIX_MEAN, FIX_COVAR, XDGaussianMixture
 from .xdeconv.em_step import predict_d  # pylint: disable=no-name-in-module
 from .catalogs import PhotometricCatalogue, ColorCatalogue, ExtinctionCatalogue
 
@@ -28,8 +29,8 @@ class XNicer(BaseEstimator):
     a control field and a science field. It uses the extreme deconvolution
     provided by the XDGaussianMixture class.
 
-    Parameters
-    ----------
+    Parameters (and attributes)
+    ---------------------------
     xdmix : XDGaussianMixture
         An XDGaussianMixture instance used to perform all necessary extreme
         deconvolutions.
@@ -37,7 +38,13 @@ class XNicer(BaseEstimator):
     extinctions : array-like, shape (n_extinctions,)
         A 1D vector of extinctions used to perform a selection correction.
 
-    log_weights_ : tuple of array-like, shape (n_extinctions, xdmix.n_components))
+    Attributes (only)
+    -----------------
+    log_weights_ : array-like, shape (n_extinctions, xdmix.n_components))
+        The log of the weights of the extreme decomposition, for each class of
+        objects, at each extintion value.
+
+    log_classes_ : array-like, shape (n_extinctions, xdmix.n_components))
         The log of the weights of the extreme decomposition, for each class of
         objects, at each extintion value.
 
@@ -53,17 +60,18 @@ class XNicer(BaseEstimator):
 
     """
 
-    def __init__(self, xdmix, extinctions=None):
-        """Constructor."""
+    def __init__(self, xdmix: XDGaussianMixture, 
+                 extinctions: Optional[Sequence[float]] = None):
+        """Build the object."""
         self.xdmix = xdmix
         if extinctions is None:
             extinctions = [0.0]
-        self.extinctions = np.array(extinctions)
-        self.log_weights_ = None
-        self.log_classes_ = None
-        self.calibration = None
+        self.extinctions: NDArray[float] = np.array(extinctions)
+        self.log_weights_: Optional[NDArray] = None
+        self.log_classes_: Optional[NDArray] = None
+        self.calibration: Optional[Tuple] = None
 
-    def fit(self, cat, update=False):
+    def fit(self, cat: PhotometricCatalogue, update: bool = False):
         """Initialize the class with control field data.
 
         Parameters
@@ -81,6 +89,7 @@ class XNicer(BaseEstimator):
             raise TypeError(
                 "Expecting a PhotoometricCatalogue as first argument")
         n_exts = len(self.extinctions)
+        use_classes: bool = False
         for n, extinction in enumerate(self.extinctions):
             # If update is set, skip the first iteration: this makes the
             # fitting procedure much faster
@@ -116,13 +125,15 @@ class XNicer(BaseEstimator):
                     self.log_classes_ = np.zeros(
                         (n_exts, self.xdmix.n_components, self.xdmix.n_classes))
             with np.errstate(divide='ignore'):
-                self.log_weights_[n] = np.log(self.xdmix.weights_)
+                self.log_weights_[n] = np.log(self.xdmix.weights_)  # type: ignore
                 if use_classes:
-                    self.log_classes_[n] = np.log(self.xdmix.classes_)
+                    self.log_classes_[n] = np.log(self.xdmix.classes_)  # type: ignore
 
-    def calibrate(self, cat, extinctions=None, progressbar=None,
-                  apply_completeness=True, update_errors=True,
-                  use_projection=True, **kw):
+    def calibrate(self, cat: PhotometricCatalogue, 
+                  extinctions: Optional[Sequence[float]] = None, 
+                  progressbar: Union[bool, None] = None,
+                  apply_completeness: bool = True, update_errors: bool = True,
+                  use_projection: bool = True, **kw):
         """Perform a full calibration of the algorithm for a set of extinctions.
 
         The calibration works by simulating in turn all extionctions provided,
@@ -143,10 +154,14 @@ class XNicer(BaseEstimator):
             results, cat should have associated log probabilities (see
             `PhotometricCalogue.add_log_probs`).
 
-        extinctions : list of array of floats, default to self.extinctions
+        extinctions : list or array of floats, default to self.extinctions
             The list of extinctions to use for the calibration. All
             extinctions should be non-negative. The first extinction must be 0.
             Can be different from self.extinction.
+
+        progressbar : bool or None, default to None
+            If True, show inconditionally a progress bar; if False, never do;
+            if None, only show it if called in a terminal (TTY).
 
         apply_completeness : bool, default to True
             If True, the completeness function is taken into account, and
@@ -202,7 +217,8 @@ class XNicer(BaseEstimator):
                             np.array(ivars) / ivars[0])
 
 
-    def predict(self, cols, use_classes=True, full=False, n_iters=3, **kw):
+    def predict(self, cols: ColorCatalogue, use_classes: bool = True, 
+                full: bool = False, n_iters: int = 3, **kw):
         """Compute the extinction for each object of a PhotometryCatalogue.
 
         Parameters
@@ -358,10 +374,15 @@ class XNicer(BaseEstimator):
         # particular extinction step for each object; we initially assume that
         # all objects only have a contribution from the first extinction step.
         log_weights0_ = Aweight.T
+        if TYPE_CHECKING:
+            self.log_weights_ = cast(NDArray, self.log_weights_)
+            self.log_classes_ = cast(NDArray, self.log_classes_)
         if use_classes:
             log_ext_weights = (
-                np.tile(self.log_weights_[0, :], (len(cols), 1))[:, :, np.newaxis] +
-                np.tile(self.log_classes_[0, :, :], (len(cols), 1, 1))).astype(dtype)
+                np.tile(self.log_weights_[0, :], 
+                        (len(cols), 1))[:, :, np.newaxis] +
+                np.tile(self.log_classes_[0, :, :], 
+                        (len(cols), 1, 1))).astype(dtype)
             for _ in range(n_iters):
                 # The stuff has shape (n, k, c), where n=# objs,
                 # k=# clusters, and c=# classes

@@ -4,13 +4,19 @@
 :Version: 0.2.0 of 2020/05/30
 """
 
+from multiprocessing import Value
+from typing import Optional
 import datetime
+from xnicer.catalogs import ExtinctionCatalogue
+from xnicer.kde import KDE
 import numpy as np
 import astropy.wcs
+from astropy.coordinates import SkyCoord
 from astropy.io import fits
 
-def guess_wcs(coords, nobjs=None, projection='TAN', border=10, 
-              target_density=5.0, pixel_size=None):
+def guess_wcs(coords: SkyCoord, nobjs: Optional[int] = None, 
+              projection: str = 'TAN', border: int = 10, 
+              target_density: float = 5.0, pixel_size: Optional[float] = None):
     """Perform an initial guess of a WCS given a catalogue.
 
     Parameters
@@ -64,6 +70,8 @@ def guess_wcs(coords, nobjs=None, projection='TAN', border=10,
         ctypes = ('ELON', 'ELAT')
     elif coords.name == 'heliocentrictrueecliptic':
         ctypes = ('HLON', 'HLAT')
+    else:
+        raise ValueError('Unrecognized coordinate name')
     if nobjs is None:
         nobjs = len(coords)
     names = list(coords.frame.representation_component_names.keys())
@@ -118,8 +126,9 @@ def guess_wcs(coords, nobjs=None, projection='TAN', border=10,
     return w
 
 
-def make_maps(coords, ext, wcs, kde, n_iters=3, tolerance=3.0,
-              use_xnicest=True):
+def make_maps(coords: SkyCoord, ext: ExtinctionCatalogue, wcs: astropy.wcs.WCS, 
+              kde: KDE, n_iters: int = 3, tolerance: float = 3.0,
+              use_xnicest: bool = True):
     """Map making algorithm.
 
     Parameters
@@ -275,7 +284,7 @@ def make_maps(coords, ext, wcs, kde, n_iters=3, tolerance=3.0,
                 res[5] = np.divide(res[6]*res[6], res[5], out=np.zeros_like(res[5]),
                                    where=(res[5] != 0))
     # Cut the data
-    res = res[:, kde.kernel_size:-kde.kernel_size,
+    res = res[:, kde.kernel_size:-kde.kernel_size,  # type: ignore
               kde.kernel_size:-kde.kernel_size]
     # Prepare the header
     hdu = fits.PrimaryHDU(res, header=wcs.to_header())
