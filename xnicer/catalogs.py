@@ -373,6 +373,12 @@ class PhotometricCatalogue(table.Table):
             mag_errs[:, n] = data[err_names[n]]
             if prob_names is not None:
                 probs[:, n] = data[prob_names[n]]
+        # This is to make sure we deal correctly with non-finite values
+        if np.any(~np.isfinite(mags)) or np.any(~np.isfinite(mag_errs)):
+            mags.mask=~np.isfinite(mags)
+            mag_errs.mask=~np.isfinite(mag_errs)
+        # Join the masks so that everything is in sync
+        mags.mask = mag_errs.mask = mags.mask | mag_errs.mask
         if class_prob_names is not None:
             class_probs = allocator((n_objs, len(class_prob_names)))
             for n, name in enumerate(class_prob_names):
