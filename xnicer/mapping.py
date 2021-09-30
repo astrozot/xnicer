@@ -79,7 +79,7 @@ def guess_wcs(coords: SkyCoord, nobjs: Optional[int] = None,
     lon_max = np.max(getattr(coords, names[0]).deg)
     lat_min = np.min(getattr(coords, names[1]).deg)
     lat_max = np.max(getattr(coords, names[1]).deg)
-    if lon_min > lon_max:
+    if lon_max - lon_min > 180:
         lon_min -= 360
     crval1 = (lon_min + lon_max) * 0.5
     if crval1 < 0:
