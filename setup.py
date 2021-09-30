@@ -28,7 +28,7 @@ EXTENSIONS = [
         include_dirs=[np.get_include()],
         extra_compile_args=['-fopenmp'],
         extra_link_args=['-fopenmp']
-    ),
+    )
 ]
 
 if USE_CYTHON:
@@ -44,7 +44,7 @@ setup(
     long_description=LONG_DESCRIPTION,
     long_description_content_type='text/markdown',
     url='https://github.com/astropy/xnicer',
-    packages=[], # was setuptools.find_packages(),
+    packages=['xnicer'], # was setuptools.find_packages(),
     python_requires='>=3.6',
     setup_requires=['numpy', 'matplotlib', 'scipy', 'sklearn', 'astropy'],
     classifiers=[
