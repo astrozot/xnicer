@@ -44,7 +44,7 @@ setup(
     long_description=LONG_DESCRIPTION,
     long_description_content_type='text/markdown',
     url='https://github.com/astropy/xnicer',
-    packages=['xnicer', 'xnicer.xdeconv'], # was setuptools.find_packages()
+    packages=['xnicer', 'xnicer.xdeconv', 'xnicer.kde'], # was setuptools.find_packages()
     python_requires='>=3.6',
     setup_requires=['numpy', 'matplotlib', 'scipy', 'sklearn', 'astropy',
                     'nptyping'],
