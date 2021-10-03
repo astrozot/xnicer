@@ -1,4 +1,11 @@
-# python setup.py build_ext --use-cython --inplace
+"""Installation module for XNicer.
+
+For local tests, the recommended way of using this module is
+
+`python setup.py build_ext --use-cython --inplace`
+
+This requires cython in the local path.
+"""
 
 import sys
 # from distutils.core import setup

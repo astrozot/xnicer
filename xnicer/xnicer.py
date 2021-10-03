@@ -8,9 +8,9 @@
 
 # See https://numpydoc.readthedocs.io/en/latest/format.html
 
-from typing import Any, Optional, Union, Tuple, Sequence, cast, TYPE_CHECKING
-from nptyping import NDArray
+from typing import Optional, Union, Tuple, Sequence, cast, TYPE_CHECKING
 import warnings
+from nptyping import NDArray
 import numpy as np
 from scipy.special import logsumexp
 from scipy import interpolate
@@ -60,8 +60,8 @@ class XNicer(BaseEstimator):
 
     """
 
-    def __init__(self, xdmix: XDGaussianMixture, 
-                 extinctions: Optional[Sequence[float]] = None):
+    def __init__(self, xdmix: XDGaussianMixture,
+                 extinctions: Union[Sequence[float], NDArray[float], None] = None):
         """Build the object."""
         self.xdmix = xdmix
         if extinctions is None:
@@ -129,9 +129,9 @@ class XNicer(BaseEstimator):
                 if use_classes:
                     self.log_classes_[n] = np.log(self.xdmix.classes_)  # type: ignore
 
-    def calibrate(self, cat: PhotometricCatalogue, 
-                  extinctions: Optional[Sequence[float]] = None, 
-                  progressbar: Union[bool, None] = None,
+    def calibrate(self, cat: PhotometricCatalogue,
+                  extinctions: Union[Sequence[float], NDArray[float], None] = None,
+                  progressbar: Optional[bool] = None,
                   apply_completeness: bool = True, update_errors: bool = True,
                   use_projection: bool = True, **kw):
         """Perform a full calibration of the algorithm for a set of extinctions.
@@ -217,7 +217,7 @@ class XNicer(BaseEstimator):
                             np.array(ivars) / ivars[0])
 
 
-    def predict(self, cols: ColorCatalogue, use_classes: bool = True, 
+    def predict(self, cols: ColorCatalogue, use_classes: bool = True,
                 full: bool = False, n_iters: int = 3, **kw):
         """Compute the extinction for each object of a PhotometryCatalogue.
 
@@ -255,11 +255,8 @@ class XNicer(BaseEstimator):
         if not isinstance(cols, ColorCatalogue):
             raise TypeError("Expecting a ColorCatalogue as first argument")
         # Check if we need to use classes
-        if use_classes and 'log_class_probs' in cols.colnames and \
-            self.xdmix.n_classes > 1:
-            use_classes = True
-        else:
-            use_classes = False
+        use_classes = bool(use_classes and 'log_class_probs' in cols.colnames
+            and self.xdmix.n_classes > 1)
 
         # Allocate the result: note that we use n_objs=len(cols), in case the
         # original catalogue has the log_probs columns. This would trigger
@@ -328,11 +325,12 @@ class XNicer(BaseEstimator):
         Avar = np.asfortranarray(np.zeros((nobjs, k)).T)
         Aweight = np.asfortranarray(np.zeros((nobjs, k)).T)
         if full:
-            Wmean = np.asfortranarray(np.zeros((nobjs, k, ndim)).T)
+            Wmean = np.asfortranarray(
+                np.zeros((nobjs, k, ndim)).T)
             Wcov = np.asfortranarray(np.zeros((nobjs, k, ndim)).T)
             Wvar = np.asfortranarray(np.zeros((nobjs, k, ndim, ndim)).T)
         else:
-            Wmean = Wcov = Wvar = None
+            Wmean = Wcov = Wvar = cast(NDArray, None)
         predict_d(np.asfortranarray(cols['cols'].T, dtype=dtype),
                   np.asfortranarray(cols['col_covs'].T, dtype=dtype),
                   np.asfortranarray(self.xdmix.means_.T, dtype=dtype),
@@ -379,9 +377,9 @@ class XNicer(BaseEstimator):
             self.log_classes_ = cast(NDArray, self.log_classes_)
         if use_classes:
             log_ext_weights = (
-                np.tile(self.log_weights_[0, :], 
+                np.tile(self.log_weights_[0, :],
                         (len(cols), 1))[:, :, np.newaxis] +
-                np.tile(self.log_classes_[0, :, :], 
+                np.tile(self.log_classes_[0, :, :],
                         (len(cols), 1, 1))).astype(dtype)
             for _ in range(n_iters):
                 # The stuff has shape (n, k, c), where n=# objs,
@@ -467,7 +465,6 @@ class XNicer(BaseEstimator):
             res['mean_A'] -= bias
             res['means_A'] -= bias[:, np.newaxis]
             # Recompute the weights
-            # FIXME: is this really necessary?
             for e, extinction in enumerate(self.calibration[0]):
                 log_ext_weights[:, e] = res.score_samples(
                     np.repeat(extinction, n_objs), np.zeros(n_objs))
