@@ -8,9 +8,9 @@
 
 # See https://numpydoc.readthedocs.io/en/latest/format.html
 
-from typing import Optional, Union, Tuple, Sequence, cast, TYPE_CHECKING
+from typing import Any, Optional, Union, List, Tuple, Sequence, cast, TYPE_CHECKING
 import warnings
-from nptyping import NDArray
+from nptyping import NDArray, Shape, Float
 import numpy as np
 from scipy.special import logsumexp
 from scipy import interpolate
@@ -61,12 +61,12 @@ class XNicer(BaseEstimator):
     """
 
     def __init__(self, xdmix: XDGaussianMixture,
-                 extinctions: Union[Sequence[float], NDArray[float], None] = None):
+                 extinctions: Union[Sequence[float], NDArray[Shape["*"], Float], None] = None):
         """Build the object."""
         self.xdmix = xdmix
         if extinctions is None:
             extinctions = [0.0]
-        self.extinctions: NDArray[float] = np.array(extinctions)
+        self.extinctions: NDArray[Shape["*"], Float] = np.array(extinctions)
         self.log_weights_: Optional[NDArray] = None
         self.log_classes_: Optional[NDArray] = None
         self.calibration: Optional[Tuple] = None
@@ -130,7 +130,7 @@ class XNicer(BaseEstimator):
                     self.log_classes_[n] = np.log(self.xdmix.classes_)  # type: ignore
 
     def calibrate(self, cat: PhotometricCatalogue,
-                  extinctions: Union[Sequence[float], NDArray[float], None] = None,
+                  extinctions: Union[Sequence[Float], NDArray[Shape["*"], Float], None] = None,
                   progressbar: Optional[bool] = None,
                   apply_completeness: bool = True, update_errors: bool = True,
                   use_projection: bool = True, **kw):

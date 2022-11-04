@@ -6,12 +6,18 @@
 
 # Author: Marco Lombardi <marco.lombardi@gmail.com>
 
-from typing import Any, Iterable, Sequence, List, Tuple, Union, Optional, Dict
+from typing import Iterable, Sequence, List, Tuple, Union, Optional, Dict
 import collections
 import warnings
 import copy
 import logging
 import numpy as np
+import multiprocessing as mp
+try:
+    from multiprocessing import shared_memory
+except ImportError:
+    pass
+import itertools
 from scipy.optimize import minimize
 from scipy.special import log_ndtr, logsumexp, ndtr # pylint: disable=no-name-in-module
 from astropy import table
@@ -19,7 +25,7 @@ from astropy.io import votable
 from astropy.coordinates import SkyCoord
 from matplotlib import pyplot as plt
 from matplotlib.colors import PowerNorm
-from nptyping import NDArray
+from nptyping import NDArray, Shape, Float
 from .utilities import log1mexp
 from .kde import KDE
 
@@ -391,14 +397,14 @@ class PhotometricCatalogue(table.Table):
                                    *args, **kw)
 
     @classmethod
-    def from_photometry(cls, mags: NDArray[(Any, Any)], mag_errs: NDArray[(Any, Any)], 
+    def from_photometry(cls, mags: NDArray[Shape["*, *"], Float], mag_errs: NDArray[Shape["*, *"], Float],
                         mag_names: Optional[Sequence[str]] = None, 
                         err_names: Optional[Sequence[str]] = None,
-                        probs: Optional[NDArray[(Any, Any)]] = None, 
+                        probs: Optional[NDArray[Shape["*, *"], Float]] = None,
                         dtype: type = np.float32,
                         log_probs: bool = False, 
                         class_names: Optional[Sequence[str]] = None, 
-                        class_probs: Optional[NDArray[(Any, Any)]] = None,
+                        class_probs: Optional[NDArray[Shape["*, *"], Float]] = None,
                         log_class_probs: bool = False, 
                         reddening_law: Optional[List[float]] = None,
                         max_err: float = 1.0, min_bands: int = 2, 
@@ -521,7 +527,7 @@ class PhotometricCatalogue(table.Table):
             cat.meta['class_names'] = None
 
         # Create the main columns
-        mask = np.zeros((n_objs, n_bands), dtype=np.bool)
+        mask = np.zeros((n_objs, n_bands), dtype=np.bool8)
         if isinstance(mags, np.ma.MaskedArray):
             mask |= mags.mask
             mags = mags.filled(null_mag)
@@ -684,10 +690,69 @@ class PhotometricCatalogue(table.Table):
         passing all parameters to it.
         """
         return ColorCatalogue.from_photometric_catalogue(self, *pars, **kw)
+    
+    @classmethod
+    def _fit_number_counts(cls, band, mags, errs, inds, max_err,
+                                start_completeness, start_width, method):
+        def number_count_lnlikelihood_(x, mags):  # pylint: disable=invalid-name
+            """Service function to compute the likelihood for number counts."""
+            # Magnitude errors ignored here, not sure if important...
+            c = x[0]  # c -> m_c
+            s = x[1]  # s -> \sigma_c
+            # Solve analytically for the best beta, this reduces one parameter
+            d = c - np.mean(mags)
+            b = 2.0 / (d + np.sqrt(d * d + 4 * s * s))
+
+            # Model: p(m) = exp(n)*exp(b*m+b*b*e*e/2) * 0.5*erfc((m-c) / sqrt(2*s*s))
+            # Normalization: K = exp(n)/b * exp(b*c + (e*e + s*s) * b*b / 2)
+
+            # Just use normalized probability, this reduces one further parameter:
+            # ln L = sum(log p(m)) - N*log K
+            lnlike = np.log(b) - b * d - b * b * 0.5 * s * s + \
+                np.mean(log_ndtr((c - mags) / np.abs(s)))
+            return -lnlike
+
+        if isinstance(mags, tuple):
+            sh_mags = shared_memory.SharedMemory(name=mags[0])
+            mags = np.ndarray(mags[1], dtype=mags[2], buffer=sh_mags.buf)
+        else:
+            sh_mags = False
+        if isinstance(errs, tuple):
+            sh_errs = shared_memory.SharedMemory(name=errs[0])
+            errs = np.ndarray(errs[1], dtype=errs[2], buffer=sh_errs.buf)
+        else:
+            sh_errs = False
+        if isinstance(inds, tuple):
+            sh_inds = shared_memory.SharedMemory(name=inds[0])
+            inds = np.ndarray(inds[1], dtype=inds[2], buffer=sh_inds.buf)
+        else:
+            sh_inds = False
+        # Arrays are unpacked, now performs the analysis
+        mags = mags[inds, band]
+        errs = errs[inds, band]
+        w = np.where(errs < max_err)[0]
+        mags = mags[w]
+        p0 = np.array([start_completeness, start_width])
+        m = minimize(number_count_lnlikelihood_, p0,
+                     args=(mags,), method=method)
+        m_c = m.x[0]
+        s_c = m.x[1]
+        d = m_c - np.mean(mags)
+        beta = 2.0 / (d + np.sqrt(d * d + 4 * s_c * s_c))
+        # Free the local resources
+        if sh_mags:
+            sh_mags.close()
+        if sh_errs:
+            sh_errs.close()
+        if sh_inds:
+            sh_inds.close()
+        return [beta, m_c, np.abs(s_c)]
+
 
     def fit_number_counts(self, start_completeness: float = 20.0, 
-                          start_width: float = 0.3, method: str = 'Nelder-Mead', 
-                          indices: Union[List[int], slice, None] = None):
+                          start_width: float = 0.3, method: str = 'SLSQP',
+                          indices: Union[List[int], slice, None] = None,
+                          pool: Union[mp.pool.Pool, None] = None):
         r"""Perform a fit with a simple model for the number counts.
 
         The assumed model is an exponential distribution, truncated at high
@@ -710,11 +775,15 @@ class PhotometricCatalogue(table.Table):
         start_width : float, default = 0.3
             The initial guess for the width of the completeness truncation.
 
-        method : string, default = 'Nelder-Mead'
+        method : string, default = 'SLSQP'
             The optimization method to use (see `minimize`).
 
         indices : list of indices, slice, or None
             If provided, an index specification indicating the objects to use.
+
+        pool : Pool or None, default to None
+            If not None, must be a multiprocessing pool; it is used to divide
+            the work on the various bands among all pool objects.
 
         Return value
         ------------
@@ -724,40 +793,60 @@ class PhotometricCatalogue(table.Table):
             self.meta['nc_pars'].
 
         """
-        def number_count_lnlikelihood_(x, mags):  # pylint: disable=invalid-name
-            """Service function to compute the likelihood for number counts."""
-            # Magnitude errors ignored here, not sure if important...
-            c = x[0]  # c -> m_c
-            s = x[1]  # s -> \sigma_c
-            # Solve analytically for the best beta, this reduces one parameter
-            d = c - np.mean(mags)
-            b = 2.0 / (d + np.sqrt(d * d + 4 * s * s))
-
-            # Model: p(m) = exp(n)*exp(b*m+b*b*e*e/2) * 0.5*erfc((m-c) / sqrt(2*s*s))
-            # Normalization: K = exp(n)/b * exp(b*c + (e*e + s*s) * b*b / 2)
-
-            # Just use normalized probability, this reduces one further parameter:
-            # ln L = sum(log p(m)) - N*log K
-            lnlike = np.log(b) - b * d - b * b * 0.5 * s * s + \
-                np.mean(log_ndtr((c - mags) / np.abs(s)))
-            return -lnlike
 
         nc_pars = []
         if indices is None:
             indices = slice(None)
+        if pool:
+            # Create a shared memory object
+            sh_mags = shared_memory.SharedMemory(create=True, 
+                                                    size=self['mags'].nbytes)
+            arr_mags = np.ndarray(self['mags'].shape, dtype=self['mags'].dtype, 
+                                  buffer=sh_mags.buf)
+            arr_mags[:] = self['mags'][:]
+            mags = (sh_mags.name, arr_mags.shape, arr_mags.dtype)
+            sh_errs = shared_memory.SharedMemory(create=True,
+                                                 size=self['mag_errs'].nbytes)
+            arr_errs = np.ndarray(self['mag_errs'].shape, dtype=self['mag_errs'].dtype,
+                                  buffer=sh_errs.buf)
+            arr_errs[:] = self['mag_errs'][:]
+            errs = (sh_errs.name, arr_errs.shape, arr_errs.dtype)
+            if isinstance(indices, np.ndarray):
+                sh_inds = shared_memory.SharedMemory(create=True, 
+                                                        size=indices.nbytes)
+                arr_inds = np.ndarray(indices.shape, dtype=indices.dtype, 
+                                      buffer=sh_inds.buf)
+                arr_inds[:] = indices[:]
+                inds = (sh_inds_buf.name, arr_inds.shape, arr_inds.dtype)
+            else:
+                inds = indices
+            starmap = pool.starmap
+        else:
+            mags = self['mags']
+            errs = self['mag_errs']
+            inds = indices
+            starmap = itertools.starmap
+
+        args = (mags, errs, inds, self.meta['max_err'], start_completeness,
+                start_width, method)
+        results = starmap(PhotometricCatalogue._fit_number_counts,
+                          [(band,) + args for band in range(self.meta['n_bands'])])
+        results = list(results)
+        if pool:
+            # Free the resources
+            sh_mags.close()
+            sh_mags.unlink()
+            sh_errs.close()
+            sh_errs.unlink()
+            if isinstance(indices, np.ndarray):
+                sh_inds.close()
+                sh_inds.unlink()
+
         for band in range(self.meta['n_bands']):
-            mags = self['mags'][indices, band]
-            mags = mags[self['mag_errs'][indices, band] < self.meta['max_err']]
-            p0 = np.array([start_completeness, start_width])
-            m = minimize(number_count_lnlikelihood_, p0,
-                         args=(mags,), method=method)
-            m_c = m.x[0]
-            s_c = m.x[1]
-            d = m_c - np.mean(mags)
-            beta = 2.0 / (d + np.sqrt(d * d + 4 * s_c * s_c))
+            beta, m_c, s_c = results[band]
             LOGGER.info('Number-count fit for band %d: (%g, %g, %g)',
-                        band, beta, m_c, np.abs(s_c))
-            nc_pars.append([beta, m_c, np.abs(s_c)])
+                        band, beta, m_c, s_c)
+            nc_pars.append([beta, m_c, s_c])
         self.meta['nc_pars'] = np.array(nc_pars, dtype=self['mags'].dtype)
         return self.meta['nc_pars']
 
@@ -812,12 +901,64 @@ class PhotometricCatalogue(table.Table):
                    else 'magnitude')
         plt.ylabel('number counts')
 
+    
+    @classmethod
+    def _fit_phot_uncertainties(cls, band, mags, errs, inds, null_err, mag_lims,
+                                start_alpha, start_beta, start_gamma, n_times, method):
+        
+        def phot_uncert_chisquare(x, m0, mags, errs):  # pylint: disable=invalid-name
+            """Chi-square function for the photometry uncertainty fit."""
+            a, b, c = x[0:3]
+            ts = np.hstack(([1.0], x[3:]))
+            k = 2.5 / np.log(10)
+            l = 10**(-0.4*(mags - m0))
+            e_l = np.sqrt((a*a*l[np.newaxis, :] + b*b) * ts[:, np.newaxis] + c*c)
+            e_m = k * e_l / l
+            delta = np.min((errs[np.newaxis, :] - e_m)**2, axis=0)
+            return np.sum(delta)
+
+        if isinstance(mags, tuple):
+            sh_mags = shared_memory.SharedMemory(name=mags[0])
+            mags = np.ndarray(mags[1], dtype=mags[2], buffer=sh_mags.buf)
+        else:
+            sh_mags = False
+        if isinstance(errs, tuple):
+            sh_errs = shared_memory.SharedMemory(name=errs[0])
+            errs = np.ndarray(errs[1], dtype=errs[2], buffer=sh_errs.buf)
+        else:
+            sh_errs = False
+        if isinstance(inds, tuple):
+            sh_inds = shared_memory.SharedMemory(name=inds[0])
+            inds = np.ndarray(inds[1], dtype=inds[2], buffer=sh_inds.buf)
+        else:
+            sh_inds = False
+        # Arrays are unpacked, now performs the analysis
+        mags = mags[inds, band]
+        errs = errs[inds, band]
+        w = np.where((errs < null_err) & (mags < mag_lims[band]))[0]
+        mags = mags[w]
+        errs = errs[w]
+        m0 = np.median(mags - 5 * np.log10(errs))
+        p0 = np.array([start_alpha, start_beta, start_gamma])
+        p0 = np.hstack((p0, np.arange(n_times-1) + 2))
+        m = minimize(phot_uncert_chisquare, p0,
+                     args=(m0, mags, errs), method=method)
+        # Free the local resources
+        if sh_mags:
+            sh_mags.close()
+        if sh_errs:
+            sh_errs.close()
+        if sh_inds:
+            sh_inds.close()
+        return np.hstack(([m0], m.x))
+        
 
     def fit_phot_uncertainties(self, start_alpha: float = 1.0, 
                                start_beta: float = 1.0, start_gamma: float = 1.0, 
                                n_times: int = 2, nc_cut: float = 3.0,
-                               method: str = 'Nelder-Mead', 
-                               indices: Union[List[int], slice, None] = None):
+                               method: str = 'SLSQP', 
+                               indices: Union[List[int], slice, None] = None,
+                               pool: Union[mp.pool.Pool, None] = None):
         r"""Perform a fit of the photometric uncertainties.
 
         The model assumes that the noise e in luminosity for each source can
@@ -831,7 +972,7 @@ class PhotometricCatalogue(table.Table):
         (termal noise, \beta term), the sky contribution (background noise,
         also included in the \beta term), and the readout noise (\gamma
         term). The model further assumes that all the greek-letter
-        coefficients are constants for each source, and that only the time t
+        coefficients are constants for all sources, and that only the time t
         changes (as a result, for example, of different coverage).
 
         The conversion from magnitudes to luminosities is done using the
@@ -868,11 +1009,15 @@ class PhotometricCatalogue(table.Table):
             completeness width. Use nc_cut=None to avoid any cut. If a sequence
             is passed, it is used taken to be the nc_cut to use for each band.
 
-        method : string, default = 'Nelder-Mead'
+        method : string, default = 'SLSQP'
             The optimization method to use (see `minimize`).
 
         indices : list of indices, slice, or None
             If provided, an index specification indicating the objects to use.
+
+        pool : Pool or None, default to None
+            If not None, must be a multiprocessing pool; it is used to divide
+            the work on the various bands among all pool objects.
 
         Return value
         ------------
@@ -881,17 +1026,6 @@ class PhotometricCatalogue(table.Table):
             for each band, also saved in self.meta['noise_pars'].
 
         """
-        def phot_uncert_chisquare_(x, m0, mags, errs):  # pylint: disable=invalid-name
-            """Chi-square function for the photometry uncertainty fit."""
-            a, b, c = x[0:3]
-            ts = np.hstack(([1.0], x[3:]))
-            l = 10**(-0.4*(mags - m0))
-            e_l = np.sqrt(a*a*ts[:, np.newaxis]*l[np.newaxis, :] +
-                          b*b*ts[:, np.newaxis] + c*c)
-            e_m = 2.5 / (l*np.log(10)) * e_l
-            delta = np.min((errs[np.newaxis, :] - e_m)**2, axis=0)
-            return np.sum(delta)
-
         noise_pars = []
         if indices is None:
             indices = slice(None)
@@ -906,21 +1040,57 @@ class PhotometricCatalogue(table.Table):
             mag_lims = np.repeat(np.inf, self.meta['n_bands'])
         LOGGER.debug('Magnitude limits: %g' + (', %g'*(len(mag_lims) - 1)),
                      *mag_lims)
+        if pool:
+            # Create a shared memory object
+            sh_mags = shared_memory.SharedMemory(create=True, 
+                                                    size=self['mags'].nbytes)
+            arr_mags = np.ndarray(self['mags'].shape, dtype=self['mags'].dtype, 
+                                  buffer=sh_mags.buf)
+            arr_mags[:] = self['mags'][:]
+            mags = (sh_mags.name, arr_mags.shape, arr_mags.dtype)
+            sh_errs = shared_memory.SharedMemory(create=True, 
+                                                    size=self['mag_errs'].nbytes)
+            arr_errs = np.ndarray(self['mag_errs'].shape, dtype=self['mag_errs'].dtype, 
+                                  buffer=sh_errs.buf)
+            arr_errs[:] = self['mag_errs'][:]
+            errs = (sh_errs.name, arr_errs.shape, arr_errs.dtype)
+            if isinstance(indices, np.ndarray):
+                sh_inds = shared_memory.SharedMemory(create=True, 
+                                                        size=indices.nbytes)
+                arr_inds = np.ndarray(indices.shape, dtype=indices.dtype, 
+                                      buffer=sh_inds.buf)
+                arr_inds[:] = indices[:]
+                inds = (sh_inds_buf.name, arr_inds.shape, arr_inds.dtype)
+            else:
+                inds = indices
+            starmap = pool.starmap
+        else:
+            mags = self['mags']
+            errs = self['mag_errs']
+            inds = indices
+            starmap = itertools.starmap
+        
+        args = (mags, errs, inds, self.meta['null_err'], mag_lims,
+                start_alpha, start_beta, start_gamma, n_times, method) 
+        results = starmap(PhotometricCatalogue._fit_phot_uncertainties, 
+                          [(band,) + args for band in range(self.meta['n_bands'])])
+        results = list(results)
+        if pool:
+            # Free the resources
+            sh_mags.close()
+            sh_mags.unlink()
+            sh_errs.close()
+            sh_errs.unlink()
+            if isinstance(indices, np.ndarray):
+                sh_inds.close()
+                sh_inds.unlink()
+            
         for band in range(self.meta['n_bands']):
-            mags = self['mags'][indices, band]
-            errs = self['mag_errs'][indices, band]
-            w = np.where((errs < self.meta['null_err']) &
-                         (mags < mag_lims[band]))[0]
-            mags = mags[w]
-            errs = errs[w]
-            m0 = np.median(mags - 5 * np.log10(errs))
-            p0 = np.array([start_alpha, start_beta, start_gamma])
-            p0 = np.hstack((p0, np.arange(n_times-1) + 2))
-            m = minimize(phot_uncert_chisquare_, p0,
-                         args=(m0, mags, errs), method=method)
+            m0 = results[band][0]
+            x = results[band][1:]
             LOGGER.info('Noise fit for band %d: (%g, %g, %g, %g)',
-                        band, m0, m.x[0]**2, m.x[1]**2, m.x[2]**2)
-            noise_pars.append(np.hstack(([m0], m.x[:3]**2)))
+                        band, m0, x[0]**2, x[1]**2, x[2]**2)
+            noise_pars.append(np.hstack(([m0], x[:3]**2)))
         self.meta['noise_pars'] = np.array(noise_pars,
                                            dtype=self['mags'].dtype)
         return self.meta['noise_pars']
@@ -1006,7 +1176,7 @@ class PhotometricCatalogue(table.Table):
                    else 'error')
 
     def log_completeness(self, band: int, 
-                         magnitudes: Union[float, NDArray[(Any,)]]):
+                         magnitudes: Union[float, NDArray[Shape["*"], Float]]):
         """Compute the log of the completeness function in a given band.
 
         Parameters
@@ -1028,7 +1198,7 @@ class PhotometricCatalogue(table.Table):
         _, m_c, s_c = self.meta['nc_pars'][band]
         return log_ndtr((m_c - magnitudes) / s_c)
 
-    def extinguish(self, extinction: Union[float, NDArray[(Any,)]], 
+    def extinguish(self, extinction: Union[float, NDArray[Shape["*"], Float]],
                    apply_completeness: bool = True, update_errors: bool = True):
         """Simulate the effect of extinction and return an updated catalogue.
 
@@ -1182,7 +1352,7 @@ class ColorCatalogue(table.Table):
                                    dtype: Optional[type] = None,
                                    band: Optional[int] = None, 
                                    map_mags = lambda _: _,
-                                   extinctions: Optional[NDArray[(Any,)]] = None, 
+                                   extinctions: Optional[NDArray[Shape["*"], Float]] = None, 
                                    tolerance: float = 1e-5):
         """Compute the colors associate to the current catalogue.
 
@@ -1566,8 +1736,8 @@ class ExtinctionCatalogue(table.Table):
         self.meta['n_components'] = n_components
         return self
 
-    def score_samples_components(self, X: NDArray[(Any,)], 
-                                 Xerr: NDArray[(Any,)]):  # pylint: disable=invalid-name
+    def score_samples_components(self, X: NDArray[Shape["*"], Float], 
+                                 Xerr: NDArray[Shape["*"], Float]):  # pylint: disable=invalid-name
         """Compute the log of the probability distribution for each component.
 
         Given a specific extinction value and associated error, this method
@@ -1593,7 +1763,7 @@ class ExtinctionCatalogue(table.Table):
         delta = X[:, np.newaxis] - self['means_A']
         return -delta*delta/(2.0*T) - np.log(2.0*np.pi*T) / 2
 
-    def score_samples(self, X: NDArray[(Any,)], Xerr: NDArray[(Any,)]):  # pylint: disable=invalid-name
+    def score_samples(self, X: NDArray[Shape["*"], Float], Xerr: NDArray[Shape["*"], Float]):  # pylint: disable=invalid-name
         """Compute the log of the probability distribution for all objects.
 
         Given a specific extinction value and associated error, this method
@@ -1617,8 +1787,8 @@ class ExtinctionCatalogue(table.Table):
         log = self.score_samples_components(X, Xerr)
         return logsumexp(self['log_weights'] + log, axis=-1)
 
-    def score_samples_single(self, X: NDArray[(Any,)], 
-                             logs: Optional[NDArray[(Any,)]] = None):  # pylint: disable=invalid-name
+    def score_samples_single(self, X: NDArray[Shape["*"], Float], 
+                             logs: Optional[NDArray[Shape["*"], Float]] = None):  # pylint: disable=invalid-name
         """Compute the log of the probability distribution for all objects.
 
         Given a specific single extinction value for all objects, this method
